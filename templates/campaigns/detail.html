@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Campaign: {{ batch_ref }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('campaigns') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to Campaigns
+    </a>
+    <div class="page-title mt-1">{{ batch_ref[:50] }}{% if batch_ref|length > 50 %}…{% endif %}</div>
+    <div style="color:#9aabc5;font-size:12px">{{ leads|length }} leads in this batch</div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-body p-0">
+    <table class="table table-hover mb-0">
+      <thead><tr>
+        <th>Seller</th><th>City</th><th>Category</th><th>Gabay</th><th>Status</th><th>Priority</th>
+      </tr></thead>
+      <tbody>
+        {% for lead in leads %}
+        <tr onclick="location.href='{{ url_for('lead_detail', lead_id=lead.id) }}'" style="cursor:pointer">
+          <td>
+            <div style="font-weight:700;color:#1F3864">{{ lead.seller_name }}</div>
+            <div style="font-size:11px;color:#9aabc5">{{ lead.business_name or '' }}</div>
+          </td>
+          <td style="font-size:12px">{{ lead.city or '—' }}</td>
+          <td style="font-size:12px">{{ lead.category or '—' }}</td>
+          <td style="font-size:12px">
+            {% if lead.assigned_gabay %}{{ lead.assigned_gabay.full_name.split()[0] }}{% else %}<span style="color:#9aabc5">Unassigned</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge badge-{{ lead.status_color }}">{{ lead.status_label }}</span>
+          </td>
+          <td>
+            {% set pl = lead.priority_label %}
+            <span style="font-size:11px;font-weight:700;color:{{ pl[1] }}">
+              <i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }}
+            </span>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}

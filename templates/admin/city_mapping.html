@@ -1,0 +1,942 @@
+{% extends "base.html" %}
+{% block title %}City & Gabay Setup{% endblock %}
+{% block content %}
+<style>
+  .step-tab { display:flex; align-items:center; gap:10px; padding:14px 20px; border-radius:12px;
+              cursor:pointer; border:2px solid #E0E6EF; background:white; flex:1;
+              transition:all 0.15s; text-align:left; }
+  .step-tab.active { border-color:#1F3864; background:#1F3864; color:white; }
+  .step-tab:not(.active):hover { border-color:#2E75B6; }
+  .step-num { width:32px; height:32px; border-radius:50%; display:flex; align-items:center;
+              justify-content:center; font-weight:900; font-size:14px; flex-shrink:0; }
+  .step-tab.active .step-num { background:rgba(255,255,255,0.2); color:white; }
+  .step-tab:not(.active) .step-num { background:#F0F4FA; color:#1F3864; }
+  .step-tab .step-label { font-weight:800; font-size:13px; }
+  .step-tab .step-desc { font-size:11px; opacity:0.7; margin-top:1px; }
+  .city-card { background:white; border-radius:12px; padding:14px 16px;
+               box-shadow:0 2px 8px rgba(31,56,100,0.07); border-left:4px solid #1F3864;
+               display:flex; flex-direction:column; gap:5px; }
+  .city-card.no-gabay { border-left-color:#b91c1c; background:#FFFBF9; }
+  .city-card.straggler { border-left-color:#E07B00; background:#FFFBEB; }
+  .big-num { font-size:28px; font-weight:900; line-height:1; }
+  .city-label { font-size:14px; font-weight:800; color:#1F3864; }
+  .tag { font-size:11px; font-weight:700; padding:3px 9px; border-radius:8px; display:inline-flex; align-items:center; gap:4px; }
+  .tag-green { background:#F0FDF4; color:#15803d; }
+  .tag-red { background:#FEF2F2; color:#b91c1c; }
+  .tag-blue { background:#EFF6FF; color:#1d4ed8; }
+  .stat-card { background:white; border-radius:12px; padding:16px 20px; box-shadow:0 2px 8px rgba(31,56,100,0.07); text-align:center; }
+  .action-btn { font-weight:800; border:none; border-radius:10px; padding:10px 22px; font-size:13px; cursor:pointer; }
+  .panel { display:none; }
+  .panel.active { display:block; }
+  .city-input { font-size:13px; font-weight:700; border:2px solid #E0E6EF; border-radius:8px;
+                padding:5px 10px; color:#1F3864; width:100%; }
+  .city-input:focus { outline:none; border-color:#2E75B6; }
+  select.city-input { background:white; }
+  .gabay-row { background:white; border-radius:10px; padding:14px 16px;
+               border:1px solid #E0E6EF; margin-bottom:10px; }
+  .section-title { font-size:11px; font-weight:800; color:#9aabc5; text-transform:uppercase;
+                   letter-spacing:1px; margin-bottom:12px; }
+</style>
+
+<div class="page-header" style="margin-bottom:16px">
+  <div>
+    <div class="page-title"><i class="bi bi-geo-alt-fill me-2" style="color:#7c3aed"></i>City &amp; Gabay Setup</div>
+    <div style="color:#9aabc5;font-size:12px">3 steps to prepare your leads for Smart Assignment</div>
+  </div>
+  <a href="{{ url_for('smart_assign') }}"
+    style="background:#FF9900;color:#1F3864;font-weight:800;border:none;border-radius:10px;padding:10px 22px;font-size:13px;text-decoration:none">
+    <i class="bi bi-stars me-1"></i> Run Smart Assignment
+  </a>
+</div>
+
+<!-- STAT ROW -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div style="font-size:10px;font-weight:700;color:#9aabc5;text-transform:uppercase">Total Leads</div>
+      <div style="font-size:34px;font-weight:900;color:#1F3864">{{ total_leads }}</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div style="font-size:10px;font-weight:700;color:#9aabc5;text-transform:uppercase">City Issues</div>
+      <div style="font-size:34px;font-weight:900;color:{% if needs_fix_count > 0 %}#E07B00{% else %}#15803d{% endif %}">{{ needs_fix_count }}</div>
+      <div style="font-size:10px;color:#9aabc5">spelling variants</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div style="font-size:10px;font-weight:700;color:#9aabc5;text-transform:uppercase">Missing City</div>
+      <div style="font-size:34px;font-weight:900;color:{% if no_city_count > 0 %}#b91c1c{% else %}#15803d{% endif %}">{{ no_city_count }}</div>
+      <div style="font-size:10px;color:#9aabc5">leads excluded</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="stat-card">
+      <div style="font-size:10px;font-weight:700;color:#9aabc5;text-transform:uppercase">Gabay Agents</div>
+      <div style="font-size:34px;font-weight:900;color:#1F3864">{{ gabay_list|length }}</div>
+      <div style="font-size:10px;color:#9aabc5">assigned agents</div>
+    </div>
+  </div>
+</div>
+
+<!-- STEP TABS -->
+<div class="d-flex gap-2 mb-4" style="flex-wrap:wrap">
+  <button class="step-tab {% if active_tab == 'names' %}active{% endif %}" onclick="switchTab('names')">
+    <div class="step-num">1</div>
+    <div>
+      <div class="step-label">Fix City Names</div>
+      <div class="step-desc">Clean up spelling variants</div>
+    </div>
+    {% if needs_fix_count > 0 %}
+    <span style="margin-left:auto;background:#E07B00;color:white;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800">{{ needs_fix_count }}</span>
+    {% endif %}
+  </button>
+  <button class="step-tab {% if active_tab == 'missing' %}active{% endif %}" onclick="switchTab('missing')">
+    <div class="step-num">2</div>
+    <div>
+      <div class="step-label">Fill Missing Cities</div>
+      <div class="step-desc">Leads with no city set</div>
+    </div>
+    {% if no_city_count > 0 %}
+    <span style="margin-left:auto;background:#b91c1c;color:white;border-radius:8px;padding:2px 8px;font-size:11px;font-weight:800">{{ no_city_count }}</span>
+    {% endif %}
+  </button>
+  <button class="step-tab {% if active_tab == 'gabay' %}active{% endif %}" onclick="switchTab('gabay')">
+    <div class="step-num">3</div>
+    <div>
+      <div class="step-label">Assign Gabay to Cities</div>
+      <div class="step-desc">Who covers which city</div>
+    </div>
+  </button>
+</div>
+
+<!-- ===== TAB 1: FIX CITY NAMES ===== -->
+<div id="tab-names" class="panel {% if active_tab == 'names' %}active{% endif %}">
+  <form method="POST">
+    <input type="hidden" name="action" value="rename">
+    <div style="background:#EFF6FF;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1d4ed8">
+      <i class="bi bi-info-circle me-2"></i>
+      <strong>What this does:</strong> The same city may be written differently in the raw data
+      (e.g. "QUEZON CITY", "quezon city", "Quezon city"). This step merges them into one correct name.
+    </div>
+    <div class="d-flex gap-2 mb-3">
+      <button type="button" onclick="autoFix()"
+        style="background:#7c3aed;color:white" class="action-btn">
+        <i class="bi bi-stars me-1"></i> Auto-Fix All Variants
+      </button>
+      <button type="submit"
+        style="background:#1F3864;color:white" class="action-btn">
+        <i class="bi bi-check-circle me-1"></i> Save My Renames
+      </button>
+    </div>
+
+    {% set main_groups = groups|rejectattr('is_no_city')|rejectattr('is_straggler')|list %}
+    {% set straggler_list = groups|selectattr('is_straggler')|list %}
+
+    {% if needs_fix_count == 0 and straggler_list|length == 0 %}
+    <div style="background:#F0FDF4;border-radius:10px;padding:20px;text-align:center;color:#15803d;font-weight:700">
+      <i class="bi bi-check-circle-fill" style="font-size:24px"></i><br>All city names look clean!
+    </div>
+    {% else %}
+
+    {% if straggler_list %}
+    <div class="section-title"><i class="bi bi-exclamation-triangle-fill me-1" style="color:#E07B00"></i>Cities with Very Few Leads — Likely Typos</div>
+    <div class="card mb-4">
+      <table class="table mb-0" style="font-size:13px">
+        <thead style="background:#FFFBEB">
+          <tr style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+            <th class="ps-3">City Name in Data</th>
+            <th style="width:80px">Leads</th>
+            <th>Correct Name <span style="font-weight:400;text-transform:none">(type the right name, or leave blank to keep)</span></th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for g in straggler_list %}
+          <tr>
+            <td class="ps-3" style="font-weight:700;vertical-align:middle">{{ g.suggested }}</td>
+            <td style="vertical-align:middle">
+              <span style="background:#FEF9EC;color:#E07B00;font-weight:800;padding:2px 9px;border-radius:6px">{{ g.total }}</span>
+            </td>
+            <td style="vertical-align:middle;padding:8px">
+              {% for raw, cnt in g.variants %}
+              <input type="hidden" name="canon_{{ raw }}" class="sc-{{ loop.index0 }}" value="{{ g.suggested }}">
+              {% endfor %}
+              <input type="text" class="city-input" style="max-width:260px"
+                value="{{ g.suggested }}"
+                placeholder="e.g. Quezon City"
+                oninput="syncInputs(this, '.sc-{{ loop.index0 }}')">
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% endif %}
+
+    {% if main_groups|selectattr('needs_fix')|list %}
+    <div class="section-title"><i class="bi bi-pencil-fill me-1" style="color:#2E75B6"></i>Cities With Multiple Spellings — Pick The Correct One</div>
+    <div class="row g-2">
+      {% for g in main_groups %}{% if g.needs_fix %}
+      <div class="col-12 col-md-6">
+        <div style="background:#FFFBEB;border-radius:10px;border:1px solid #FCD34D;padding:12px 14px">
+          <div style="font-size:10px;font-weight:700;color:#E07B00;text-transform:uppercase;margin-bottom:6px">Found these spellings in data:</div>
+          <div class="d-flex flex-wrap gap-1 mb-8" style="margin-bottom:8px">
+            {% for raw, cnt in g.variants %}
+            <span style="background:white;border:1px solid #E0E6EF;border-radius:6px;padding:2px 8px;font-size:12px;font-weight:700">
+              {{ raw }} <span style="color:#9aabc5">({{ cnt }})</span>
+            </span>
+            {% endfor %}
+          </div>
+          <div style="font-size:11px;color:#6b7280;margin-bottom:4px">What should the correct name be?</div>
+          {% set gid2 = 'fix' ~ loop.index %}
+          {% for raw, cnt in g.variants %}
+          <input type="hidden" name="canon_{{ raw }}" class="gc-{{ gid2 }}" value="{{ g.suggested }}">
+          {% endfor %}
+          <input type="text" class="city-input" value="{{ g.suggested }}"
+            placeholder="Correct city name"
+            oninput="syncInputs(this, '.gc-{{ gid2 }}')">
+        </div>
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+    {% endif %}
+
+    {% endif %}
+  </form>
+</div>
+
+<!-- ===== TAB 2: FILL MISSING CITIES ===== -->
+<div id="tab-missing" class="panel {% if active_tab == 'missing' %}active{% endif %}">
+  {% if no_city_count == 0 %}
+  <div style="background:#F0FDF4;border-radius:10px;padding:30px;text-align:center;color:#15803d;font-weight:700;font-size:15px">
+    <i class="bi bi-check-circle-fill" style="font-size:28px;display:block;margin-bottom:8px"></i>
+    All leads have a city — nothing to fix here!
+  </div>
+  {% else %}
+  <div style="background:#FEF2F2;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#b91c1c">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>{{ no_city_count }} leads have no city</strong> and will be <strong>skipped</strong> during Smart Assignment.
+    Use this page to assign them a city so they can be distributed to Gabay agents.
+  </div>
+
+  <form method="POST">
+    <input type="hidden" name="action" value="province_fill">
+
+    {% for p in no_city_provinces %}
+    <div style="background:white;border-radius:12px;border:1px solid #E0E6EF;margin-bottom:16px;overflow:hidden">
+      <!-- Province header -->
+      <div style="background:#F8FAFC;padding:12px 16px;border-bottom:1px solid #E0E6EF;display:flex;align-items:center;gap:12px">
+        <i class="bi bi-map-fill" style="color:#7c3aed;font-size:18px"></i>
+        <div>
+          <div style="font-weight:800;font-size:15px;color:#1F3864">{{ p.province }}</div>
+          <div style="font-size:11px;color:#9aabc5">{{ p.count }} lead{{ 's' if p.count != 1 }} with no city</div>
+        </div>
+        <span style="margin-left:auto;background:#FEF2F2;color:#b91c1c;font-weight:900;padding:4px 12px;border-radius:8px;font-size:15px">{{ p.count }}</span>
+      </div>
+
+      {% if p.is_metro %}
+      <!-- Metro Manila: show individual leads -->
+      <div style="padding:14px 16px">
+        <div style="font-size:12px;color:#E07B00;font-weight:700;margin-bottom:10px">
+          <i class="bi bi-exclamation-triangle-fill me-1"></i>
+          Metro Manila has many cities. Please assign the correct city for each lead below:
+        </div>
+        <table class="table table-sm mb-0" style="font-size:13px">
+          <thead>
+            <tr style="font-size:11px;color:#9aabc5;text-transform:uppercase;background:#F8FAFC">
+              <th class="ps-2">Seller / Shop Name</th>
+              <th>Address Info</th>
+              <th style="width:210px">Assign City</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lead in p.indiv_leads %}
+            <tr>
+              <td class="ps-2" style="vertical-align:middle;font-weight:700">{{ lead.seller_name or '—' }}</td>
+              <td style="vertical-align:middle;font-size:11px;color:#6b7280">
+                {% if lead.barangay %}{{ lead.barangay }},{% endif %}
+                {% if lead.address %}{{ lead.address[:60] }}{% endif %}
+              </td>
+              <td style="vertical-align:middle;padding:4px">
+                <input list="citylist" name="lead_city_{{ lead.id }}"
+                  class="city-input" placeholder="Type or pick city..."
+                  value="">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <!-- Other province: one city for all -->
+      <div style="padding:14px 16px;display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+        <div style="font-size:13px;color:#374151;flex-grow:1">
+          Assign <strong>one city</strong> to all {{ p.count }} leads from <strong>{{ p.province }}</strong>:
+        </div>
+        <div style="display:flex;align-items:center;gap:8px">
+          <input list="citylist" name="prov_city_{{ p.province }}"
+            class="city-input" style="width:220px"
+            value="{{ p.suggested_city }}"
+            placeholder="Type or pick a city...">
+          <span style="font-size:11px;color:#9aabc5" id="cov_{{ loop.index }}"></span>
+        </div>
+      </div>
+      {% endif %}
+    </div>
+    {% endfor %}
+
+    <!-- Leads with no city AND no province -->
+    {% if no_city_no_prov_leads %}
+    <div style="background:white;border-radius:12px;border:1px solid #E0E6EF;margin-bottom:16px;overflow:hidden">
+      <div style="background:#F8FAFC;padding:12px 16px;border-bottom:1px solid #E0E6EF">
+        <div style="font-weight:800;font-size:14px;color:#6b7280">
+          <i class="bi bi-question-circle me-2"></i>No Province Info — Assign City Manually
+        </div>
+        <div style="font-size:11px;color:#9aabc5">{{ no_city_no_prov_leads|length }} leads with no city and no province</div>
+      </div>
+      <div style="padding:14px 16px">
+        <table class="table table-sm mb-0" style="font-size:13px">
+          <thead>
+            <tr style="font-size:11px;color:#9aabc5;text-transform:uppercase;background:#F8FAFC">
+              <th class="ps-2">Seller / Shop Name</th>
+              <th>Address</th>
+              <th style="width:210px">Assign City</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for lead in no_city_no_prov_leads %}
+            <tr>
+              <td class="ps-2" style="vertical-align:middle;font-weight:700">{{ lead.seller_name or '—' }}</td>
+              <td style="vertical-align:middle;font-size:11px;color:#6b7280">{{ lead.address[:60] if lead.address else '—' }}</td>
+              <td style="vertical-align:middle;padding:4px">
+                <input list="citylist" name="lead_city_{{ lead.id }}"
+                  class="city-input" placeholder="Type city...">
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- Datalist for city autocomplete -->
+    <datalist id="citylist">
+      {% for c in known_cities %}<option value="{{ c }}">{% endfor %}
+    </datalist>
+
+    <button type="submit" style="background:#b91c1c;color:white" class="action-btn">
+      <i class="bi bi-check-circle me-1"></i> Save City Assignments
+    </button>
+  </form>
+  {% endif %}
+</div>
+
+<!-- ===== TAB 3: ASSIGN GABAY TO CITIES ===== -->
+<div id="tab-gabay" class="panel {% if active_tab == 'gabay' %}active{% endif %}">
+  <div style="background:#EFF6FF;border-radius:10px;padding:12px 16px;margin-bottom:16px;font-size:13px;color:#1d4ed8">
+    <i class="bi bi-info-circle me-2"></i>
+    <strong>How it works:</strong> Click the <strong>+ Add City</strong> button next to each agent, pick a city from the dropdown, and it gets added as a tag.
+    Click the <strong>✕</strong> on a tag to remove a city. Then hit <strong>Save</strong>.
+  </div>
+
+  <form method="POST" id="gabayForm">
+    <input type="hidden" name="action" value="gabay_assign">
+
+    <!-- City coverage overview: show cities with no gabay -->
+    {% set unassigned_cities = groups|rejectattr('is_no_city')|rejectattr('is_straggler')|rejectattr('has_gabay')|list %}
+    <div id="unassignedWrapper" style="background:#FEF2F2;border-radius:10px;padding:14px 16px;margin-bottom:16px{% if not unassigned_cities %};display:none{% endif %}">
+      <div style="font-weight:800;color:#b91c1c;font-size:13px;margin-bottom:8px">
+        <i class="bi bi-exclamation-triangle-fill me-1"></i>
+        <span id="unassignedCount">{{ unassigned_cities|length }}</span> cities still need a Gabay agent
+        <span style="font-size:11px;font-weight:400;color:#9aabc5;margin-left:6px">— click a city to see who should cover it</span>
+      </div>
+      <div id="unassignedBox" class="d-flex flex-wrap gap-2 mb-2">
+        {% for g in unassigned_cities %}
+        <button type="button"
+          id="ucity_{{ g.suggested|lower|replace(' ','_') }}"
+          data-city="{{ g.suggested|lower }}"
+          data-leads="{{ g.total }}"
+          onclick="toggleCitySuggestions('{{ g.suggested }}', {{ g.total }}, this)"
+          style="background:white;border:1px dashed #FCA5A5;border-radius:8px;padding:5px 13px;
+                 font-size:12px;font-weight:700;color:#b91c1c;cursor:pointer;transition:all 0.1s">
+          <i class="bi bi-geo-alt-fill me-1"></i>{{ g.suggested }}
+          <span style="color:#9aabc5;font-weight:400">({{ g.total }})</span>
+          <i class="bi bi-chevron-down ms-1" style="font-size:10px"></i>
+        </button>
+        {% endfor %}
+      </div>
+      <!-- Suggestion panel shown when city chip is clicked -->
+      <div id="citySuggPanel" style="display:none;background:white;border-radius:10px;border:1px solid #FCA5A5;padding:14px 16px;margin-top:6px">
+        <div id="citySuggTitle" style="font-weight:800;color:#1F3864;font-size:13px;margin-bottom:10px"></div>
+        <div id="citySuggList"></div>
+      </div>
+    </div>
+
+    <div class="section-title">Gabay Agents — click "+ Add City" to assign coverage areas</div>
+
+    {% for g in gabay_list %}
+    <div class="gabay-row" id="gabay_row_{{ g.id }}">
+      <input type="hidden" name="gabay_cities_{{ g.id }}" id="hidden_{{ g.id }}" value="{{ g.cities }}">
+      <div style="display:flex;align-items:flex-start;gap:12px;flex-wrap:wrap">
+
+        <!-- Avatar + name -->
+        <div style="display:flex;align-items:center;gap:10px;min-width:180px;flex-shrink:0">
+          <div style="width:40px;height:40px;border-radius:50%;background:#1F3864;color:white;
+                      display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;flex-shrink:0">
+            {{ g.name[0]|upper }}
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:14px;color:#1F3864">{{ g.name }}</div>
+            <div style="font-size:11px;color:#9aabc5">@{{ g.username }}</div>
+          </div>
+        </div>
+
+        <!-- Tags + add button -->
+        <div style="flex-grow:1">
+          <div id="tags_{{ g.id }}" style="display:flex;flex-wrap:wrap;gap:6px;min-height:34px;align-items:center">
+            {% if not g.cities or not g.cities.strip() %}
+            <span style="color:#9aabc5;font-size:12px;font-style:italic" id="empty_{{ g.id }}">No cities assigned yet</span>
+            {% else %}
+            {% for c in g.cities.split(',') if c.strip() %}
+            <span class="city-chip" data-gabay="{{ g.id }}" data-city="{{ c.strip() }}"
+              style="background:#EFF6FF;color:#1d4ed8;border:1px solid #BFDBFE;border-radius:8px;
+                     padding:5px 10px;font-size:13px;font-weight:700;display:inline-flex;align-items:center;gap:6px">
+              <i class="bi bi-geo-alt-fill" style="font-size:11px"></i>{{ c.strip() }}
+              <button type="button" onclick="removeCity('{{ g.id }}','{{ c.strip() }}')"
+                style="background:none;border:none;color:#93C5FD;cursor:pointer;padding:0;font-size:14px;line-height:1"
+                title="Remove">&times;</button>
+            </span>
+            {% endfor %}
+            {% endif %}
+          </div>
+          <!-- Dropdown to add city -->
+          <div style="margin-top:8px;display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+            <select id="cityDrop_{{ g.id }}"
+              data-base="{{ g.cities.split(',')[0].strip() if g.cities else '' }}"
+              onchange="showDistance(this, 'dist_{{ g.id }}')"
+              style="border:2px solid #E0E6EF;border-radius:8px;padding:5px 10px;font-size:13px;
+                     color:#1F3864;background:white;font-weight:600;min-width:200px;max-width:300px">
+              <option value="">— Pick a city to add —</option>
+              {% for c in known_cities %}
+              <option value="{{ c }}">{{ c }}</option>
+              {% endfor %}
+            </select>
+            <button type="button" onclick="addCity('{{ g.id }}')"
+              style="background:#1F3864;color:white;border:none;border-radius:8px;
+                     padding:6px 14px;font-size:13px;font-weight:700;cursor:pointer">
+              <i class="bi bi-plus-circle me-1"></i>Add City
+            </button>
+            <span id="dist_{{ g.id }}" style="font-size:12px;font-weight:700"></span>
+          </div>
+          <!-- Suggestions row -->
+          <div id="sugg_{{ g.id }}" style="margin-top:8px;display:flex;flex-wrap:wrap;gap:6px;align-items:center">
+            <span style="font-size:11px;color:#9aabc5;font-weight:700;text-transform:uppercase;letter-spacing:0.5px">
+              <i class="bi bi-lightbulb-fill me-1" style="color:#FF9900"></i>Suggested:
+            </span>
+          </div>
+        </div>
+
+      </div>
+    </div>
+    {% endfor %}
+
+    {% if not gabay_list %}
+    <div style="text-align:center;padding:30px;color:#9aabc5">
+      No Gabay agents found. Add agents first from the <a href="{{ url_for('admin_users') }}">Users page</a>.
+    </div>
+    {% endif %}
+
+    <button type="submit" style="background:#1F3864;color:white;margin-top:8px" class="action-btn">
+      <i class="bi bi-check-circle me-1"></i> Save Gabay City Assignments
+    </button>
+  </form>
+</div>
+
+<script>
+const ACTIVE_TAB = '{{ active_tab }}';
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('[id^="sugg_"]').forEach(el => {
+    const gabayId = el.id.replace('sugg_', '');
+    buildSuggestions(gabayId);
+  });
+});
+
+function switchTab(name) {
+  document.querySelectorAll('.panel').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.step-tab').forEach(t => t.classList.remove('active'));
+  document.getElementById('tab-' + name).classList.add('active');
+  event.currentTarget.classList.add('active');
+  history.replaceState(null, '', '?tab=' + name);
+}
+
+function syncInputs(input, selector) {
+  document.querySelectorAll(selector).forEach(h => h.value = input.value);
+}
+
+// Philippine city coordinates (lat, lng)
+const CITY_COORDS = {
+  'manila': [14.5995, 120.9842],
+  'quezon city': [14.6760, 121.0437],
+  'caloocan': [14.7500, 120.9760],
+  'makati': [14.5540, 121.0190],
+  'pasay': [14.5378, 120.9972],
+  'pasig': [14.5764, 121.0851],
+  'marikina': [14.6507, 121.1029],
+  'muntinlupa': [14.4081, 121.0415],
+  'taguig': [14.5243, 121.0792],
+  'paranaque': [14.4793, 121.0198],
+  'parañaque': [14.4793, 121.0198],
+  'las pinas': [14.4453, 120.9900],
+  'las piñas': [14.4453, 120.9900],
+  'malabon': [14.6625, 120.9570],
+  'navotas': [14.6660, 120.9419],
+  'valenzuela': [14.7011, 120.9830],
+  'mandaluyong': [14.5794, 121.0359],
+  'san juan': [14.6019, 121.0355],
+  'pateros': [14.5444, 121.0685],
+  'cainta': [14.5781, 121.1247],
+  'antipolo': [14.6284, 121.1760],
+  'angono': [14.5234, 121.1540],
+  'binangonan': [14.4685, 121.1966],
+  'taytay': [14.5573, 121.1325],
+  'bacoor': [14.4580, 120.9400],
+  'imus': [14.4297, 120.9367],
+  'general trias': [14.3867, 120.8817],
+  'dasmarinas': [14.3294, 120.9367],
+  'dasmariñas': [14.3294, 120.9367],
+  'cavite city': [14.4791, 120.8965],
+  'cavite': [14.4791, 120.8965],
+  'malolos': [14.8527, 120.8122],
+  'meycauayan': [14.7362, 120.9624],
+  'san jose del monte': [14.8138, 121.0453],
+  'santa rosa': [14.3122, 121.1114],
+  'san pedro': [14.3588, 121.0539],
+  'binan': [14.3400, 121.0817],
+  'cabuyao': [14.2746, 121.1250],
+  'calamba': [14.2116, 121.1653],
+  'antipolo city': [14.6284, 121.1760],
+  'batangas city': [13.7565, 121.0583],
+  'lipa': [13.9411, 121.1631],
+  'san fernando': [15.0286, 120.6899],
+  'angeles': [15.1450, 120.5887],
+  'angeles city': [15.1450, 120.5887],
+  'mabalacat': [15.2167, 120.5781],
+  'dagupan': [16.0433, 120.3333],
+  'olongapo': [14.8295, 120.2826],
+  'cebu city': [10.3157, 123.8854],
+  'mandaue': [10.3236, 123.9223],
+  'lapu-lapu': [10.3119, 123.9494],
+  'davao city': [7.1907, 125.4553],
+  'iloilo city': [10.7202, 122.5621],
+  'bacolod': [10.6765, 122.9509],
+  'cagayan de oro': [8.4542, 124.6319],
+  'zamboanga city': [6.9214, 122.0790],
+  'general santos': [6.1164, 125.1716],
+  'tacloban': [11.2543, 125.0000],
+  // Cavite municipalities
+  'trece martires': [14.2833, 120.8667],
+  'silang': [14.2294, 120.9694],
+  'tanza': [14.3919, 120.8508],
+  'kawit': [14.4358, 120.9028],
+  'noveleta': [14.4228, 120.8853],
+  'rosario': [14.4167, 120.8500],
+  'naic': [14.3178, 120.7681],
+  'maragondon': [14.2667, 120.7333],
+  'ternate': [14.2833, 120.7167],
+  'indang': [14.1978, 120.8817],
+  'amadeo': [14.1681, 120.9200],
+  'tagaytay': [14.1053, 120.9620],
+  'alfonso': [14.1333, 120.9000],
+  'mendez': [14.1333, 120.9000],
+  'magallanes': [14.2000, 120.7500],
+  'carmona': [14.3156, 121.0547],
+  'general mariano alvarez': [14.2981, 121.0033],
+  // Rizal municipalities
+  'san mateo': [14.6946, 121.1222],
+  'rodriguez': [14.7378, 121.1322],
+  'montalban': [14.7378, 121.1322],
+  'morong': [14.5236, 121.2397],
+  'baras': [14.5167, 121.2667],
+  'tanay': [14.4983, 121.2872],
+  'pililla': [14.4833, 121.3167],
+  'jala-jala': [14.3500, 121.3667],
+  'cardona': [14.4828, 121.2272],
+  'teresa': [14.5583, 121.2000],
+  'angono': [14.5234, 121.1540],
+  'binangonan': [14.4685, 121.1966],
+  // Bulacan
+  'baliuag': [14.9567, 120.9011],
+  'guiguinto': [14.8314, 120.8797],
+  'bocaue': [14.8003, 120.9261],
+  'marilao': [14.7647, 120.9494],
+  'obando': [14.7272, 120.9314],
+  'hagonoy': [14.8333, 120.7333],
+  'plaridel': [14.8833, 120.8667],
+  'san ildefonso': [15.0833, 121.0000],
+  // Laguna
+  'los banos': [14.1667, 121.2167],
+  'bay': [14.1833, 121.2833],
+  'calauan': [14.1500, 121.3167],
+  'pila': [14.2333, 121.3667],
+  'victoria': [14.2333, 121.2833],
+  'siniloan': [14.4333, 121.4667],
+  'pagsanjan': [14.2683, 121.4564],
+  // Pampanga
+  'city of san fernando': [15.0286, 120.6899],
+  'mabalacat city': [15.2167, 120.5781],
+  'mexico': [15.0667, 120.7167],
+  'lubao': [14.9333, 120.6000],
+  // Other NCR
+  'san juan city': [14.6019, 121.0355],
+  'pateros': [14.5444, 121.0685],
+};
+
+function haversine(lat1, lng1, lat2, lng2) {
+  const R = 6371;
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLng = (lng2 - lng1) * Math.PI / 180;
+  const a = Math.sin(dLat/2)**2 + Math.cos(lat1*Math.PI/180) * Math.cos(lat2*Math.PI/180) * Math.sin(dLng/2)**2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+}
+
+function getCoords(cityName) {
+  if (!cityName) return null;
+  return CITY_COORDS[cityName.toLowerCase().trim()] || null;
+}
+
+function showDistance(sel, badgeId) {
+  const badge = document.getElementById(badgeId);
+  if (!badge) return;
+  const picked = sel.value;
+  const base = sel.dataset.base;
+  if (!picked) { badge.innerHTML = ''; return; }
+
+  const c1 = getCoords(base);
+  const c2 = getCoords(picked);
+
+  if (!c1 || !c2) {
+    badge.innerHTML = `<span style="color:#9aabc5"><i class="bi bi-geo-alt me-1"></i>${picked}</span>`;
+    return;
+  }
+  const km = haversine(c1[0], c1[1], c2[0], c2[1]);
+  const rounded = km < 1 ? '< 1' : Math.round(km);
+  let color, icon, label;
+  if (km <= 10) { color='#15803d'; icon='bi-check-circle-fill'; label='Nearby'; }
+  else if (km <= 30) { color='#2E75B6'; icon='bi-geo-alt-fill'; label='Reachable'; }
+  else if (km <= 60) { color='#E07B00'; icon='bi-exclamation-triangle-fill'; label='Far'; }
+  else { color='#b91c1c'; icon='bi-x-circle-fill'; label='Very Far'; }
+
+  badge.innerHTML = `
+    <span style="background:white;border:1px solid #E0E6EF;border-radius:8px;padding:5px 12px;
+                 display:inline-flex;align-items:center;gap:6px;color:${color}">
+      <i class="bi ${icon}" style="font-size:13px"></i>
+      <span style="font-size:13px"><strong>${rounded} km</strong> from ${base}</span>
+      <span style="font-size:10px;background:${color};color:white;border-radius:5px;padding:1px 6px">${label}</span>
+    </span>`;
+}
+
+function getCities(gabayId) {
+  const h = document.getElementById('hidden_' + gabayId);
+  return h.value ? h.value.split(',').map(s => s.trim()).filter(Boolean) : [];
+}
+
+function saveCities(gabayId, cities) {
+  document.getElementById('hidden_' + gabayId).value = cities.join(', ');
+}
+
+function renderTags(gabayId) {
+  const cities = getCities(gabayId);
+  const el = document.getElementById('tags_' + gabayId);
+  if (cities.length === 0) {
+    el.innerHTML = `<span style="color:#9aabc5;font-size:12px;font-style:italic">No cities assigned yet</span>`;
+  } else {
+    el.innerHTML = cities.map(c => `
+      <span class="city-chip" style="background:#EFF6FF;color:#1d4ed8;border:1px solid #BFDBFE;
+        border-radius:8px;padding:5px 10px;font-size:13px;font-weight:700;
+        display:inline-flex;align-items:center;gap:6px">
+        <i class="bi bi-geo-alt-fill" style="font-size:11px"></i>${c}
+        <button type="button" onclick="removeCity('${gabayId}','${c}')"
+          style="background:none;border:none;color:#93C5FD;cursor:pointer;padding:0;font-size:16px;line-height:1"
+          title="Remove">&times;</button>
+      </span>`).join('');
+  }
+  buildSuggestions(gabayId);
+}
+
+function addCity(gabayId) {
+  const sel = document.getElementById('cityDrop_' + gabayId);
+  const city = sel.value.trim();
+  if (!city) return;
+  const cities = getCities(gabayId);
+  if (!cities.map(c => c.toLowerCase()).includes(city.toLowerCase())) {
+    cities.push(city);
+    saveCities(gabayId, cities);
+    renderTags(gabayId);
+    markCityAssigned(city);
+  }
+  sel.value = '';
+  document.getElementById('dist_' + gabayId).innerHTML = '';
+}
+
+function removeCity(gabayId, city) {
+  const cities = getCities(gabayId).filter(c => c.toLowerCase() !== city.toLowerCase());
+  saveCities(gabayId, cities);
+  renderTags(gabayId);
+  // Check if any other gabay still covers this city
+  const stillCovered = Array.from(document.querySelectorAll('[id^="hidden_"]')).some(h => {
+    const hid = h.id.replace('hidden_', '');
+    if (hid === String(gabayId)) return false;
+    return getCities(hid).map(c => c.toLowerCase()).includes(city.toLowerCase());
+  });
+  if (!stillCovered) markCityUnassigned(city);
+}
+
+function markCityUnassigned(city) {
+  if (unassignedCities.map(c => c.toLowerCase()).includes(city.toLowerCase())) return;
+  unassignedCities.push(city);
+  // Add chip back to red box
+  const box = document.getElementById('unassignedBox');
+  const wrapper = document.getElementById('unassignedWrapper');
+  if (box) {
+    const btn = document.createElement('button');
+    btn.type = 'button';
+    btn.dataset.city = city.toLowerCase();
+    btn.setAttribute('onclick', `toggleCitySuggestions('${city}', '?', this)`);
+    btn.style.cssText = 'background:white;border:1px dashed #FCA5A5;border-radius:8px;padding:5px 13px;font-size:12px;font-weight:700;color:#b91c1c;cursor:pointer';
+    btn.innerHTML = `<i class="bi bi-geo-alt-fill me-1"></i>${city} <i class="bi bi-chevron-down ms-1" style="font-size:10px"></i>`;
+    box.appendChild(btn);
+  }
+  if (wrapper) wrapper.style.display = '';
+  const counter = document.getElementById('unassignedCount');
+  if (counter) counter.textContent = unassignedCities.length;
+  // Refresh all suggestion rows
+  document.querySelectorAll('[id^="sugg_"]').forEach(el => buildSuggestions(el.id.replace('sugg_', '')));
+}
+
+// All cities that still need a Gabay (from server) — mutable live set
+let unassignedCities = {{ (unassigned_cities|map(attribute='suggested')|list)|tojson }};
+const allKnownCities = {{ known_cities|tojson }};
+
+function buildSuggestions(gabayId) {
+  const base = document.getElementById('cityDrop_' + gabayId).dataset.base;
+  const baseCoords = getCoords(base);
+  const el = document.getElementById('sugg_' + gabayId);
+  if (!el) return;
+
+  // Rank unassigned cities by distance from base
+  const ranked = allKnownCities
+    .filter(c => !getCities(gabayId).map(x => x.toLowerCase()).includes(c.toLowerCase()))
+    .map(c => {
+      const coords = getCoords(c);
+      const km = (baseCoords && coords) ? haversine(baseCoords[0], baseCoords[1], coords[0], coords[1]) : 9999;
+      const isUnassigned = unassignedCities.map(x => x.toLowerCase()).includes(c.toLowerCase());
+      return { city: c, km, isUnassigned };
+    })
+    .filter(x => x.km <= 40) // only nearby ones
+    .sort((a, b) => a.km - b.km)
+    .slice(0, 6);
+
+  const label = '<span style="font-size:11px;color:#9aabc5;font-weight:700;text-transform:uppercase;letter-spacing:0.5px"><i class="bi bi-lightbulb-fill me-1" style="color:#FF9900"></i>Suggested:</span>';
+
+  if (ranked.length === 0) {
+    el.innerHTML = label + '<span style="font-size:11px;color:#9aabc5">No nearby cities found</span>';
+    return;
+  }
+
+  const chips = ranked.map(x => {
+    const km = x.km < 9999 ? (x.km < 1 ? '< 1' : Math.round(x.km)) : '?';
+    const hasCoords = x.km < 9999;
+    const comm = hasCoords ? transportEstimate(x.km, 'commute') : null;
+    const moto = hasCoords ? transportEstimate(x.km, 'motorcycle') : null;
+    const border = x.isUnassigned ? '#FCA5A5' : '#BFDBFE';
+    const bg = x.isUnassigned ? '#FFF5F5' : '#EFF6FF';
+    const color = x.isUnassigned ? '#b91c1c' : '#1d4ed8';
+    const needsBadge = x.isUnassigned
+      ? `<span style="background:#b91c1c;color:white;border-radius:4px;padding:1px 5px;font-size:9px;font-weight:800">NEEDS GABAY</span>` : '';
+    const transport = hasCoords
+      ? `<span style="font-size:10px;color:#6b7280;border-left:1px solid #E0E6EF;padding-left:6px;margin-left:2px">
+           🚌 ₱${comm.fare} ${fmtTime(comm.mins)} &nbsp;|&nbsp; 🏍️ ₱${moto.fare} ${fmtTime(moto.mins)}
+         </span>` : '';
+    return `<button type="button" onclick="addCityDirect('${gabayId}','${x.city}')"
+      style="background:${bg};border:1px solid ${border};border-radius:8px;padding:5px 10px;
+             font-size:12px;font-weight:700;color:${color};cursor:pointer;display:inline-flex;align-items:center;gap:5px;flex-wrap:wrap">
+      <i class="bi bi-geo-alt-fill" style="font-size:10px"></i>${x.city}
+      <span style="font-size:11px;font-weight:800">${km} km</span>
+      ${transport}
+      ${needsBadge}
+    </button>`;
+  }).join('');
+
+  el.innerHTML = label + chips;
+}
+
+function markCityAssigned(city) {
+  // Remove from live unassigned list
+  unassignedCities = unassignedCities.filter(c => c.toLowerCase() !== city.toLowerCase());
+
+  // Remove its chip from the red box
+  const box = document.getElementById('unassignedBox');
+  if (!box) return;
+  const btn = box.querySelector(`[data-city="${city.toLowerCase()}"]`);
+  if (btn) btn.remove();
+
+  // Update counter
+  const counter = document.getElementById('unassignedCount');
+  if (counter) counter.textContent = unassignedCities.length;
+
+  // Hide the whole box if empty
+  if (unassignedCities.length === 0) {
+    const wrapper = document.getElementById('unassignedWrapper');
+    if (wrapper) wrapper.style.display = 'none';
+  }
+
+  // Refresh NEEDS GABAY badges in all suggestion rows
+  document.querySelectorAll('[id^="sugg_"]').forEach(el => {
+    const gid = el.id.replace('sugg_', '');
+    buildSuggestions(gid);
+  });
+}
+
+function addCityDirect(gabayId, city) {
+  const cities = getCities(gabayId);
+  if (!cities.map(c => c.toLowerCase()).includes(city.toLowerCase())) {
+    cities.push(city);
+    saveCities(gabayId, cities);
+    renderTags(gabayId);
+    markCityAssigned(city);
+  }
+}
+
+// Transport estimates
+function transportEstimate(km, mode) {
+  if (mode === 'commute') {
+    const fare = Math.max(15, Math.round(15 + km * 2.5));
+    const mins = Math.round(km * 5 + 10); // includes waiting/transfer time
+    return { fare, mins };
+  } else { // motorcycle
+    const fare = Math.max(20, Math.round(km * 2.2)); // fuel + wear
+    const mins = Math.round(km * 2.5 + 5);
+    return { fare, mins };
+  }
+}
+
+function fmtTime(mins) {
+  if (mins < 60) return mins + ' min';
+  return Math.floor(mins/60) + 'h ' + (mins%60) + 'm';
+}
+
+// Gabay data for suggestion calculations
+const gabayData = {{ gabay_list|tojson }};
+
+let _activeCityBtn = null;
+
+function toggleCitySuggestions(cityName, leads, btn) {
+  const panel = document.getElementById('citySuggPanel');
+  const title = document.getElementById('citySuggTitle');
+  const list  = document.getElementById('citySuggList');
+
+  // Close if same city clicked again
+  if (_activeCityBtn === btn && panel.style.display !== 'none') {
+    panel.style.display = 'none';
+    btn.style.background = 'white';
+    _activeCityBtn = null;
+    return;
+  }
+  // Deactivate previous
+  if (_activeCityBtn) _activeCityBtn.style.background = 'white';
+  _activeCityBtn = btn;
+  btn.style.background = '#FEE2E2';
+
+  const cityCoords = getCoords(cityName);
+  title.innerHTML = `<i class="bi bi-geo-alt-fill me-1" style="color:#b91c1c"></i>
+    Best Gabay agents for <strong>${cityName}</strong>
+    <span style="color:#9aabc5;font-weight:400;font-size:11px">(${leads} leads)</span>`;
+
+  // Rank all gabay by distance to this city
+  const ranked = gabayData.map(g => {
+    const baseName = g.cities ? g.cities.split(',')[0].trim() : '';
+    const baseCoords = getCoords(baseName);
+    const km = (cityCoords && baseCoords) ? haversine(cityCoords[0], cityCoords[1], baseCoords[0], baseCoords[1]) : 9999;
+    const alreadyHas = getCities(g.id).map(c => c.toLowerCase()).includes(cityName.toLowerCase());
+    return { ...g, baseName, km, alreadyHas };
+  }).filter(g => !g.alreadyHas).sort((a, b) => a.km - b.km).slice(0, 5);
+
+  if (ranked.length === 0) {
+    list.innerHTML = '<div style="color:#9aabc5;font-size:12px">All agents already cover this city.</div>';
+    panel.style.display = '';
+    return;
+  }
+
+  list.innerHTML = ranked.map((g, i) => {
+    const km = g.km < 9999 ? (g.km < 1 ? '< 1' : Math.round(g.km)) : '?';
+    const hasCoords = g.km < 9999;
+    const comm = hasCoords ? transportEstimate(g.km, 'commute') : null;
+    const moto = hasCoords ? transportEstimate(g.km, 'motorcycle') : null;
+    const distColor = !hasCoords ? '#9aabc5' : g.km <= 10 ? '#15803d' : g.km <= 30 ? '#2E75B6' : g.km <= 60 ? '#E07B00' : '#b91c1c';
+    const rank = ['🥇','🥈','🥉','4️⃣','5️⃣'][i];
+    return `
+    <div style="display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:8px;
+                background:${i===0?'#F0FDF4':'#F8FAFC'};border:1px solid ${i===0?'#BBF7D0':'#E0E6EF'};margin-bottom:6px;flex-wrap:wrap">
+      <div style="font-size:18px;flex-shrink:0">${rank}</div>
+      <div style="flex-grow:1;min-width:120px">
+        <div style="font-weight:800;font-size:13px;color:#1F3864">${g.name}</div>
+        <div style="font-size:11px;color:#9aabc5">@${g.username}${g.baseName ? ' · base: '+g.baseName : ''}</div>
+      </div>
+      <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center">
+        ${hasCoords ? `
+        <span style="font-size:12px;font-weight:800;color:${distColor};background:white;border:1px solid #E0E6EF;border-radius:6px;padding:3px 8px">
+          <i class="bi bi-geo-alt-fill me-1"></i>${km} km
+        </span>
+        <span style="font-size:12px;background:white;border:1px solid #E0E6EF;border-radius:6px;padding:3px 8px;color:#374151">
+          🚌 ₱${comm.fare} · ${fmtTime(comm.mins)}
+        </span>
+        <span style="font-size:12px;background:white;border:1px solid #E0E6EF;border-radius:6px;padding:3px 8px;color:#374151">
+          🏍️ ₱${moto.fare} · ${fmtTime(moto.mins)}
+        </span>` : `<span style="font-size:11px;color:#9aabc5">Distance unknown</span>`}
+        <button type="button" onclick="assignCityToGabay('${g.id}','${cityName}')"
+          style="background:#1F3864;color:white;border:none;border-radius:7px;padding:5px 14px;
+                 font-size:12px;font-weight:800;cursor:pointer">
+          <i class="bi bi-plus-circle me-1"></i>Assign
+        </button>
+      </div>
+    </div>`;
+  }).join('');
+
+  panel.style.display = '';
+  panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+}
+
+function assignCityToGabay(gabayId, city) {
+  addCityDirect(gabayId, city);
+  // Scroll to and highlight the gabay row
+  const row = document.getElementById('gabay_row_' + gabayId);
+  if (row) {
+    row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    row.style.background = '#F0FDF4';
+    setTimeout(() => row.style.background = 'white', 1500);
+  }
+  // Close panel
+  document.getElementById('citySuggPanel').style.display = 'none';
+  if (_activeCityBtn) { _activeCityBtn.style.background = 'white'; _activeCityBtn = null; }
+}
+
+function autoFix() {
+  const btn = event.currentTarget;
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Fixing...';
+  fetch('{{ url_for("city_mapping_auto") }}', { method: 'POST' })
+    .then(r => r.json())
+    .then(data => {
+      alert('Auto-fix done! ' + data.updated + ' city values corrected.');
+      location.href = '?tab=names';
+    })
+    .catch(() => {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-stars me-1"></i> Auto-Fix All Variants';
+    });
+}
+</script>
+{% endblock %}

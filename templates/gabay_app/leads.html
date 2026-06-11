@@ -1,0 +1,83 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}My Leads{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:12px">
+  <div style="font-size:18px;font-weight:800;color:#1F3864">My Leads</div>
+  <div style="font-size:12px;color:#9aabc5">{{ total }} total leads assigned to you</div>
+</div>
+
+<!-- SEARCH -->
+<div style="position:relative;margin-bottom:12px">
+  <i class="bi bi-search" style="position:absolute;left:14px;top:50%;transform:translateY(-50%);color:#9aabc5"></i>
+  <input type="text" id="searchBox" class="m-form-control" placeholder="Search seller or city…"
+    style="padding-left:40px" oninput="filterLeads(this.value)">
+</div>
+
+<!-- STATUS FILTER PILLS -->
+<div style="display:flex;gap:8px;overflow-x:auto;padding-bottom:8px;margin-bottom:12px;scrollbar-width:none">
+  {% for label, val, count in status_tabs %}
+  <button onclick="setStatus('{{ val }}')" data-status="{{ val }}"
+    class="status-pill {% if active_status == val %}active{% endif %}"
+    style="flex-shrink:0;padding:6px 14px;border-radius:20px;border:1.5px solid #E0E6EF;
+           background:{% if active_status == val %}#1F3864{% else %}white{% endif %};
+           color:{% if active_status == val %}white{% else %}#4a5568{% endif %};
+           font-size:12px;font-weight:700;cursor:pointer;white-space:nowrap">
+    {{ label }} {% if count %}<span style="opacity:0.7">({{ count }})</span>{% endif %}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- LEADS LIST -->
+<div id="leadsList">
+  {% if leads %}
+  <div class="m-card" style="padding:0 16px" id="leadsCard">
+    {% for lead in leads %}
+    <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}" class="lead-item" data-name="{{ lead.seller_name.lower() }}" data-city="{{ lead.city.lower() if lead.city else '' }}">
+      {% set colors = {'assigned':'#2E75B6','attempting':'#E07B00','negotiation':'#7c3aed','registration':'#be185d','live':'#15803d'} %}
+      {% set color = colors.get(lead.status, '#9aabc5') %}
+      <div class="priority-flag" style="background:{{ color }}"></div>
+      <div class="lead-avatar" style="background:{{ color }}22;color:{{ color }}">
+        {{ lead.seller_name[0].upper() }}
+      </div>
+      <div class="lead-info">
+        <div class="lead-name">{{ lead.seller_name }}</div>
+        <div class="lead-sub">
+          {{ lead.city or '—' }}
+          {% if lead.last_visit_date %}
+          · Last visit {{ lead.last_visit_date }}
+          {% else %}
+          · <span style="color:#b91c1c">No visits yet</span>
+          {% endif %}
+        </div>
+        <div style="margin-top:3px"><span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span></div>
+      </div>
+      <i class="bi bi-chevron-right lead-arrow"></i>
+    </a>
+    {% endfor %}
+  </div>
+  {% else %}
+  <div class="empty-state">
+    <i class="bi bi-people"></i>
+    <div style="font-weight:700;color:#1F3864">No leads found</div>
+    <div style="font-size:12px">Try a different filter.</div>
+  </div>
+  {% endif %}
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function filterLeads(q) {
+  q = q.toLowerCase();
+  document.querySelectorAll('.lead-item').forEach(item => {
+    const name = item.dataset.name || '';
+    const city = item.dataset.city || '';
+    item.style.display = (name.includes(q) || city.includes(q)) ? '' : 'none';
+  });
+}
+function setStatus(val) {
+  window.location.href = '{{ url_for("gabay_app_leads") }}?status=' + val;
+}
+</script>
+{% endblock %}

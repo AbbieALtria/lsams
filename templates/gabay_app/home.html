@@ -1,0 +1,224 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Home{% endblock %}
+{% block content %}
+
+<!-- GREETING HERO -->
+<div style="background:linear-gradient(135deg,#1F3864 0%,#2E75B6 100%);border-radius:20px;
+            padding:20px;margin-bottom:16px;color:white;position:relative;overflow:hidden">
+  <div style="position:absolute;right:-10px;top:-10px;font-size:80px;opacity:0.10">🏪</div>
+  <div style="font-size:12px;opacity:0.75;margin-bottom:4px">{{ today }}</div>
+  <div style="font-size:21px;font-weight:800;margin-bottom:2px">
+    {{ greeting }}, {{ current_user.full_name.split()[0] }}! 👋
+  </div>
+  <div style="font-size:13px;opacity:0.85" id="heroVisitMsg">
+    {% if stats.visited_today == 0 %}
+      No visits yet today. Let's get started! 💪
+    {% elif stats.visited_today == 1 %}
+      1 seller visited today. Keep it up!
+    {% else %}
+      {{ stats.visited_today }} sellers visited today. Great work! 🔥
+    {% endif %}
+  </div>
+  <!-- progress bar -->
+  {% set pct = ((stats.visited_today / [stats.total, 1]|max) * 100)|int %}
+  <div style="margin-top:14px">
+    <div style="display:flex;justify-content:space-between;font-size:11px;opacity:0.75;margin-bottom:4px">
+      <span>Visited: {{ stats.visited_today }} / {{ stats.total }}</span>
+      <span>{{ pct }}%</span>
+    </div>
+    <div style="background:rgba(255,255,255,0.2);border-radius:6px;height:8px">
+      <div style="background:#FF9900;width:{{ [pct,100]|min }}%;height:8px;border-radius:6px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- TRAFFIC ALERT -->
+{% if traffic_msg %}
+{% set tc = {'danger':'#FEF2F2','warning':'#FFFBEB','success':'#F0FDF4'} %}
+{% set bc = {'danger':'#b91c1c','warning':'#b45309','success':'#15803d'} %}
+{% set ic = {'danger':'🚨','warning':'⚠️','success':'✅'} %}
+<div style="background:{{ tc[traffic_level] }};border-left:4px solid {{ bc[traffic_level] }};
+            border-radius:12px;padding:12px 14px;margin-bottom:14px;
+            display:flex;align-items:flex-start;gap:10px">
+  <span style="font-size:20px;flex-shrink:0;margin-top:1px">{{ ic[traffic_level] }}</span>
+  <div>
+    <div style="font-size:12px;font-weight:800;color:{{ bc[traffic_level] }}" data-i18n="home_traffic_title">Traffic Alert</div>
+    <div style="font-size:12px;color:{{ bc[traffic_level] }};margin-top:2px">{{ traffic_msg }}</div>
+  </div>
+</div>
+{% endif %}
+
+<!-- KPI TILES -->
+<div class="kpi-row" style="margin-bottom:16px">
+  <div class="kpi-tile" style="border-top:4px solid #2E75B6">
+    <div style="font-size:26px;margin-bottom:2px">📋</div>
+    <div class="val" style="color:#2E75B6">{{ stats.assigned }}</div>
+    <div class="lbl" data-i18n="home_kpi_leads">My Leads</div>
+  </div>
+  <div class="kpi-tile" style="border-top:4px solid #FF9900">
+    <div style="font-size:26px;margin-bottom:2px">📍</div>
+    <div class="val" style="color:#E07B00">{{ stats.visited_today }}</div>
+    <div class="lbl" data-i18n="home_kpi_visited">Visited Today</div>
+  </div>
+  <div class="kpi-tile" style="border-top:4px solid #15803d">
+    <div style="font-size:26px;margin-bottom:2px">✅</div>
+    <div class="val" style="color:#15803d">{{ stats.live }}</div>
+    <div class="lbl" data-i18n="home_kpi_live">Live</div>
+  </div>
+</div>
+
+<!-- FOLLOW-UPS DUE TODAY -->
+{% if followups %}
+<div class="section-hdr">
+  <i class="bi bi-bell-fill me-1" style="color:#be185d"></i>
+  <span data-i18n="home_followups">Follow-ups Due Today</span>
+</div>
+<div class="m-card" style="border-left:4px solid #be185d;padding:0 16px">
+  {% for lead in followups %}
+  <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}" class="lead-item">
+    <div style="width:6px;border-radius:3px;align-self:stretch;background:#be185d;flex-shrink:0"></div>
+    <div class="lead-avatar" style="background:#fce7f3;color:#be185d">
+      {{ lead.seller_name[0].upper() }}
+    </div>
+    <div class="lead-info">
+      <div class="lead-name">{{ lead.seller_name }}</div>
+      <div class="lead-sub"><i class="bi bi-geo-alt me-1"></i>{{ lead.city or '—' }}</div>
+    </div>
+    <span style="background:#fce7f3;color:#be185d;font-size:10px;font-weight:700;
+                 padding:3px 8px;border-radius:8px;flex-shrink:0"
+          data-i18n="home_followup_badge">Follow-up</span>
+    <i class="bi bi-chevron-right lead-arrow"></i>
+  </a>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- SMART SUGGESTED VISITS -->
+{% if suggested_leads %}
+<div class="section-hdr">
+  <span data-i18n="home_suggest_title">📍 Suggested Visits</span>
+  <button onclick="openHelp('help_home_title','help_home_body')"
+          style="background:none;border:none;color:#9aabc5;font-size:13px;cursor:pointer;
+                 margin-left:4px;padding:0" title="How does this work?">
+    <i class="bi bi-question-circle"></i>
+  </button>
+</div>
+<div class="tip-bubble">
+  <i class="bi bi-lightbulb-fill" style="color:#2E75B6"></i>
+  <span style="font-size:12px;color:#1e40af">These sellers haven't been visited recently or are in the same area — batch them in one trip to save time.</span>
+</div>
+<div class="m-card" style="padding:0 16px">
+  {% for lead in suggested_leads %}
+  <div style="padding:12px 0;border-bottom:1px solid #F0F4FA{% if loop.last %};border-bottom:none{% endif %}">
+    <div style="display:flex;align-items:center;gap:10px">
+      {% set sc = {'assigned':'#2E75B6','attempting':'#E07B00','negotiation':'#7c3aed','registration':'#be185d'} %}
+      {% set c = sc.get(lead.status,'#9aabc5') %}
+      <div class="lead-avatar" style="background:{{ c }}18;color:{{ c }};width:38px;height:38px;font-size:15px">
+        {{ lead.seller_name[0].upper() }}
+      </div>
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:700;font-size:14px;color:#1F3864;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">{{ lead.seller_name }}</div>
+        <div style="font-size:11px;color:#9aabc5;margin-top:2px">
+          <i class="bi bi-geo-alt me-1"></i>{{ lead.city or '—' }}
+          {% if lead.never_visited %}
+          · <span style="color:#b91c1c;font-weight:600">Never visited</span>
+          {% elif lead.last_visit_date %}
+          · Last: {{ lead.last_visit_date }}
+          {% endif %}
+        </div>
+      </div>
+      <div style="display:flex;gap:6px;flex-shrink:0">
+        {% if lead.address %}
+        <a href="https://waze.com/ul?q={{ lead.address|urlencode }}&navigate=yes"
+           target="_blank"
+           style="background:#00AAFF18;border:1.5px solid #00AAFF;color:#00AAFF;
+                  border-radius:8px;padding:5px 8px;font-size:11px;font-weight:700;
+                  text-decoration:none;white-space:nowrap">
+          <i class="bi bi-navigation-fill me-1"></i>Waze
+        </a>
+        {% endif %}
+        <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
+           style="background:#1F386418;border:1.5px solid #1F3864;color:#1F3864;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                  text-decoration:none">View</a>
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
+<!-- PRIORITY LEADS -->
+<div class="section-hdr">
+  <i class="bi bi-lightning-charge-fill me-1" style="color:#FF9900"></i>
+  <span data-i18n="home_priority">Priority Leads</span>
+</div>
+{% if priority_leads %}
+<div class="m-card" style="padding:0 16px">
+  {% for lead in priority_leads %}
+  <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}" class="lead-item">
+    <div style="width:6px;border-radius:3px;align-self:stretch;flex-shrink:0;
+                background:{{ '#7c3aed' if lead.status == 'negotiation' else '#2E75B6' }}"></div>
+    <div class="lead-avatar"
+         style="background:{{ '#EEF2FF' if lead.status == 'negotiation' else '#DBEAFE' }};
+                color:{{ '#4338ca' if lead.status == 'negotiation' else '#1d4ed8' }}">
+      {{ lead.seller_name[0].upper() }}
+    </div>
+    <div class="lead-info">
+      <div class="lead-name">{{ lead.seller_name }}</div>
+      <div class="lead-sub"><i class="bi bi-geo-alt me-1"></i>{{ lead.city or '—' }}</div>
+    </div>
+    <span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span>
+    <i class="bi bi-chevron-right lead-arrow"></i>
+  </a>
+  {% endfor %}
+</div>
+{% else %}
+<div class="m-card" style="text-align:center;padding:24px 20px;background:linear-gradient(135deg,#f0fdf4,#dcfce7)">
+  <div style="font-size:40px;margin-bottom:8px">🎉</div>
+  <div style="font-weight:800;color:#15803d;font-size:15px" data-i18n="home_all_done">All caught up!</div>
+  <div style="font-size:12px;color:#15803d;margin-top:4px" data-i18n="home_all_done_sub">No priority leads right now.</div>
+</div>
+{% endif %}
+
+<!-- QUICK ACTIONS -->
+<div class="section-hdr" data-i18n="home_quick">Quick Actions</div>
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+  <a href="{{ url_for('gabay_quick_checkin') }}" style="text-decoration:none">
+    <div style="background:linear-gradient(135deg,#FF9900,#ffb347);border-radius:18px;
+                padding:18px 12px;text-align:center;box-shadow:0 4px 12px rgba(255,153,0,0.3)">
+      <div style="font-size:32px;margin-bottom:6px">📍</div>
+      <div style="font-weight:800;color:white;font-size:14px" data-i18n="home_checkin_btn">Check In Now</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.85);margin-top:2px" data-i18n="home_checkin_sub">Log a visit</div>
+    </div>
+  </a>
+  <a href="{{ url_for('gabay_app_leads') }}" style="text-decoration:none">
+    <div style="background:linear-gradient(135deg,#1F3864,#2E75B6);border-radius:18px;
+                padding:18px 12px;text-align:center;box-shadow:0 4px 12px rgba(31,56,100,0.3)">
+      <div style="font-size:32px;margin-bottom:6px">👥</div>
+      <div style="font-weight:800;color:white;font-size:14px" data-i18n="home_leads_btn">My Leads</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.75);margin-top:2px">{{ stats.total }} total</div>
+    </div>
+  </a>
+</div>
+
+<!-- STALLED LEADS WARNING -->
+{% if stalled_count > 0 %}
+<div class="m-card" style="background:#FFF3D6;border-left:4px solid #E07B00">
+  <div style="display:flex;align-items:center;gap:12px">
+    <div style="font-size:32px;flex-shrink:0">⚠️</div>
+    <div>
+      <div style="font-weight:800;color:#92400e;font-size:14px">
+        {{ stalled_count }} lead{{ 's' if stalled_count != 1 }} with no visit in 7+ days
+      </div>
+      <div style="font-size:12px;color:#b45309;margin-top:2px">
+        <a href="{{ url_for('gabay_app_leads') }}?filter=stalled"
+           style="color:#92400e;font-weight:800" data-i18n="home_stalled_link">View now →</a>
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}

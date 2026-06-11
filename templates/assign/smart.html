@@ -1,0 +1,679 @@
+{% extends "base.html" %}
+{% block title %}Smart Assignment Map{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  #map { height: calc(100vh - 260px); min-height: 420px; border-radius: 12px; z-index: 1; }
+  .gabay-legend-dot { width: 14px; height: 14px; border-radius: 50%; display: inline-block; flex-shrink: 0; }
+  .suggestion-card { border-left: 4px solid; cursor: pointer; transition: all 0.2s; }
+  .suggestion-card:hover { transform: translateX(3px); }
+  .suggestion-card.confirmed { opacity: 0.6; }
+  .city-chip { display: inline-block; padding: 2px 8px; border-radius: 10px; font-size: 11px; font-weight: 600; margin: 2px; cursor: pointer; }
+  .city-chip:hover { opacity: 0.8; }
+  .floating-panel {
+    position: absolute; top: 12px; right: 12px; z-index: 1000;
+    background: white; border-radius: 12px; box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+    width: 260px; max-height: calc(100% - 24px); overflow-y: auto;
+  }
+  @media (max-width: 768px) {
+    .floating-panel { position: static; width: 100%; max-height: none; margin-top: 12px; }
+    #map { height: 350px; }
+  }
+</style>
+{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('assign_center') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to Assignment Center
+    </a>
+    <div class="page-title mt-1"><i class="bi bi-stars me-2" style="color:#7c3aed"></i>Smart Assignment Map</div>
+    <div style="color:#9aabc5;font-size:12px">System suggests territories — you review and approve</div>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span class="badge" style="background:#7c3aed;color:white;font-size:12px;padding:6px 12px">
+      <i class="bi bi-funnel me-1"></i>{{ pool_count }} leads in pool
+    </span>
+  </div>
+</div>
+
+<!-- HOW THIS WORKS -->
+<div class="alert py-2 mb-3" style="background:#F5F0FF;border:1px solid #DDD6FE;font-size:12px;color:#4a5568">
+  <strong style="color:#7c3aed"><i class="bi bi-stars me-1"></i>How Smart Assignment works:</strong>
+  Leads are matched to Gabay agents by <strong>city territory</strong>. Each Gabay's assigned city is respected.
+  Leads with <strong>no city</strong> are automatically excluded and flagged below for manual review.
+  <span style="color:#b91c1c;font-weight:700">{{ no_city_leads|length }} leads excluded (no city).</span>
+  Assignable: <strong>{{ assignable_count }}</strong> leads across {{ city_data|length }} cities.
+</div>
+
+{% if unmatched_cities %}
+<div class="alert py-2 mb-3" style="background:#FFF7ED;border:1px solid #FED7AA;font-size:12px;color:#92400e">
+  <strong><i class="bi bi-exclamation-triangle-fill me-1" style="color:#E07B00"></i>{{ unmatched_cities|length }} cities have no assigned Gabay — nearest agent suggested automatically:</strong>
+  <div class="d-flex flex-wrap gap-1 mt-1">
+  {% for c in unmatched_cities %}
+  <span style="background:#FED7AA;padding:3px 9px;border-radius:8px;font-weight:700">{{ c }}</span>
+  {% endfor %}
+  </div>
+  <div style="margin-top:6px;font-size:11px">
+    <i class="bi bi-lightbulb me-1"></i>
+    To fix permanently: go to <a href="{{ url_for('city_mapping') }}?tab=gabay" style="color:#92400e;font-weight:700">City &amp; Gabay Setup → Step 3</a> and assign those cities to an agent.
+  </div>
+</div>
+{% endif %}
+
+<!-- LOAD BALANCE SUMMARY -->
+<div style="background:white;border-radius:12px;border:1px solid #E0E6EF;padding:16px 20px;margin-bottom:16px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px;flex-wrap:wrap;gap:8px">
+    <div>
+      <div style="font-weight:800;font-size:14px;color:#1F3864">
+        <i class="bi bi-bar-chart-fill me-2" style="color:#7c3aed"></i>Lead Distribution Preview
+      </div>
+      <div style="font-size:11px;color:#9aabc5">
+        {{ total_assignable }} leads ÷ {{ gabay_list|length }} agents = ~{{ avg_leads }} per agent
+        &nbsp;·&nbsp; soft cap: {{ soft_cap }} leads/agent
+      </div>
+    </div>
+  </div>
+  <div class="row g-2">
+    {% for g in gabay_list %}
+    {% set pct = ((g.projected_leads / total_assignable * 100) if total_assignable else 0)|round(1) %}
+    {% set over = g.projected_leads > soft_cap %}
+    <div class="col-12 col-md-6">
+      <div style="display:flex;align-items:center;gap:10px">
+        <div style="width:34px;height:34px;border-radius:50%;background:#1F3864;color:white;
+                    display:flex;align-items:center;justify-content:center;font-weight:900;font-size:13px;flex-shrink:0">
+          {{ g.name[0]|upper }}
+        </div>
+        <div style="flex-grow:1">
+          <div style="display:flex;justify-content:space-between;margin-bottom:3px">
+            <span style="font-size:12px;font-weight:700;color:#1F3864">{{ g.name.split(' ')[0] }}</span>
+            <span style="font-size:12px;font-weight:800;color:{% if over %}#b91c1c{% else %}#15803d{% endif %}">
+              {{ g.projected_leads }} leads
+              {% if over %}<span style="font-size:10px;background:#FEF2F2;color:#b91c1c;border-radius:4px;padding:1px 5px;margin-left:4px">OVER CAP</span>{% endif %}
+            </span>
+          </div>
+          <div style="background:#F0F4FA;border-radius:4px;height:8px;overflow:hidden">
+            <div style="height:8px;border-radius:4px;width:{{ [pct, 100]|min }}%;
+                        background:{% if over %}#b91c1c{% elif pct > 60 %}#E07B00{% else %}#15803d{% endif %};
+                        transition:width 0.3s"></div>
+          </div>
+          <div style="font-size:10px;color:#9aabc5;margin-top:1px">{{ pct }}% of pool · {{ g.assigned_city[:40] if g.assigned_city else 'No cities set' }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+
+{% if no_city_leads %}
+<div class="card mb-3" style="border-left:4px solid #b91c1c">
+  <div class="card-header py-2 d-flex align-items-center justify-content-between" style="background:#FEF2F2">
+    <span style="font-weight:700;font-size:13px;color:#b91c1c">
+      <i class="bi bi-exclamation-circle-fill me-2"></i>Excluded — No City ({{ no_city_leads|length }} leads)
+    </span>
+    <span style="font-size:11px;color:#9aabc5">These will NOT be auto-assigned. Assign manually or update city data.</span>
+  </div>
+  <div style="max-height:200px;overflow-y:auto">
+    <table class="table table-sm mb-0" style="font-size:12px">
+      <thead><tr><th>Shop Name</th><th>Project</th><th>Cluster</th><th>Category</th><th>Action</th></tr></thead>
+      <tbody>
+        {% for lead in no_city_leads %}
+        <tr>
+          <td><a href="{{ url_for('lead_detail', lead_id=lead.id) }}" style="color:#1F3864;font-weight:600">{{ lead.seller_name }}</a></td>
+          <td><small>{{ lead.project or '—' }}</small></td>
+          <td><small>{{ lead.cluster or '—' }}</small></td>
+          <td><small>{{ lead.category or '—' }}</small></td>
+          <td>
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-outline-danger py-0 px-2" style="font-size:10px">
+              Edit City
+            </a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<!-- MAIN LAYOUT -->
+<div class="row g-3">
+
+  <!-- LEFT: MAP -->
+  <div class="col-md-8">
+    <div class="card" style="overflow:hidden">
+      <div class="card-header d-flex align-items-center justify-content-between py-2">
+        <span style="font-weight:700;color:#1F3864;font-size:13px"><i class="bi bi-map me-2"></i>Metro Manila — Lead Distribution Map</span>
+        <div class="d-flex gap-2">
+          <button class="btn btn-sm btn-outline-secondary" onclick="resetView()" style="font-size:11px"><i class="bi bi-arrows-fullscreen me-1"></i>Reset View</button>
+          <button class="btn btn-sm" style="background:#7c3aed;color:white;font-size:11px" onclick="showAllMarkers()"><i class="bi bi-eye me-1"></i>Show All</button>
+        </div>
+      </div>
+      <div style="position:relative">
+        <div id="map"></div>
+        <!-- Floating legend on map -->
+        <div class="floating-panel p-3 d-none d-md-block">
+          <div style="font-weight:800;font-size:12px;color:#1F3864;margin-bottom:8px">
+            <i class="bi bi-person-check me-1"></i>Gabay Assignments
+          </div>
+          <div id="legendList"></div>
+          <hr style="margin:10px 0">
+          <div style="font-size:11px;color:#9aabc5;margin-bottom:8px">Click a city marker on the map or a row below to reassign.</div>
+          <form method="POST" action="{{ url_for('confirm_smart_assign') }}" id="smartForm">
+            <input type="hidden" name="assignments" id="assignmentsInput">
+            <button type="submit" class="btn w-100" style="background:#1F3864;color:white;font-size:13px;font-weight:700" id="approveBtn">
+              <i class="bi bi-check-circle me-1"></i>Approve & Assign
+            </button>
+            <div id="approveCount" style="text-align:center;font-size:11px;color:#9aabc5;margin-top:4px">Loading suggestions...</div>
+          </form>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: CITY-GABAY TABLE -->
+  <div class="col-md-4">
+    <div class="card mb-3">
+      <div class="card-header py-2" style="background:#1F3864;color:white;font-weight:700;font-size:13px">
+        <i class="bi bi-table me-2"></i>City → Gabay Suggestions
+      </div>
+      <div style="max-height:380px;overflow-y:auto">
+        <table class="table table-sm table-hover mb-0" style="font-size:12px">
+          <thead><tr><th>City</th><th>Leads</th><th>Suggested Gabay</th><th></th></tr></thead>
+          <tbody id="cityTable">
+            <tr><td colspan="4" class="text-center py-3 text-muted"><div class="spinner-border spinner-border-sm"></div> Computing...</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- WORKLOAD AFTER ASSIGNMENT -->
+    <div class="card mb-3">
+      <div class="card-header py-2" style="font-weight:700;color:#1F3864;font-size:13px">
+        <i class="bi bi-bar-chart me-2"></i>Workload After Assignment
+      </div>
+      <div class="card-body p-3" id="workloadPreview">
+        <div class="text-center text-muted" style="font-size:12px">Loading preview...</div>
+      </div>
+    </div>
+
+    <!-- MOBILE APPROVE BUTTON -->
+    <div class="d-md-none">
+      <form method="POST" action="{{ url_for('confirm_smart_assign') }}" id="smartFormMobile">
+        <input type="hidden" name="assignments" id="assignmentsInputMobile">
+        <button type="submit" class="btn w-100" style="background:#1F3864;color:white;font-size:14px;font-weight:700;padding:12px">
+          <i class="bi bi-check-circle me-1"></i>Approve & Assign All
+        </button>
+      </form>
+    </div>
+  </div>
+</div>
+
+<!-- SWAP GABAY MODAL -->
+<div class="modal fade" id="swapModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#7c3aed;color:white">
+        <h5 class="modal-title"><i class="bi bi-arrow-repeat me-2"></i>Manage leads — <span id="swapCityName"></span></h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body p-0">
+        <!-- Tabs -->
+        <ul class="nav nav-tabs px-3 pt-2" id="swapTabs">
+          <li class="nav-item">
+            <button class="nav-link active" id="tab-reassign" onclick="swapTab('reassign')">
+              <i class="bi bi-arrow-repeat me-1"></i>Reassign All
+            </button>
+          </li>
+          <li class="nav-item">
+            <button class="nav-link" id="tab-split" onclick="swapTab('split')">
+              <i class="bi bi-scissors me-1"></i>Move Some Leads
+            </button>
+          </li>
+        </ul>
+
+        <!-- Reassign All tab -->
+        <div id="pane-reassign" class="p-3">
+          <div class="mb-2" style="font-size:12px;color:#9aabc5">
+            All <strong id="swapLeadCount"></strong> leads in this row will go to the selected Gabay.
+          </div>
+          <div id="swapGabayList"></div>
+        </div>
+
+        <!-- Move Some Leads tab -->
+        <div id="pane-split" class="p-3" style="display:none">
+          <div class="mb-3 p-2 rounded" style="background:#F5F0FF;font-size:12px;color:#4a5568">
+            <i class="bi bi-info-circle me-1" style="color:#7c3aed"></i>
+            Move a portion of leads from the current Gabay to another. Useful for balancing or emergency coverage.
+          </div>
+          <div class="row g-2 mb-3">
+            <div class="col-5">
+              <label style="font-size:11px;color:#9aabc5;font-weight:600">LEADS TO MOVE</label>
+              <input type="number" id="splitCount" class="form-control form-control-sm mt-1" min="1" value="10"
+                style="font-size:14px;font-weight:700;text-align:center"
+                oninput="updateSplitPreview()">
+              <div style="font-size:10px;color:#9aabc5;text-align:center;margin-top:2px">
+                of <span id="splitMax"></span> total
+              </div>
+            </div>
+            <div class="col-7">
+              <label style="font-size:11px;color:#9aabc5;font-weight:600">MOVE TO GABAY</label>
+              <select id="splitTarget" class="form-select form-select-sm mt-1" onchange="updateSplitPreview()">
+              </select>
+            </div>
+          </div>
+          <!-- Preview -->
+          <div id="splitPreview" class="mb-3 p-2 rounded" style="background:#f8f9fa;font-size:12px;display:none">
+          </div>
+          <button class="btn btn-sm w-100" style="background:#7c3aed;color:white;font-weight:600"
+            onclick="confirmSplit()">
+            <i class="bi bi-scissors me-1"></i>Move Leads
+          </button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// ─── DATA FROM SERVER ────────────────────────────────────────────────────────
+const GABAY_LIST = {{ gabay_list | tojson }};
+const CITY_DATA  = {{ city_data  | tojson }};
+const POOL_COUNT = {{ pool_count }};
+
+// ─── COLORS (one per Gabay) ──────────────────────────────────────────────────
+const GABAY_COLORS = [
+  '#1F3864','#2E75B6','#15803d','#E07B00','#7c3aed',
+  '#b91c1c','#0e7c7b','#d4ac0d','#5d6d7e','#be185d'
+];
+
+// assignments: { row_key -> gabay_id }  row_key = city, or "city~~gabayId" for splits
+let assignments = {};
+CITY_DATA.forEach(c => { assignments[c.row_key || c.city] = c.suggested_gabay_id; });
+
+// ─── MAP INIT ────────────────────────────────────────────────────────────────
+const map = L.map('map').setView([14.5995, 120.9842], 11);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+  attribution: '© OpenStreetMap contributors', maxZoom: 18
+}).addTo(map);
+
+const cityMarkers = {};
+let circleLayer = L.layerGroup().addTo(map);
+
+function gabayColorByIdx(gabayId) {
+  const idx = GABAY_LIST.findIndex(g => g.id === gabayId);
+  return GABAY_COLORS[idx % GABAY_COLORS.length] || '#888';
+}
+
+function gabayNameById(id) {
+  const g = GABAY_LIST.find(g => g.id === id);
+  return g ? g.name : '—';
+}
+
+function renderMap() {
+  circleLayer.clearLayers();
+  CITY_DATA.forEach(c => {
+    if (!c.lat || !c.lng) return;
+    const gabayId = assignments[c.row_key || c.city];
+    const color = gabayColorByIdx(gabayId);
+    const radius = Math.max(300, Math.sqrt(c.count) * 300);
+
+    const circle = L.circle([c.lat, c.lng], {
+      color: color, fillColor: color, fillOpacity: 0.35, weight: 2, radius
+    }).addTo(circleLayer);
+
+    const marker = L.circleMarker([c.lat, c.lng], {
+      radius: 10, color: 'white', fillColor: color, fillOpacity: 1, weight: 2
+    }).addTo(circleLayer);
+
+    const popupHtml = `
+      <div style="min-width:180px;font-family:sans-serif">
+        <div style="font-weight:800;font-size:14px;color:#1F3864;margin-bottom:4px">${c.city}</div>
+        <div style="font-size:12px;color:#4a5568"><strong>${c.count}</strong> leads</div>
+        <div style="margin:6px 0;padding:4px 8px;background:${color}22;border-radius:6px;font-size:12px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${color};display:inline-block;margin-right:4px"></span>
+          <strong>${gabayNameById(gabayId)}</strong>
+        </div>
+        <button onclick="openSwap('${c.row_key||c.city}', ${c.count})"
+          style="width:100%;padding:5px;background:#7c3aed;color:white;border:none;border-radius:6px;font-size:11px;cursor:pointer;margin-top:4px">
+          <i class='bi bi-arrow-repeat'></i> Change Gabay
+        </button>
+      </div>`;
+
+    circle.bindPopup(popupHtml);
+    marker.bindPopup(popupHtml);
+    cityMarkers[c.city] = { circle, marker };
+  });
+}
+
+// ─── CITY TABLE ──────────────────────────────────────────────────────────────
+function renderCityTable() {
+  const tbody = document.getElementById('cityTable');
+  tbody.innerHTML = CITY_DATA.map(c => {
+    const gabayId = assignments[c.row_key || c.city];
+    const color = gabayColorByIdx(gabayId);
+    const gname = gabayNameById(gabayId);
+    const matchBadge = c.is_overflow
+      ? `<span title="${c.fallback_reason||'Overflow balance'}" style="color:#7c3aed;font-size:11px"><i class="bi bi-arrow-left-right"></i></span>`
+      : c.city_matched
+        ? `<span title="Gabay assigned to this city" style="color:#15803d;font-size:11px"><i class="bi bi-geo-alt-fill"></i></span>`
+        : `<span title="Nearest fallback" style="color:#E07B00;font-size:11px"><i class="bi bi-exclamation-triangle-fill"></i></span>`;
+    const rowBg = c.is_overflow ? '#F5F0FF' : (c.city_matched ? 'transparent' : '#FFFBEB');
+    return `<tr style="cursor:pointer;background:${rowBg}" onclick="openSwap('${c.row_key||c.city}', ${c.count})">
+      <td>
+        <span class="city-chip" style="background:${color}22;color:${color}" onclick="flyToCity('${c.city}');event.stopPropagation()">
+          ${c.city}
+        </span>
+        ${matchBadge}
+      </td>
+      <td style="font-weight:700">${c.count}</td>
+      <td>
+        <span style="display:flex;align-items:center;gap:5px">
+          <span style="width:10px;height:10px;border-radius:50%;background:${color};flex-shrink:0"></span>
+          <span style="font-size:11px">${gname.split(' ')[0]}</span>
+        </span>
+      </td>
+      <td><button class="btn btn-sm py-0 px-1" style="background:#F5F0FF;color:#7c3aed;font-size:10px" onclick="openSwap('${c.row_key||c.city}',${c.count});event.stopPropagation()">
+        <i class="bi bi-pencil"></i>
+      </button></td>
+    </tr>`;
+  }).join('');
+}
+
+// ─── LEGEND ──────────────────────────────────────────────────────────────────
+function renderLegend() {
+  // Count leads per gabay from assignments
+  const perGabay = {};
+  GABAY_LIST.forEach(g => perGabay[g.id] = 0);
+  CITY_DATA.forEach(c => {
+    const gid = assignments[c.row_key || c.city];
+    if (perGabay[gid] !== undefined) perGabay[gid] += c.count;
+  });
+
+  document.getElementById('legendList').innerHTML = GABAY_LIST.map((g, i) => {
+    const color = GABAY_COLORS[i % GABAY_COLORS.length];
+    const count = perGabay[g.id] || 0;
+    const cityTag = g.assigned_city
+      ? `<div style="font-size:10px;color:#15803d;font-weight:600"><i class="bi bi-geo-alt-fill"></i> ${g.assigned_city}</div>`
+      : `<div style="font-size:10px;color:#E07B00"><i class="bi bi-exclamation-triangle-fill"></i> No city set</div>`;
+    return `<div class="mb-2">
+      <div class="d-flex align-items-center gap-2">
+        <span class="gabay-legend-dot" style="background:${color}"></span>
+        <span style="font-size:11px;flex:1;color:#1F3864;font-weight:600">${g.name.split(' ')[0]}</span>
+        <span style="font-size:11px;color:#9aabc5">${count} leads</span>
+      </div>
+      ${cityTag}
+    </div>`;
+  }).join('');
+
+  // Update approve button count
+  const total = CITY_DATA.reduce((s,c) => s+c.count, 0);
+  document.getElementById('approveCount').textContent = `Will assign ${total} leads across ${CITY_DATA.length} cities`;
+}
+
+// ─── WORKLOAD PREVIEW ────────────────────────────────────────────────────────
+function renderWorkload() {
+  const perGabay = {};
+  GABAY_LIST.forEach(g => perGabay[g.id] = { new: 0, existing: g.current_leads || 0 });
+  CITY_DATA.forEach(c => {
+    const gid = assignments[c.row_key || c.city];
+    if (perGabay[gid]) perGabay[gid].new += c.count;
+  });
+  const maxTotal = Math.max(...GABAY_LIST.map(g => (perGabay[g.id].existing || 0) + (perGabay[g.id].new || 0)), 1);
+
+  document.getElementById('workloadPreview').innerHTML = GABAY_LIST.map((g, i) => {
+    const color = GABAY_COLORS[i % GABAY_COLORS.length];
+    const existing = perGabay[g.id].existing || 0;
+    const newLeads = perGabay[g.id].new || 0;
+    const total = existing + newLeads;
+    return `<div class="mb-2">
+      <div class="d-flex justify-content-between" style="font-size:11px;margin-bottom:2px">
+        <span style="font-weight:600;color:#1F3864">${g.name.split(' ')[0]}</span>
+        <span style="color:#9aabc5">${existing} + <strong style="color:${color}">${newLeads} new</strong> = ${total}</span>
+      </div>
+      <div class="progress" style="height:8px;border-radius:4px">
+        <div class="progress-bar" style="width:${existing/maxTotal*100}%;background:#E0E6EF"></div>
+        <div class="progress-bar" style="width:${newLeads/maxTotal*100}%;background:${color}"></div>
+      </div>
+    </div>`;
+  }).join('');
+}
+
+// ─── SWAP GABAY ──────────────────────────────────────────────────────────────
+let swapRowKey = null;
+let swapRowCount = 0;
+
+function swapTab(tab) {
+  document.getElementById('pane-reassign').style.display = tab === 'reassign' ? '' : 'none';
+  document.getElementById('pane-split').style.display   = tab === 'split'    ? '' : 'none';
+  document.getElementById('tab-reassign').classList.toggle('active', tab === 'reassign');
+  document.getElementById('tab-split').classList.toggle('active', tab === 'split');
+  if (tab === 'split') updateSplitPreview();
+}
+
+function openSwap(rowKey, count) {
+  swapRowKey = rowKey;
+  swapRowCount = count;
+  const cityName = rowKey.includes('~~') ? rowKey.split('~~')[0] : rowKey;
+  document.getElementById('swapCityName').textContent = cityName;
+  document.getElementById('swapLeadCount').textContent = count;
+  swapTab('reassign');
+
+  // Live projected totals for reassign tab
+  const perGabay = {};
+  GABAY_LIST.forEach(g => perGabay[g.id] = 0);
+  CITY_DATA.forEach(c => {
+    const gid = assignments[c.row_key || c.city];
+    if (perGabay[gid] !== undefined) perGabay[gid] += c.count;
+  });
+  const current = assignments[rowKey];
+  document.getElementById('swapGabayList').innerHTML = GABAY_LIST.map((g, i) => {
+    const color = GABAY_COLORS[i % GABAY_COLORS.length];
+    const isSelected = g.id === current;
+    const proj = perGabay[g.id] || 0;
+    return `<div onclick="selectSwapGabay(${g.id})" style="padding:10px 12px;margin-bottom:6px;border-radius:8px;
+        border:2px solid ${isSelected ? color : '#E0E6EF'};background:${isSelected ? color+'22' : 'white'};cursor:pointer"
+        class="swap-opt" data-gid="${g.id}">
+      <div class="d-flex align-items-center gap-2">
+        <span style="width:12px;height:12px;border-radius:50%;background:${color};flex-shrink:0"></span>
+        <strong style="font-size:13px;color:#1F3864">${g.name}</strong>
+        ${isSelected ? '<span class="badge ms-auto" style="background:'+color+';color:white;font-size:10px">Current</span>' : ''}
+      </div>
+      <div style="font-size:11px;color:#9aabc5;margin-top:2px;margin-left:20px">${proj} leads projected</div>
+    </div>`;
+  }).join('');
+
+  // Populate split target dropdown (exclude current gabay)
+  const splitSel = document.getElementById('splitTarget');
+  splitSel.innerHTML = GABAY_LIST
+    .filter(g => g.id !== current)
+    .map((g, i) => {
+      const idx = GABAY_LIST.indexOf(g);
+      return `<option value="${g.id}" style="color:${GABAY_COLORS[idx % GABAY_COLORS.length]}">${g.name}</option>`;
+    }).join('');
+  document.getElementById('splitMax').textContent = count;
+  const half = Math.max(1, Math.round(count / 2));
+  document.getElementById('splitCount').value = half;
+  document.getElementById('splitCount').max = count - 1;
+
+  new bootstrap.Modal(document.getElementById('swapModal')).show();
+}
+
+function selectSwapGabay(gabayId) {
+  assignments[swapRowKey] = gabayId;
+  bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
+  renderAll();
+  const cityName = swapRowKey.includes('~~') ? swapRowKey.split('~~')[0] : swapRowKey;
+  flyToCity(cityName);
+}
+
+function updateSplitPreview() {
+  const n = parseInt(document.getElementById('splitCount').value) || 0;
+  const max = swapRowCount;
+  const targetId = parseInt(document.getElementById('splitTarget').value);
+  const targetGabay = GABAY_LIST.find(g => g.id === targetId);
+  const currentId = assignments[swapRowKey];
+  const currentGabay = GABAY_LIST.find(g => g.id === currentId);
+  const preview = document.getElementById('splitPreview');
+
+  if (!targetGabay || n < 1 || n >= max) {
+    preview.style.display = 'none';
+    return;
+  }
+
+  // Compute current totals
+  const perGabay = {};
+  GABAY_LIST.forEach(g => perGabay[g.id] = 0);
+  CITY_DATA.forEach(c => {
+    const gid = assignments[c.row_key || c.city];
+    if (perGabay[gid] !== undefined) perGabay[gid] += c.count;
+  });
+
+  const fromBefore = perGabay[currentId] || 0;
+  const toBefore   = perGabay[targetId]  || 0;
+  const cityName = swapRowKey.includes('~~') ? swapRowKey.split('~~')[0] : swapRowKey;
+  const fromName = currentGabay ? currentGabay.name.split(' ')[0] : '?';
+  const toName   = targetGabay.name.split(' ')[0];
+
+  preview.style.display = '';
+  preview.innerHTML = `
+    <div style="font-weight:600;margin-bottom:6px;color:#1F3864">
+      <i class="bi bi-scissors me-1" style="color:#7c3aed"></i>
+      Move <strong style="color:#7c3aed">${n}</strong> leads from
+      <strong>${fromName}</strong> → <strong>${toName}</strong>
+    </div>
+    <div class="d-flex gap-3">
+      <div>
+        <div style="color:#9aabc5;font-size:10px">${fromName} after</div>
+        <div style="font-weight:700;font-size:13px">${fromBefore - n} leads</div>
+        <div style="font-size:10px;color:#b91c1c">▼ ${n} less</div>
+      </div>
+      <div style="border-left:1px solid #E0E6EF"></div>
+      <div>
+        <div style="color:#9aabc5;font-size:10px">${toName} after</div>
+        <div style="font-weight:700;font-size:13px">${toBefore + n} leads</div>
+        <div style="font-size:10px;color:#15803d">▲ ${n} more</div>
+      </div>
+      <div style="border-left:1px solid #E0E6EF"></div>
+      <div>
+        <div style="color:#9aabc5;font-size:10px">Remaining in ${cityName}</div>
+        <div style="font-weight:700;font-size:13px">${max - n} leads</div>
+        <div style="font-size:10px;color:#9aabc5">stay with ${fromName}</div>
+      </div>
+    </div>`;
+}
+
+function confirmSplit() {
+  try {
+    const n = parseInt(document.getElementById('splitCount').value) || 0;
+    const targetId = parseInt(document.getElementById('splitTarget').value);
+    const cityName = swapRowKey.includes('~~') ? swapRowKey.split('~~')[0] : swapRowKey;
+    const currentId = assignments[swapRowKey];
+
+    // Find original row first — validate against its actual current count
+    const origRow = CITY_DATA.find(c => (c.row_key || c.city) === swapRowKey);
+    if (!origRow) {
+      showToast('error', 'Row not found — please refresh and try again.');
+      return;
+    }
+    if (isNaN(n) || n < 1 || n >= origRow.count) {
+      showToast('error', `Enter a number between 1 and ${origRow.count - 1}`);
+      return;
+    }
+    if (isNaN(targetId)) {
+      showToast('error', 'Please select a target Gabay agent.');
+      return;
+    }
+
+    const fromName = (GABAY_LIST.find(g => g.id === currentId) || {}).name || '?';
+    const toName   = (GABAY_LIST.find(g => g.id === targetId)  || {}).name || '?';
+
+    origRow.count -= n;
+
+    const existingKey = `${cityName}~~${targetId}`;
+    const existingRow = CITY_DATA.find(c => (c.row_key || c.city) === existingKey);
+    if (existingRow) {
+      existingRow.count += n;
+    } else {
+      CITY_DATA.push({
+        city: cityName,
+        row_key: existingKey,
+        count: n,
+        lat: origRow.lat,
+        lng: origRow.lng,
+        city_matched: false,
+        is_overflow: true,
+        fallback_reason: `Manual: from ${fromName.split(' ')[0]}`
+      });
+      assignments[existingKey] = targetId;
+    }
+
+    if (origRow.count <= 0) {
+      CITY_DATA.splice(CITY_DATA.indexOf(origRow), 1);
+      delete assignments[swapRowKey];
+    }
+
+    bootstrap.Modal.getInstance(document.getElementById('swapModal')).hide();
+    renderAll();
+    flyToCity(cityName);
+    showToast('success', `Moved ${n} leads: ${fromName.split(' ')[0]} → ${toName.split(' ')[0]} (${cityName})`);
+  } catch(e) {
+    showToast('error', 'Unexpected error: ' + e.message);
+    console.error('confirmSplit error:', e);
+  }
+}
+
+function showToast(type, msg) {
+  const old = document.getElementById('splitToast');
+  if (old) old.remove();
+  const t = document.createElement('div');
+  t.id = 'splitToast';
+  t.style.cssText = `position:fixed;bottom:24px;left:50%;transform:translateX(-50%);
+    padding:10px 22px;border-radius:8px;font-size:13px;font-weight:600;z-index:9999;
+    box-shadow:0 4px 16px rgba(0,0,0,0.18);color:white;white-space:nowrap;
+    background:${type === 'success' ? '#15803d' : '#b91c1c'}`;
+  t.innerHTML = `<i class="bi bi-${type === 'success' ? 'check-circle' : 'exclamation-circle'} me-2"></i>${msg}`;
+  document.body.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+
+// ─── FLY TO CITY ─────────────────────────────────────────────────────────────
+function flyToCity(city) {
+  const c = CITY_DATA.find(d => d.city === city);
+  if (c && c.lat) map.flyTo([c.lat, c.lng], 14, { duration: 0.8 });
+}
+
+function resetView() { map.flyTo([14.5995, 120.9842], 11, { duration: 0.8 }); }
+function showAllMarkers() { map.flyTo([14.5995, 120.9842], 11, { duration: 0.5 }); }
+
+// ─── SYNC FORM INPUTS ────────────────────────────────────────────────────────
+function syncFormInput() {
+  // Send as list so backend can handle splits with count
+  const list = CITY_DATA.map(c => ({
+    city: c.city,
+    gabay_id: assignments[c.row_key || c.city],
+    count: c.count
+  }));
+  const json = JSON.stringify(list);
+  document.getElementById('assignmentsInput').value = json;
+  const mob = document.getElementById('assignmentsInputMobile');
+  if (mob) mob.value = json;
+}
+
+// ─── RENDER ALL ──────────────────────────────────────────────────────────────
+function renderAll() {
+  renderMap();
+  renderCityTable();
+  renderLegend();
+  renderWorkload();
+  syncFormInput();
+}
+
+// ─── BOOT ─────────────────────────────────────────────────────────────────────
+renderAll();
+</script>
+{% endblock %}

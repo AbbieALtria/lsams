@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}{{ 'Edit' if user else 'New' }} User{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('admin_users') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to User Management
+    </a>
+    <div class="page-title mt-1">{{ 'Edit User: ' + user.full_name if user else 'Create New User' }}</div>
+  </div>
+</div>
+
+<div class="row">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-gear me-2"></i>User Details</div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Full Name *</label>
+            <input type="text" name="full_name" class="form-control"
+              value="{{ user.full_name if user else '' }}" required placeholder="e.g. Lance Reyes">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Username *</label>
+            <input type="text" name="username" class="form-control"
+              value="{{ user.username if user else '' }}"
+              {% if user %}readonly style="background:#F8FAFD;color:#9aabc5"{% else %}required placeholder="e.g. lance.reyes"{% endif %}>
+            {% if user %}<div style="font-size:11px;color:#9aabc5;margin-top:4px">Username cannot be changed.</div>{% endif %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Email *</label>
+            <input type="email" name="email" class="form-control"
+              value="{{ user.email if user else '' }}" required placeholder="e.g. lance@lazada.com">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Role *</label>
+            <select name="role" class="form-select" id="roleSelect" onchange="toggleCityField(this.value)">
+              {% for val, lbl in [
+                ('superadmin','Power User (Superadmin)'),
+                ('admin','Admin'),
+                ('manager','Manager'),
+                ('supervisor','Supervisor'),
+                ('gabay','Gabay Agent'),
+                ('lazada','Lazada (Read-Only)'),
+              ] %}
+              <option value="{{ val }}" {% if user and user.role == val %}selected{% endif %}>{{ lbl }}</option>
+              {% endfor %}
+            </select>
+            <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+              <strong>Lazada</strong> = read-only reports portal &nbsp;|&nbsp;
+              <strong>Power User</strong> = full system override
+            </div>
+          </div>
+          <!-- City/Territory field — only shown for Gabay role -->
+          <div class="mb-3" id="cityField" style="display:{{ 'block' if (not user or user.role == 'gabay') else 'none' }}">
+            <label class="form-label fw-bold" style="font-size:12px">
+              <i class="bi bi-geo-alt-fill me-1" style="color:#E07B00"></i>
+              Assigned City / Territory
+              <span style="font-weight:400;color:#9aabc5">(Gabay agents only)</span>
+            </label>
+            <input type="text" name="assigned_city" class="form-control"
+              value="{{ user.assigned_city if user and user.assigned_city else '' }}"
+              placeholder="e.g. Quezon City, Makati  (comma-separated for multiple cities)">
+            <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+              <i class="bi bi-info-circle me-1"></i>
+              Smart Assignment will only route leads matching these cities to this agent.
+              Leave blank to allow fallback (any city).
+            </div>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">
+              Password {% if user %}(leave blank to keep current){% else %}*{% endif %}
+            </label>
+            <div style="position:relative">
+              <input type="password" name="password" class="form-control" id="pwInput"
+                {% if not user %}required{% endif %} placeholder="Min 8 characters">
+              <button type="button" onclick="togglePw()" style="position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:#9aabc5">
+                <i class="bi bi-eye" id="pwEye"></i>
+              </button>
+            </div>
+          </div>
+          {% if user %}
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Account Status</label>
+            <div class="form-check">
+              <input type="checkbox" name="is_active" class="form-check-input" id="isActive"
+                {% if user.is_active %}checked{% endif %}>
+              <label class="form-check-label" for="isActive" style="font-size:13px">Active (can log in)</label>
+            </div>
+          </div>
+          {% endif %}
+          <div class="d-flex gap-2 mt-4">
+            <button type="submit" class="btn" style="background:#7c3aed;color:white;font-weight:700;padding:10px 28px">
+              <i class="bi bi-check-circle me-2"></i>{{ 'Save Changes' if user else 'Create User' }}
+            </button>
+            <a href="{{ url_for('admin_users') }}" class="btn btn-outline-secondary">Cancel</a>
+          </div>
+        </form>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="card" style="background:#F5F0FF;border-left:4px solid #7c3aed">
+      <div class="card-body">
+        <div style="font-weight:800;color:#7c3aed;margin-bottom:12px"><i class="bi bi-info-circle me-2"></i>Role Guide</div>
+        {% for role, desc in [
+          ('Power User','Full system access — overrides all permissions, manages users, sees everything.'),
+          ('Admin','System setup, user management (except Power User), all data access.'),
+          ('Manager','Approves registrations, views all reports, sees Daily Digest.'),
+          ('Supervisor','Assigns leads, uses Smart Assignment Map, exports data.'),
+          ('Gabay Agent','Field agent — sees only their own leads, logs visits via mobile app.'),
+          ('Lazada (Read-Only)','Clean executive dashboard with charts and KPIs. No lead details, no personal data.'),
+        ] %}
+        <div style="margin-bottom:10px">
+          <div style="font-weight:700;font-size:12px;color:#1F3864">{{ role }}</div>
+          <div style="font-size:12px;color:#4a5568">{{ desc }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+function togglePw() {
+  const inp = document.getElementById('pwInput');
+  const eye = document.getElementById('pwEye');
+  inp.type = inp.type === 'password' ? 'text' : 'password';
+  eye.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
+}
+function toggleCityField(role) {
+  document.getElementById('cityField').style.display = (role === 'gabay') ? 'block' : 'none';
+}
+// Run on page load in case role is pre-selected (edit mode)
+document.addEventListener('DOMContentLoaded', function() {
+  const role = document.getElementById('roleSelect');
+  if (role) toggleCityField(role.value);
+});
+</script>
+{% endblock %}

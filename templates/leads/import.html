@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+{% block title %}Import Leads{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-upload me-2"></i>Import Leads</div>
+  <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Back to Leads</a>
+</div>
+
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">Upload Excel / CSV File</div>
+      <div class="card-body">
+        <form method="POST" enctype="multipart/form-data">
+          <div class="mb-4 p-3 rounded" style="background:#F0F4FA;border:2px dashed #2E75B6">
+            <div class="text-center mb-3">
+              <i class="bi bi-file-earmark-spreadsheet" style="font-size:40px;color:#2E75B6"></i>
+              <p class="mt-2 mb-1 fw-bold" style="color:#1F3864">Drag & drop or click to upload</p>
+              <small class="text-muted">Supports .xlsx, .xls, .csv — Max 16MB</small>
+            </div>
+            <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+          </div>
+
+          <div class="mb-3 p-3 rounded" style="background:#fffbeb;border:1px solid #fcd34d">
+            <div class="fw-bold mb-2" style="font-size:12px;color:#92400e">
+              <i class="bi bi-table me-1"></i>Lazada Excel Format — Expected Column Headers
+            </div>
+            <div class="row g-1" style="font-size:11px;color:#78350f">
+              <div class="col-6">• <code>Shop Name</code> <span style="color:#aaa">(required)</span></div>
+              <div class="col-6">• <code>Leads ID</code> <span style="color:#aaa">(UUID, dedup key)</span></div>
+              <div class="col-6">• <code>Priority</code> <span style="color:#aaa">(P0, P1, P2…)</span></div>
+              <div class="col-6">• <code>Project</code> <span style="color:#aaa">(TIKTOK TTS, etc.)</span></div>
+              <div class="col-6">• <code>Cluster</code> <span style="color:#aaa">(FMCG, FA, EL…)</span></div>
+              <div class="col-6">• <code>Category</code></div>
+              <div class="col-6">• <code>Link</code> <span style="color:#aaa">(TikTok/Shopee URL)</span></div>
+              <div class="col-6">• <code>Barangay</code></div>
+              <div class="col-6">• <code>City</code></div>
+              <div class="col-6">• <code>Province</code></div>
+              <div class="col-6">• <code>Complete Address</code></div>
+              <div class="col-6">• <code>Sender Name</code></div>
+              <div class="col-6">• <code>Contact Number</code></div>
+              <div class="col-6">• <code>Email Address</code></div>
+              <div class="col-6">• <code>Social Media Link</code></div>
+            </div>
+            <div class="mt-2" style="font-size:10px;color:#a16207">
+              <i class="bi bi-info-circle me-1"></i>
+              The merged header row (PIC / Seller Details) is auto-skipped. Upload the file exactly as exported from Lazada.
+            </div>
+          </div>
+
+          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
+            <i class="bi bi-upload me-2"></i>Import Leads
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

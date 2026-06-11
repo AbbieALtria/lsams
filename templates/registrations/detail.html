@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+{% block title %}Registration — {{ reg.lead.seller_name if reg.lead else '' }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('registrations') }}" class="text-muted text-decoration-none" style="font-size:12px"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <div class="page-title mt-1">Registration #{{ reg.id }}</div>
+    <div style="color:#9aabc5;font-size:13px">{{ reg.lead.seller_name if reg.lead else '' }}</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if reg.status == 'draft' %}
+    <form method="POST" action="{{ url_for('submit_registration', reg_id=reg.id) }}">
+      <button type="submit" class="btn btn-primary btn-sm">Submit for Review</button>
+    </form>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card mb-3">
+      <div class="card-header">Status</div>
+      <div class="card-body">
+        <div class="d-flex align-items-center gap-3">
+          <span class="badge fs-6 {% if reg.status == 'approved' %}bg-success{% elif reg.status == 'rejected' %}bg-danger{% elif reg.status == 'pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+            {{ reg.status.upper() }}
+          </span>
+          {% if reg.is_vw %}<span class="badge bg-primary">VW</span>{% endif %}
+          {% if reg.is_vw_rrld %}<span class="badge bg-info">VW-RRLD</span>{% endif %}
+        </div>
+        {% if reg.submitted_at %}<div class="mt-2 text-muted" style="font-size:12px">Submitted: {{ reg.submitted_at.strftime('%b %d, %Y %I:%M %p') }}</div>{% endif %}
+        {% if reg.activated_at %}<div class="text-success" style="font-size:12px">Activated: {{ reg.activated_at.strftime('%b %d, %Y') }}</div>{% endif %}
+        {% if reg.rejection_reason %}<div class="mt-2 p-2 rounded bg-danger bg-opacity-10 text-danger" style="font-size:12px"><strong>Rejection Reason:</strong> {{ reg.rejection_reason }}</div>{% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header">Document Checklist</div>
+      <div class="card-body">
+        {% for checked, label in [
+          (reg.has_dti, 'DTI / SEC Registration'),
+          (reg.has_permit, 'Business Permit / Mayor\'s Permit'),
+          (reg.has_gov_id, 'Government ID'),
+          (reg.has_tin, 'TIN Certificate'),
+          (reg.has_bank, 'Bank Account Details'),
+        ] %}
+        <div class="d-flex align-items-center gap-2 mb-2">
+          <i class="bi bi-{{ 'check-circle-fill text-success' if checked else 'circle text-muted' }}" style="font-size:16px"></i>
+          <span style="font-size:13px;color:{% if checked %}#1F3864{% else %}#9aabc5{% endif %}">{{ label }}</span>
+        </div>
+        {% endfor %}
+        <div class="mt-2 pt-2" style="border-top:1px solid #E0E6EF">
+          <div class="progress">
+            <div class="progress-bar bg-success" style="width:{{ reg.docs_count * 20 }}%"></div>
+          </div>
+          <small class="text-muted">{{ reg.docs_count }}/5 documents</small>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <!-- APPROVE / REJECT (manager only) -->
+    {% if current_user.is_manager and reg.status == 'pending' %}
+    <div class="card mb-3">
+      <div class="card-header dark">Review Registration</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('approve_registration', reg_id=reg.id) }}" class="mb-3">
+          <div class="mb-2">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_vw" id="is_vw">
+              <label class="form-check-label" for="is_vw"><strong>VW</strong> — Verified Seller</label>
+            </div>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="is_vw_rrld" id="is_vw_rrld">
+              <label class="form-check-label" for="is_vw_rrld"><strong>VW-RRLD</strong> — Verified with RRLD</label>
+            </div>
+          </div>
+          <button type="submit" class="btn btn-success w-100"><i class="bi bi-check-circle me-1"></i>Approve & Activate</button>
+        </form>
+        <form method="POST" action="{{ url_for('reject_registration', reg_id=reg.id) }}">
+          <textarea name="reason" class="form-control form-control-sm mb-2" rows="2" placeholder="Rejection reason..." required></textarea>
+          <button type="submit" class="btn btn-danger w-100"><i class="bi bi-x-circle me-1"></i>Reject</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <div class="card">
+      <div class="card-header">Seller Information</div>
+      <div class="card-body">
+        {% if reg.lead %}
+        <table class="table table-sm mb-0">
+          <tr><th style="color:#9aabc5;font-size:11px;width:120px">Seller</th><td>{{ reg.lead.seller_name }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Business</th><td>{{ reg.lead.business_name or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Contact</th><td>{{ reg.lead.contact_number or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">City</th><td>{{ reg.lead.city or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Gabay</th><td>{{ reg.lead.assigned_gabay.full_name if reg.lead.assigned_gabay else '—' }}</td></tr>
+        </table>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

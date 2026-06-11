@@ -1,0 +1,17 @@
+venv/
+__pycache__/
+*.pyc
+*.pyo
+instance/
+uploads/
+.env
+*.egg-info/
+dist/
+build/
+.DS_Store
+fix_smart.py
+node_modules/
+.claude/
+data_export.json
+*.bat
+export_data.py

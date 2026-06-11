@@ -1,0 +1,269 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+<meta name="apple-mobile-web-app-title" content="LSAMS">
+<meta name="theme-color" content="#1F3864">
+<title>{% block title %}LSAMS{% endblock %}</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<script src="/static/gabay/i18n.js"></script>
+<style>
+  :root { --navy: #1F3864; --orange: #FF9900; --safe-bottom: env(safe-area-inset-bottom, 0px); }
+  * { -webkit-tap-highlight-color: transparent; box-sizing: border-box; }
+  body { background: #F0F4FA; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+         padding-bottom: calc(68px + var(--safe-bottom)); margin: 0; font-size: 14px; }
+
+  /* TOP BAR */
+  .m-topbar {
+    position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+    background: var(--navy); color: white;
+    height: 56px; display: flex; align-items: center; padding: 0 16px; gap: 10px;
+  }
+  .m-topbar .brand { font-weight: 800; font-size: 16px; color: white; text-decoration: none; flex: 1; }
+  .m-topbar .brand span { color: var(--orange); }
+
+  /* HELP MODAL */
+  .help-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5);
+                  z-index:500; align-items:flex-end; }
+  .help-overlay.open { display:flex; }
+  .help-sheet { background:white; border-radius:24px 24px 0 0; padding:24px 20px 40px;
+                width:100%; max-height:80vh; overflow-y:auto; }
+  .help-sheet h3 { font-size:18px; font-weight:800; color:#1F3864; margin-bottom:14px; }
+  .help-sheet p, .help-sheet .help-body { font-size:14px; color:#4a5568; line-height:1.7; }
+  .tip-bubble { background:#EFF6FF; border-left:3px solid #2E75B6; border-radius:0 10px 10px 0;
+                padding:10px 14px; font-size:12px; color:#1e40af; margin-bottom:10px; }
+  .tip-bubble i { margin-right:6px; }
+
+  /* BOTTOM NAV */
+  .m-bottomnav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 100;
+    background: white; border-top: 1px solid #E0E6EF;
+    display: flex; height: calc(60px + var(--safe-bottom));
+    padding-bottom: var(--safe-bottom);
+  }
+  .m-bottomnav a {
+    flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center;
+    color: #9aabc5; text-decoration: none; font-size: 10px; font-weight: 600; gap: 3px;
+    padding-top: 8px;
+  }
+  .m-bottomnav a i { font-size: 22px; }
+  .m-bottomnav a.active { color: var(--navy); }
+  .m-bottomnav a.checkin-btn {
+    color: white; background: var(--orange); border-radius: 16px 16px 0 0;
+    margin: 0 4px; flex: 1.2;
+  }
+
+  /* CONTENT */
+  .m-content { padding: 72px 16px 16px; }
+
+  /* CARDS */
+  .m-card { background: white; border-radius: 16px; padding: 16px; margin-bottom: 12px;
+             box-shadow: 0 2px 8px rgba(31,56,100,0.07); }
+  .m-card-header { font-weight: 800; color: var(--navy); font-size: 13px; margin-bottom: 10px;
+                   display: flex; align-items: center; gap: 6px; }
+
+  /* KPI ROW */
+  .kpi-row { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px; }
+  .kpi-tile { background: white; border-radius: 14px; padding: 14px 10px; text-align: center;
+              box-shadow: 0 2px 8px rgba(31,56,100,0.07); }
+  .kpi-tile .val { font-size: 28px; font-weight: 800; color: var(--navy); line-height: 1; }
+  .kpi-tile .lbl { font-size: 10px; color: #9aabc5; font-weight: 700; text-transform: uppercase;
+                   margin-top: 4px; line-height: 1.2; }
+
+  /* LEAD LIST ITEM */
+  .lead-item { display: flex; align-items: center; gap: 12px; padding: 12px 0;
+               border-bottom: 1px solid #F0F4FA; text-decoration: none; color: inherit; }
+  .lead-item:last-child { border-bottom: none; }
+  .lead-avatar { width: 42px; height: 42px; border-radius: 12px; display: flex; align-items: center;
+                 justify-content: center; font-weight: 800; font-size: 16px; flex-shrink: 0; }
+  .lead-info { flex: 1; min-width: 0; }
+  .lead-name { font-weight: 700; font-size: 14px; color: var(--navy);
+               white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .lead-sub { font-size: 11px; color: #9aabc5; margin-top: 2px; }
+  .lead-arrow { color: #ccc; font-size: 18px; flex-shrink: 0; }
+
+  /* STATUS BADGES */
+  .sbadge { display: inline-block; padding: 2px 8px; border-radius: 8px; font-size: 10px; font-weight: 700; }
+  .s-assigned    { background: #dbeafe; color: #1d4ed8; }
+  .s-attempting  { background: #fef3c7; color: #b45309; }
+  .s-negotiation { background: #e0e7ff; color: #4338ca; }
+  .s-registration{ background: #fce7f3; color: #be185d; }
+  .s-live        { background: #dcfce7; color: #15803d; }
+
+  /* PRIORITY FLAG */
+  .priority-flag { width: 6px; border-radius: 3px; align-self: stretch; flex-shrink: 0; }
+
+  /* VISIT FORM */
+  .m-form-label { font-size: 12px; font-weight: 700; color: var(--navy); margin-bottom: 4px; }
+  .m-form-control { background: #F8FAFD; border: 1.5px solid #E0E6EF; border-radius: 10px;
+                    padding: 12px 14px; font-size: 14px; width: 100%; transition: border-color 0.2s; }
+  .m-form-control:focus { outline: none; border-color: var(--navy); background: white; }
+
+  /* BIG BUTTON */
+  .m-btn-primary { background: var(--navy); color: white; border: none; border-radius: 14px;
+                   padding: 16px; font-size: 16px; font-weight: 700; width: 100%; cursor: pointer; }
+  .m-btn-orange  { background: var(--orange); color: white; border: none; border-radius: 14px;
+                   padding: 16px; font-size: 16px; font-weight: 700; width: 100%; cursor: pointer; }
+
+  /* GPS BUTTON */
+  .gps-btn { background: #F0F4FA; border: 1.5px solid #E0E6EF; border-radius: 10px;
+             padding: 12px; display: flex; align-items: center; gap: 10px;
+             cursor: pointer; width: 100%; font-size: 13px; font-weight: 600; color: var(--navy); }
+  .gps-btn.got { background: #dcfce7; border-color: #15803d; color: #15803d; }
+
+  /* OFFLINE BANNER */
+  .offline-banner { display: none; background: #fef3c7; color: #b45309; text-align: center;
+                    padding: 8px; font-size: 12px; font-weight: 600; position: fixed;
+                    top: 56px; left: 0; right: 0; z-index: 99; }
+  body.offline .offline-banner { display: block; }
+  body.offline .m-content { padding-top: 100px; }
+
+  /* FLASH */
+  .m-flash { position: fixed; top: 64px; left: 16px; right: 16px; z-index: 200;
+             border-radius: 12px; padding: 12px 16px; font-size: 13px; font-weight: 600;
+             box-shadow: 0 4px 20px rgba(0,0,0,0.15); }
+  .m-flash.success { background: #dcfce7; color: #15803d; }
+  .m-flash.error   { background: #fee2e2; color: #b91c1c; }
+
+  /* SECTION HEADER */
+  .section-hdr { font-size: 11px; font-weight: 800; color: #9aabc5; text-transform: uppercase;
+                 letter-spacing: 1px; margin: 16px 0 8px; }
+
+  /* EMPTY STATE */
+  .empty-state { text-align: center; padding: 40px 20px; color: #9aabc5; }
+  .empty-state i { font-size: 48px; display: block; margin-bottom: 12px; }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<div class="offline-banner"><i class="bi bi-wifi-off me-2"></i>You're offline — data will sync when connected</div>
+
+<!-- TOP BAR -->
+<div class="m-topbar">
+  <a class="brand" href="{{ url_for('gabay_home') }}">LSAMS <span>●</span></a>
+  <span style="font-size:11px;color:#8aaed4">{{ current_user.full_name.split()[0] }}</span>
+  <button onclick="openHelp()" style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;
+          color:white;width:32px;height:32px;font-size:15px;font-weight:800;cursor:pointer;
+          display:flex;align-items:center;justify-content:center" title="Help & Guide">?</button>
+  <a href="{{ url_for('logout') }}" style="color:#8aaed4;font-size:20px;text-decoration:none">
+    <i class="bi bi-box-arrow-right"></i>
+  </a>
+</div>
+
+<!-- HELP BOTTOM SHEET -->
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
+  <div class="help-sheet">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <h3 id="helpTitle" style="margin:0"></h3>
+      <button onclick="closeHelp()" style="background:#F0F4FA;border:none;border-radius:10px;
+              padding:6px 14px;font-size:13px;font-weight:700;color:#1F3864;cursor:pointer"
+              data-i18n="help_close">Got it!</button>
+    </div>
+    <div class="help-body" id="helpBody"></div>
+  </div>
+</div>
+
+{% if current_user.username | lower == 'lance' %}
+<div id="lanceEgg" style="display:none;position:fixed;top:64px;left:50%;transform:translateX(-50%);
+     z-index:999;background:linear-gradient(135deg,#c0392b,#e74c3c);color:white;
+     border-radius:16px;padding:14px 22px;font-size:15px;font-weight:700;
+     box-shadow:0 8px 24px rgba(0,0,0,0.3);text-align:center;white-space:nowrap">
+  🎉 你好，帅气的老板！欢迎回来！🎉
+  <div style="font-size:11px;font-weight:400;opacity:0.9;margin-top:2px">Hello Handsome Boss, welcome back!</div>
+</div>
+<script>
+  window.addEventListener('DOMContentLoaded', () => {
+    const egg = document.getElementById('lanceEgg');
+    if (!sessionStorage.getItem('lance_greeted')) {
+      egg.style.display = 'block';
+      sessionStorage.setItem('lance_greeted', '1');
+      setTimeout(() => { egg.style.opacity='0'; egg.style.transition='opacity 0.8s'; setTimeout(()=>egg.style.display='none',800); }, 4000);
+    }
+  });
+</script>
+{% endif %}
+
+<!-- FLASH MESSAGES -->
+{% for cat, msg in get_flashed_messages(with_categories=true) %}
+<div class="m-flash {{ 'success' if cat == 'success' else 'error' }}" id="mflash">
+  <i class="bi bi-{{ 'check-circle' if cat == 'success' else 'exclamation-triangle' }} me-2"></i>{{ msg }}
+</div>
+{% endfor %}
+
+<!-- PAGE CONTENT -->
+<div class="m-content">
+  {% block content %}{% endblock %}
+</div>
+
+<!-- BOTTOM NAV -->
+<nav class="m-bottomnav">
+  <a href="{{ url_for('gabay_home') }}" class="{% if request.endpoint == 'gabay_home' %}active{% endif %}">
+    <i class="bi bi-house"></i><span data-i18n="nav_home">Home</span>
+  </a>
+  <a href="{{ url_for('gabay_app_leads') }}" class="{% if request.endpoint == 'gabay_app_leads' %}active{% endif %}">
+    <i class="bi bi-people"></i><span data-i18n="nav_leads">My Leads</span>
+  </a>
+  <a href="{{ url_for('gabay_quick_checkin') }}" class="checkin-btn">
+    <i class="bi bi-geo-alt-fill"></i><span data-i18n="nav_checkin">Check In</span>
+  </a>
+  <a href="{{ url_for('gabay_app_visits') }}" class="{% if request.endpoint == 'gabay_app_visits' %}active{% endif %}">
+    <i class="bi bi-clock-history"></i><span data-i18n="nav_history">History</span>
+  </a>
+  <a href="{{ url_for('gabay_app_profile') }}" class="{% if request.endpoint == 'gabay_app_profile' %}active{% endif %}">
+    <i class="bi bi-person-circle"></i><span data-i18n="nav_me">Me</span>
+  </a>
+</nav>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+// Register service worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.register('/static/sw.js').catch(() => {});
+}
+// Offline detection
+function updateOnline() {
+  document.body.classList.toggle('offline', !navigator.onLine);
+}
+window.addEventListener('online', updateOnline);
+window.addEventListener('offline', updateOnline);
+updateOnline();
+// Auto-dismiss flash
+const flash = document.getElementById('mflash');
+if (flash) setTimeout(() => flash.style.display = 'none', 3500);
+
+// ── Help system ────────────────────────────────────────────────────
+const PAGE_HELP = {
+  gabay_home: { title_key: 'help_home_title', body_key: 'help_home_body' },
+  gabay_quick_checkin: { title_key: 'help_checkin_title', body_key: 'help_checkin_body' },
+  gabay_app_leads: { title_key: 'help_leads_title', body_key: 'help_leads_body' },
+};
+const currentEndpoint = '{{ request.endpoint }}';
+function openHelp(titleKey, bodyKey) {
+  const info = PAGE_HELP[currentEndpoint] || {};
+  document.getElementById('helpTitle').textContent = t(titleKey || info.title_key || 'profile_help');
+  document.getElementById('helpBody').innerHTML = t(bodyKey || info.body_key || 'profile_help');
+  document.getElementById('helpOverlay').classList.add('open');
+}
+function closeHelp() {
+  document.getElementById('helpOverlay').classList.remove('open');
+}
+// First-visit onboarding tip
+(function() {
+  const seenKey = 'lsams_seen_' + currentEndpoint;
+  if (!localStorage.getItem(seenKey) && PAGE_HELP[currentEndpoint]) {
+    localStorage.setItem(seenKey, '1');
+    setTimeout(() => openHelp(), 800);
+  }
+})();
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

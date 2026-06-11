@@ -1,0 +1,122 @@
+{% extends "base.html" %}
+{% block title %}Record Visit{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="text-muted text-decoration-none" style="font-size:12px"><i class="bi bi-arrow-left me-1"></i>Back to Lead</a>
+    <div class="page-title mt-1">Record Visit</div>
+    <div style="color:#9aabc5;font-size:13px">{{ lead.seller_name }} — {{ lead.business_name or '' }}</div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">Visit Details</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('new_visit', lead_id=lead.id) }}">
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">VISIT OUTCOME *</label>
+            <select name="outcome" class="form-select" required>
+              <option value="">Select outcome...</option>
+              <option value="interested">✅ Interested — Ready for Registration</option>
+              <option value="follow_up">📅 Follow Up — Needs another visit</option>
+              <option value="not_interested">❌ Not Interested</option>
+              <option value="no_contact">📵 No Contact — Seller not available</option>
+            </select>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">NOTES</label>
+            <textarea name="notes" class="form-control" rows="3" placeholder="Discussion summary, key points, seller feedback..."></textarea>
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">FOLLOW-UP DATE</label>
+            <input type="date" name="follow_up_date" class="form-control">
+          </div>
+
+          <!-- GPS -->
+          <div class="mb-3 p-3 rounded" style="background:#F0F4FA">
+            <div class="d-flex align-items-center justify-content-between mb-2">
+              <label class="fw-bold mb-0" style="font-size:12px;color:#4a5568">GPS CHECK-IN</label>
+              <button type="button" class="btn btn-sm" style="background:#1F3864;color:white" onclick="getGPS()">
+                <i class="bi bi-geo-alt"></i> Get Location
+              </button>
+            </div>
+            <input type="hidden" name="gps_lat" id="gps_lat">
+            <input type="hidden" name="gps_lng" id="gps_lng">
+            <input type="text" name="gps_address" id="gps_address" class="form-control form-control-sm" placeholder="Address / location description" readonly>
+            <div id="gpsStatus" class="mt-1" style="font-size:11px;color:#9aabc5">Location not captured yet.</div>
+          </div>
+
+          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
+            <i class="bi bi-check-circle me-1"></i>Save Visit Record
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+
+  <div class="col-md-6">
+    <!-- SELLER INFO CARD -->
+    <div class="card mb-3">
+      <div class="card-header">Seller Details</div>
+      <div class="card-body">
+        <div class="mb-2"><strong>{{ lead.seller_name }}</strong></div>
+        <div style="font-size:13px;color:#4a5568">
+          {% if lead.business_name %}<div><i class="bi bi-shop me-1 text-muted"></i>{{ lead.business_name }}</div>{% endif %}
+          {% if lead.contact_number %}<div><i class="bi bi-phone me-1 text-muted"></i>{{ lead.contact_number }}</div>{% endif %}
+          {% if lead.address %}<div><i class="bi bi-geo me-1 text-muted"></i>{{ lead.address }}</div>{% endif %}
+          {% if lead.city %}<div><i class="bi bi-building me-1 text-muted"></i>{{ lead.city }}, {{ lead.region or '' }}</div>{% endif %}
+        </div>
+      </div>
+    </div>
+
+    <!-- MAP -->
+    <div class="card">
+      <div class="card-header">Location Map</div>
+      <div class="card-body p-0">
+        <div id="map" style="height:280px;border-radius:0 0 12px 12px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const map = L.map('map').setView([14.5995, 120.9842], 12);
+L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap' }).addTo(map);
+let marker;
+
+function getGPS() {
+  const statusEl = document.getElementById('gpsStatus');
+  statusEl.textContent = 'Getting location...';
+  statusEl.style.color = '#E07B00';
+  if (!navigator.geolocation) {
+    statusEl.textContent = 'Geolocation not supported on this device.';
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude;
+    const lng = pos.coords.longitude;
+    document.getElementById('gps_lat').value = lat;
+    document.getElementById('gps_lng').value = lng;
+    document.getElementById('gps_address').value = `${lat.toFixed(5)}, ${lng.toFixed(5)}`;
+    statusEl.textContent = `✓ Location captured: ${lat.toFixed(4)}, ${lng.toFixed(4)}`;
+    statusEl.style.color = '#15803d';
+    map.setView([lat, lng], 16);
+    if (marker) marker.remove();
+    marker = L.marker([lat, lng]).addTo(map)
+      .bindPopup('<b>Check-in Location</b><br>{{ lead.seller_name }}').openPopup();
+  }, err => {
+    statusEl.textContent = 'Error: ' + err.message + '. Enter location manually.';
+    statusEl.style.color = '#b91c1c';
+    document.getElementById('gps_address').readOnly = false;
+  });
+}
+</script>
+{% endblock %}

@@ -1,0 +1,872 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>LSAMS Reports</title>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<style>
+  :root {
+    --blue: #1F3864;
+    --mid-blue: #2E75B6;
+    --light-blue: #D6E4F0;
+    --green: #1E6B1E;
+    --light-green: #D9EAD3;
+    --red: #C00000;
+    --orange: #E07B00;
+    --gray: #F5F7FA;
+    --border: #E0E6EF;
+    --text: #1a2340;
+    --text-muted: #6b7a99;
+    --white: #ffffff;
+    --shadow: 0 2px 12px rgba(31,56,100,0.10);
+    --radius: 12px;
+    --nav-height: 60px;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif; background: var(--gray); color: var(--text); min-height: 100vh; }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--blue);
+    height: var(--nav-height);
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 0 16px;
+    position: sticky; top: 0; z-index: 100;
+  }
+  .topbar-title { color: white; font-size: 16px; font-weight: 700; letter-spacing: 0.5px; }
+  .topbar-sub { color: #8aaed4; font-size: 11px; margin-top: 1px; }
+  .topbar-month {
+    background: rgba(255,255,255,0.12);
+    color: white; font-size: 13px; font-weight: 600;
+    padding: 6px 14px; border-radius: 20px; border: 1px solid rgba(255,255,255,0.2);
+    cursor: pointer;
+  }
+
+  /* NAV TABS */
+  .nav-tabs {
+    display: flex; background: var(--white);
+    border-bottom: 2px solid var(--border);
+    overflow-x: auto; -webkit-overflow-scrolling: touch;
+    scrollbar-width: none; position: sticky; top: var(--nav-height); z-index: 99;
+  }
+  .nav-tabs::-webkit-scrollbar { display: none; }
+  .nav-tab {
+    flex-shrink: 0; padding: 14px 18px;
+    font-size: 13px; font-weight: 600; color: var(--text-muted);
+    cursor: pointer; border-bottom: 3px solid transparent;
+    margin-bottom: -2px; white-space: nowrap; transition: all 0.2s;
+  }
+  .nav-tab.active { color: var(--mid-blue); border-bottom-color: var(--mid-blue); }
+  .nav-tab:hover { color: var(--blue); }
+
+  /* MAIN CONTENT */
+  .content { padding: 16px; max-width: 1200px; margin: 0 auto; }
+  .page { display: none; }
+  .page.active { display: block; }
+
+  /* SECTION TITLE */
+  .section-title {
+    font-size: 11px; font-weight: 700; color: var(--text-muted);
+    text-transform: uppercase; letter-spacing: 1px;
+    margin: 20px 0 10px;
+  }
+
+  /* KPI CARDS GRID */
+  .kpi-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
+  @media (min-width: 600px) { .kpi-grid { grid-template-columns: repeat(3, 1fr); } }
+  @media (min-width: 900px) { .kpi-grid { grid-template-columns: repeat(6, 1fr); } }
+
+  .kpi-card {
+    background: var(--white); border-radius: var(--radius);
+    padding: 16px 14px; box-shadow: var(--shadow);
+    border-left: 4px solid var(--mid-blue);
+  }
+  .kpi-card.green { border-left-color: var(--green); }
+  .kpi-card.orange { border-left-color: var(--orange); }
+  .kpi-card.red { border-left-color: var(--red); }
+  .kpi-label { font-size: 10px; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-value { font-size: 28px; font-weight: 800; color: var(--blue); margin: 4px 0 2px; line-height: 1; }
+  .kpi-delta { font-size: 11px; color: var(--green); font-weight: 600; }
+  .kpi-delta.down { color: var(--red); }
+
+  /* CARD */
+  .card {
+    background: var(--white); border-radius: var(--radius);
+    box-shadow: var(--shadow); margin-bottom: 14px; overflow: hidden;
+  }
+  .card-header {
+    padding: 14px 16px 10px;
+    display: flex; align-items: center; justify-content: space-between;
+    border-bottom: 1px solid var(--border);
+  }
+  .card-title { font-size: 13px; font-weight: 700; color: var(--blue); }
+  .card-body { padding: 16px; }
+  .chart-wrap { position: relative; height: 220px; }
+  @media (min-width: 600px) { .chart-wrap { height: 280px; } }
+
+  /* TABLE */
+  .tbl-wrap { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead th {
+    background: var(--blue); color: white;
+    padding: 10px 12px; text-align: left; font-size: 11px;
+    font-weight: 700; text-transform: uppercase; letter-spacing: 0.5px;
+    white-space: nowrap;
+  }
+  tbody tr:nth-child(even) { background: var(--gray); }
+  tbody td { padding: 9px 12px; border-bottom: 1px solid var(--border); white-space: nowrap; }
+  .rank-badge {
+    display: inline-flex; align-items: center; justify-content: center;
+    width: 22px; height: 22px; border-radius: 50%;
+    font-size: 11px; font-weight: 700; background: var(--light-blue); color: var(--blue);
+  }
+  .rank-badge.gold { background: #FFD700; color: #7a5800; }
+  .rank-badge.silver { background: #C0C0C0; color: #444; }
+  .rank-badge.bronze { background: #cd7f32; color: white; }
+
+  /* PROGRESS BAR */
+  .prog-bar { height: 6px; background: var(--border); border-radius: 3px; margin-top: 4px; overflow: hidden; }
+  .prog-fill { height: 100%; border-radius: 3px; background: var(--mid-blue); transition: width 0.6s; }
+  .prog-fill.green { background: var(--green); }
+  .prog-fill.orange { background: var(--orange); }
+  .prog-fill.red { background: var(--red); }
+
+  /* STATUS PILLS */
+  .pill {
+    display: inline-block; padding: 2px 8px; border-radius: 10px;
+    font-size: 11px; font-weight: 600;
+  }
+  .pill.green { background: var(--light-green); color: var(--green); }
+  .pill.blue { background: var(--light-blue); color: var(--mid-blue); }
+  .pill.orange { background: #FFF0D0; color: var(--orange); }
+  .pill.red { background: #FDECEA; color: var(--red); }
+
+  /* FUNNEL */
+  .funnel-step {
+    display: flex; align-items: center; margin-bottom: 8px;
+  }
+  .funnel-label { width: 130px; font-size: 12px; font-weight: 600; color: var(--text-muted); flex-shrink: 0; }
+  .funnel-bar-wrap { flex: 1; }
+  .funnel-bar { height: 32px; border-radius: 6px; display: flex; align-items: center; padding-left: 12px; transition: width 0.8s; }
+  .funnel-bar span { font-size: 13px; font-weight: 700; color: white; }
+  .funnel-count { width: 50px; text-align: right; font-size: 12px; font-weight: 700; color: var(--text); padding-left: 8px; }
+  .funnel-pct { width: 42px; text-align: right; font-size: 11px; color: var(--text-muted); }
+
+  /* GRID 2-COL */
+  .grid-2 { display: grid; grid-template-columns: 1fr; gap: 14px; }
+  @media (min-width: 700px) { .grid-2 { grid-template-columns: 1fr 1fr; } }
+
+  /* FILTER BAR */
+  .filter-bar {
+    display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px;
+  }
+  .filter-select {
+    padding: 8px 12px; border-radius: 8px; border: 1px solid var(--border);
+    font-size: 13px; background: white; color: var(--text); cursor: pointer;
+    flex: 1; min-width: 120px;
+  }
+  .export-btn {
+    padding: 8px 16px; border-radius: 8px; border: none;
+    background: var(--mid-blue); color: white; font-size: 13px; font-weight: 600;
+    cursor: pointer; display: flex; align-items: center; gap: 6px;
+  }
+  .export-btn:active { opacity: 0.8; }
+
+  /* SUMMARY ROW */
+  .summary-row {
+    background: var(--blue); color: white;
+    font-weight: 700; font-size: 13px;
+  }
+  .summary-row td { padding: 10px 12px; }
+
+  /* WOW ROW */
+  .wow-row { background: #FFFDE7 !important; font-weight: 700; }
+  .wow-row td { color: #7a5800; }
+
+  /* SPARKLINE WRAP */
+  .sparkline-cell { width: 80px; }
+
+  /* MOBILE BOTTOM NAV */
+  .bottom-nav {
+    display: none;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    background: white; border-top: 1px solid var(--border);
+    z-index: 200;
+  }
+  @media (max-width: 599px) {
+    .bottom-nav { display: flex; }
+    .nav-tabs { display: none; }
+    .content { padding-bottom: 80px; }
+  }
+  .bnav-item {
+    flex: 1; display: flex; flex-direction: column; align-items: center;
+    padding: 8px 4px 6px; cursor: pointer; color: var(--text-muted);
+    font-size: 10px; font-weight: 600; gap: 3px;
+  }
+  .bnav-item.active { color: var(--mid-blue); }
+  .bnav-icon { font-size: 20px; line-height: 1; }
+
+  /* RESPONSIVE TABLE CARDS (mobile) */
+  @media (max-width: 480px) {
+    .kpi-value { font-size: 22px; }
+    thead { display: none; }
+    tbody tr { display: block; background: white; margin-bottom: 8px; border-radius: 8px; box-shadow: var(--shadow); padding: 10px; }
+    tbody tr:nth-child(even) { background: white; }
+    tbody td { display: flex; justify-content: space-between; border-bottom: 1px solid var(--border); padding: 6px 4px; font-size: 12px; }
+    tbody td:last-child { border-bottom: none; }
+    tbody td::before { content: attr(data-label); font-weight: 700; color: var(--text-muted); font-size: 11px; }
+    .summary-row { display: none; }
+  }
+
+  /* TOOLTIP */
+  .tooltip-icon { cursor: help; color: var(--text-muted); font-size: 13px; }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div>
+    <div class="topbar-title">LSAMS Reports</div>
+    <div class="topbar-sub">Lazada Seller Activation</div>
+  </div>
+  <div class="topbar-month" onclick="toggleMonth()">📅 May 2026 ▾</div>
+</div>
+
+<!-- Desktop nav -->
+<div class="nav-tabs" id="desktopNav">
+  <div class="nav-tab active" onclick="showPage('dashboard',this)">📊 Dashboard</div>
+  <div class="nav-tab" onclick="showPage('gabay',this)">👤 Gabay Performance</div>
+  <div class="nav-tab" onclick="showPage('pipeline',this)">🔀 Lead Pipeline</div>
+  <div class="nav-tab" onclick="showPage('territory',this)">🗺️ Territory</div>
+  <div class="nav-tab" onclick="showPage('registration',this)">📋 Registrations</div>
+</div>
+
+<div class="content">
+
+  <!-- ═══════════════════════ DASHBOARD ═══════════════════════ -->
+  <div class="page active" id="page-dashboard">
+
+    <div class="section-title">May 2026 — Key Performance Indicators</div>
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Total Pool</div>
+        <div class="kpi-value">995</div>
+        <div class="kpi-delta">9 Gabay active</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Assigned</div>
+        <div class="kpi-value">201</div>
+        <div class="kpi-delta">20.2% of pool</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Attempting Contact</div>
+        <div class="kpi-value">378</div>
+        <div class="kpi-delta">38.0% of pool</div>
+      </div>
+      <div class="kpi-card">
+        <div class="kpi-label">Negotiation</div>
+        <div class="kpi-value">252</div>
+        <div class="kpi-delta">25.3% of pool</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Live Sellers</div>
+        <div class="kpi-value">54</div>
+        <div class="kpi-delta">5.4% activation rate</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Matched</div>
+        <div class="kpi-value">75</div>
+        <div class="kpi-delta">+9 VW RRLD, 2 VW</div>
+      </div>
+    </div>
+
+    <div class="section-title" style="margin-top:20px">WOW Benchmark Comparison</div>
+    <div class="card">
+      <div class="card-header">
+        <span class="card-title">May 2026 vs WOW Target</span>
+        <span class="pill blue">Live Period</span>
+      </div>
+      <div class="card-body">
+        <div class="funnel-step">
+          <div class="funnel-label">Attempting</div>
+          <div class="funnel-bar-wrap">
+            <div class="prog-bar"><div class="prog-fill" style="width:100%"></div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">May: 378 &nbsp;|&nbsp; WOW: 355</div>
+          </div>
+          <div class="funnel-count" style="color:var(--green)">+6.5%</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-label">Negotiation</div>
+          <div class="funnel-bar-wrap">
+            <div class="prog-bar"><div class="prog-fill orange" style="width:45%"></div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">May: 252 &nbsp;|&nbsp; WOW: 114</div>
+          </div>
+          <div class="funnel-count" style="color:var(--green)">+121%</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-label">Registration</div>
+          <div class="funnel-bar-wrap">
+            <div class="prog-bar"><div class="prog-fill" style="width:6%"></div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">May: 35 &nbsp;|&nbsp; WOW: 33</div>
+          </div>
+          <div class="funnel-count" style="color:var(--green)">+6.1%</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-label">Live Sellers</div>
+          <div class="funnel-bar-wrap">
+            <div class="prog-bar"><div class="prog-fill green" style="width:46%"></div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">May: 54 &nbsp;|&nbsp; WOW: 37</div>
+          </div>
+          <div class="funnel-count" style="color:var(--green)">+46%</div>
+        </div>
+        <div class="funnel-step">
+          <div class="funnel-label">Matched</div>
+          <div class="funnel-bar-wrap">
+            <div class="prog-bar"><div class="prog-fill green" style="width:56%"></div></div>
+            <div style="font-size:11px;color:var(--text-muted);margin-top:2px">May: 75 &nbsp;|&nbsp; WOW: 58</div>
+          </div>
+          <div class="funnel-count" style="color:var(--green)">+29%</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="grid-2">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Pipeline Stage Distribution</span></div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="chartPipeline"></canvas></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Live vs Matched — by Gabay</span></div>
+        <div class="card-body">
+          <div class="chart-wrap"><canvas id="chartLiveMatched"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════ GABAY PERFORMANCE ═══════════════════════ -->
+  <div class="page" id="page-gabay">
+
+    <div class="section-title">Individual Agent Performance — May 2026</div>
+
+    <div class="filter-bar">
+      <select class="filter-select" onchange="sortGabay(this.value)">
+        <option value="matched">Sort by: Matched</option>
+        <option value="live">Sort by: Live Sellers</option>
+        <option value="pool">Sort by: Total Pool</option>
+        <option value="negotiation">Sort by: Negotiation</option>
+      </select>
+      <button class="export-btn" onclick="exportCSV()">⬇ Export CSV</button>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Gabay Leaderboard</span><span class="pill blue">9 Agents</span></div>
+      <div class="tbl-wrap">
+        <table id="gabayTable">
+          <thead>
+            <tr>
+              <th>#</th>
+              <th>Gabay</th>
+              <th>Pool</th>
+              <th>Assigned</th>
+              <th>Attempting</th>
+              <th>Negotiation</th>
+              <th>Registration</th>
+              <th>Live</th>
+              <th>Matched</th>
+              <th>Conv %</th>
+              <th>Notes</th>
+            </tr>
+          </thead>
+          <tbody id="gabayTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-header"><span class="card-title">Matched Sellers — Top Performers</span></div>
+      <div class="card-body">
+        <div class="chart-wrap" style="height:260px"><canvas id="chartGabayBar"></canvas></div>
+      </div>
+    </div>
+
+    <div class="grid-2" style="margin-top:14px">
+      <div class="card">
+        <div class="card-header"><span class="card-title">Conversion Rate (%)</span></div>
+        <div class="card-body">
+          <div id="convRateList"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-header"><span class="card-title">Live Sellers Contribution</span></div>
+        <div class="card-body">
+          <div class="chart-wrap" style="height:220px"><canvas id="chartLivePie"></canvas></div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════ PIPELINE ═══════════════════════ -->
+  <div class="page" id="page-pipeline">
+
+    <div class="section-title">Lead Pipeline Funnel — May 2026</div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Full Activation Funnel</span><span class="pill green">995 Total Leads</span></div>
+      <div class="card-body" id="funnelBody">
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Stage-to-Stage Conversion Rates</span></div>
+      <div class="card-body">
+        <div class="chart-wrap"><canvas id="chartConvRates"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Pipeline Trend (Simulated Monthly)</span></div>
+      <div class="card-body">
+        <div class="chart-wrap"><canvas id="chartTrend"></canvas></div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════ TERRITORY ═══════════════════════ -->
+  <div class="page" id="page-territory">
+
+    <div class="section-title">Territory Performance — May 2026</div>
+
+    <div class="grid-2">
+      <div class="kpi-card">
+        <div class="kpi-label">Territories Active</div>
+        <div class="kpi-value">9</div>
+        <div class="kpi-delta">All Gabay assigned</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Best Territory</div>
+        <div class="kpi-value" style="font-size:18px">Karl Michael</div>
+        <div class="kpi-delta">15 Matched</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-header"><span class="card-title">Territory Comparison — All KPIs</span></div>
+      <div class="card-body">
+        <div class="chart-wrap" style="height:300px"><canvas id="chartTerritory"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Activation Efficiency (Matched / Pool)</span></div>
+      <div class="card-body" id="efficiencyBody"></div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-header"><span class="card-title">VW / VW-RRLD Breakdown</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>Gabay</th><th>VW RRLD</th><th>VW</th><th>Total Extra</th></tr>
+          </thead>
+          <tbody>
+            <tr><td data-label="Gabay">Arvie Bagalando</td><td data-label="VW RRLD">1</td><td data-label="VW">0</td><td data-label="Total">1</td></tr>
+            <tr><td data-label="Gabay">Ellen Remandiman</td><td data-label="VW RRLD">2</td><td data-label="VW">0</td><td data-label="Total">2</td></tr>
+            <tr><td data-label="Gabay">Jenerous Sonio</td><td data-label="VW RRLD">1</td><td data-label="VW">1</td><td data-label="Total">2</td></tr>
+            <tr><td data-label="Gabay">Karen Krizel Villarama</td><td data-label="VW RRLD">2</td><td data-label="VW">0</td><td data-label="Total">2</td></tr>
+            <tr><td data-label="Gabay">Kaycee Joyce Labial</td><td data-label="VW RRLD">1</td><td data-label="VW">0</td><td data-label="Total">1</td></tr>
+            <tr><td data-label="Gabay">Marie Cris Nicolas</td><td data-label="VW RRLD">1</td><td data-label="VW">1</td><td data-label="Total">2</td></tr>
+            <tr class="summary-row"><td>TOTAL</td><td>9</td><td>2</td><td>11</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ═══════════════════════ REGISTRATIONS ═══════════════════════ -->
+  <div class="page" id="page-registration">
+
+    <div class="section-title">Registration & Activation Status — May 2026</div>
+
+    <div class="kpi-grid">
+      <div class="kpi-card">
+        <div class="kpi-label">Registrations</div>
+        <div class="kpi-value">35</div>
+        <div class="kpi-delta">This period</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Live Sellers</div>
+        <div class="kpi-value">54</div>
+        <div class="kpi-delta">Activated</div>
+      </div>
+      <div class="kpi-card green">
+        <div class="kpi-label">Matched</div>
+        <div class="kpi-value">75</div>
+        <div class="kpi-delta">+9 VW RRLD</div>
+      </div>
+      <div class="kpi-card orange">
+        <div class="kpi-label">Reg → Live Rate</div>
+        <div class="kpi-value">154%</div>
+        <div class="kpi-delta">Includes carryover</div>
+      </div>
+    </div>
+
+    <div class="card" style="margin-top:14px">
+      <div class="card-header"><span class="card-title">Registrations per Gabay</span></div>
+      <div class="card-body">
+        <div class="chart-wrap"><canvas id="chartRegBar"></canvas></div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><span class="card-title">Activation Summary by Agent</span></div>
+      <div class="tbl-wrap">
+        <table>
+          <thead>
+            <tr><th>#</th><th>Gabay</th><th>Registration</th><th>Live</th><th>Matched</th><th>Status</th></tr>
+          </thead>
+          <tbody id="regTbody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+
+</div><!-- /content -->
+
+<!-- Mobile bottom nav -->
+<div class="bottom-nav">
+  <div class="bnav-item active" id="bnav-dashboard" onclick="showPage('dashboard',null,'bnav-dashboard')">
+    <span class="bnav-icon">📊</span>Dashboard
+  </div>
+  <div class="bnav-item" id="bnav-gabay" onclick="showPage('gabay',null,'bnav-gabay')">
+    <span class="bnav-icon">👤</span>Gabay
+  </div>
+  <div class="bnav-item" id="bnav-pipeline" onclick="showPage('pipeline',null,'bnav-pipeline')">
+    <span class="bnav-icon">🔀</span>Pipeline
+  </div>
+  <div class="bnav-item" id="bnav-territory" onclick="showPage('territory',null,'bnav-territory')">
+    <span class="bnav-icon">🗺️</span>Territory
+  </div>
+  <div class="bnav-item" id="bnav-registration" onclick="showPage('registration',null,'bnav-registration')">
+    <span class="bnav-icon">📋</span>Reg
+  </div>
+</div>
+
+<script>
+// ─── DATA ───────────────────────────────────────────────────────────────────
+const GABAY_DATA = [
+  { name: "Abigail Bulasco",        pool:109, assigned:10, attempting:48, negotiation:27, registration:2,  live:5,  matched:17, notes:"" },
+  { name: "Arvie Bagalando",        pool:109, assigned:36, attempting:28, negotiation:34, registration:2,  live:4,  matched:5,  notes:"+1 VW-RRLD" },
+  { name: "Ellen Remandiman",       pool:112, assigned:15, attempting:59, negotiation:17, registration:5,  live:10, matched:6,  notes:"+2 VW RRLD" },
+  { name: "Jenerous Sonio",         pool:107, assigned:19, attempting:25, negotiation:48, registration:6,  live:5,  matched:4,  notes:"+1 VW-RRLD, 1 VW" },
+  { name: "Jenca Sunio",            pool:104, assigned:51, attempting:18, negotiation:23, registration:8,  live:3,  matched:1,  notes:"" },
+  { name: "Karen Krizel Villarama", pool:117, assigned:14, attempting:46, negotiation:34, registration:2,  live:12, matched:9,  notes:"+2 VW RRLD" },
+  { name: "Karl Michael Mirabuenas",pool:111, assigned:3,  attempting:63, negotiation:25, registration:3,  live:2,  matched:15, notes:"" },
+  { name: "Kaycee Joyce Labial",    pool:108, assigned:26, attempting:40, negotiation:23, registration:5,  live:5,  matched:9,  notes:"+1 VW RRLD" },
+  { name: "Marie Cris Nicolas",     pool:118, assigned:27, attempting:51, negotiation:21, registration:2,  live:8,  matched:9,  notes:"+1 VW, +1 VW RRLD" },
+];
+
+const COLORS = [
+  '#1F3864','#2E75B6','#1E6B1E','#E07B00','#8E44AD','#C00000','#0E7C7B','#D4AC0D','#5D6D7E'
+];
+
+// ─── NAVIGATION ─────────────────────────────────────────────────────────────
+let chartsInitialized = {};
+
+function showPage(id, tabEl, bnavId) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.getElementById('page-' + id).classList.add('active');
+
+  document.querySelectorAll('.nav-tab').forEach(t => t.classList.remove('active'));
+  if (tabEl) tabEl.classList.add('active');
+
+  document.querySelectorAll('.bnav-item').forEach(b => b.classList.remove('active'));
+  if (bnavId) document.getElementById(bnavId).classList.add('active');
+
+  if (!chartsInitialized[id]) {
+    chartsInitialized[id] = true;
+    setTimeout(() => initCharts(id), 50);
+  }
+}
+
+function toggleMonth() { alert('Month selector — connect to backend for live data filtering.'); }
+
+// ─── INIT ALL CHARTS ─────────────────────────────────────────────────────────
+function initCharts(page) {
+  if (page === 'dashboard') initDashboard();
+  if (page === 'gabay') initGabay();
+  if (page === 'pipeline') initPipeline();
+  if (page === 'territory') initTerritory();
+  if (page === 'registration') initRegistration();
+}
+
+// ─── DASHBOARD ────────────────────────────────────────────────────────────
+function initDashboard() {
+  // Pipeline donut
+  new Chart(document.getElementById('chartPipeline'), {
+    type: 'doughnut',
+    data: {
+      labels: ['Assigned','Attempting','Negotiation','Registration','Live','Matched'],
+      datasets: [{ data: [201,378,252,35,54,75], backgroundColor: ['#2E75B6','#E07B00','#8E44AD','#D4AC0D','#1E6B1E','#1F3864'], borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 10 } } } }
+  });
+  // Live vs Matched bar
+  new Chart(document.getElementById('chartLiveMatched'), {
+    type: 'bar',
+    data: {
+      labels: GABAY_DATA.map(g => g.name.split(' ')[0]),
+      datasets: [
+        { label: 'Live', data: GABAY_DATA.map(g => g.live), backgroundColor: '#1E6B1E' },
+        { label: 'Matched', data: GABAY_DATA.map(g => g.matched), backgroundColor: '#2E75B6' },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } }, scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true } } }
+  });
+}
+
+// ─── GABAY ─────────────────────────────────────────────────────────────────
+function renderGabayTable(data) {
+  const tbody = document.getElementById('gabayTbody');
+  const sorted = [...data].sort((a,b) => b.matched - a.matched);
+  tbody.innerHTML = sorted.map((g, i) => {
+    const conv = ((g.matched / g.pool) * 100).toFixed(1);
+    const badge = i === 0 ? 'gold' : i === 1 ? 'silver' : i === 2 ? 'bronze' : '';
+    const isJenca = g.name.includes('Jenca') && g.assigned > 40;
+    return `<tr${isJenca ? ' style="color:red"' : ''}>
+      <td data-label="#"><span class="rank-badge ${badge}">${i+1}</span></td>
+      <td data-label="Gabay"><strong>${g.name}</strong></td>
+      <td data-label="Pool">${g.pool}</td>
+      <td data-label="Assigned">${g.assigned}</td>
+      <td data-label="Attempting">${g.attempting}</td>
+      <td data-label="Negotiation">${g.negotiation}</td>
+      <td data-label="Registration">${g.registration}</td>
+      <td data-label="Live">${g.live}</td>
+      <td data-label="Matched"><strong>${g.matched}</strong></td>
+      <td data-label="Conv%"><span class="pill ${conv >= 10 ? 'green' : conv >= 5 ? 'blue' : 'orange'}">${conv}%</span></td>
+      <td data-label="Notes"><small style="color:var(--text-muted)">${g.notes}</small></td>
+    </tr>`;
+  }).join('') +
+  `<tr class="summary-row">
+    <td colspan="2">MAY 2026 TOTAL</td>
+    <td>995</td><td>201</td><td>378</td><td>252</td><td>35</td><td>54</td><td>75</td>
+    <td><span class="pill green">7.5%</span></td><td>+9 VW RRLD, 2 VW</td>
+  </tr>`;
+}
+
+function sortGabay(key) {
+  const sorted = [...GABAY_DATA].sort((a,b) => b[key] - a[key]);
+  renderGabayTable(sorted);
+}
+
+function initGabay() {
+  renderGabayTable(GABAY_DATA);
+
+  const sorted = [...GABAY_DATA].sort((a,b) => b.matched - a.matched);
+  new Chart(document.getElementById('chartGabayBar'), {
+    type: 'bar',
+    data: {
+      labels: sorted.map(g => g.name.split(' ')[0] + ' ' + (g.name.split(' ')[1]||'')),
+      datasets: [
+        { label: 'Matched', data: sorted.map(g => g.matched), backgroundColor: COLORS },
+      ]
+    },
+    options: { indexAxis: 'y', responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { beginAtZero: true }, y: { ticks: { font: { size: 11 } } } }
+    }
+  });
+
+  // Conversion rate list
+  const convDiv = document.getElementById('convRateList');
+  const convSorted = [...GABAY_DATA].sort((a,b) => (b.matched/b.pool) - (a.matched/a.pool));
+  convDiv.innerHTML = convSorted.map(g => {
+    const pct = ((g.matched/g.pool)*100).toFixed(1);
+    const color = pct >= 10 ? 'green' : pct >= 5 ? '' : 'orange';
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:3px">
+        <span style="font-weight:600">${g.name.split(' ')[0]}</span>
+        <span style="font-weight:700;color:var(--mid-blue)">${pct}%</span>
+      </div>
+      <div class="prog-bar"><div class="prog-fill ${color}" style="width:${Math.min(pct*5,100)}%"></div></div>
+    </div>`;
+  }).join('');
+
+  // Live pie
+  new Chart(document.getElementById('chartLivePie'), {
+    type: 'pie',
+    data: {
+      labels: GABAY_DATA.map(g => g.name.split(' ')[0]),
+      datasets: [{ data: GABAY_DATA.map(g => g.live), backgroundColor: COLORS, borderWidth: 2, borderColor: '#fff' }]
+    },
+    options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6 } } } }
+  });
+}
+
+// ─── PIPELINE ──────────────────────────────────────────────────────────────
+function initPipeline() {
+  const stages = [
+    { label: 'Total Pool',        value: 995,  color: '#1F3864' },
+    { label: 'Assigned',          value: 201,  color: '#2E75B6' },
+    { label: 'Attempting Contact',value: 378,  color: '#E07B00' },
+    { label: 'Negotiation',       value: 252,  color: '#8E44AD' },
+    { label: 'Registration',      value: 35,   color: '#D4AC0D' },
+    { label: 'Live Sellers',      value: 54,   color: '#1E6B1E' },
+    { label: 'Matched',           value: 75,   color: '#0E7C7B' },
+  ];
+  const max = stages[0].value;
+  const fb = document.getElementById('funnelBody');
+  fb.innerHTML = stages.map(s => {
+    const pct = ((s.value / max) * 100).toFixed(1);
+    const pctPool = ((s.value / 995) * 100).toFixed(1);
+    return `<div class="funnel-step">
+      <div class="funnel-label">${s.label}</div>
+      <div class="funnel-bar-wrap">
+        <div class="funnel-bar" style="background:${s.color};width:${Math.max(pct,8)}%;min-width:60px">
+          <span>${s.value}</span>
+        </div>
+      </div>
+      <div class="funnel-count">${pctPool}%</div>
+    </div>`;
+  }).join('');
+
+  // Stage-to-stage conversion
+  const labels = ['Pool→Assigned','Assigned→Attempting','Attempting→Negotiation','Negotiation→Registration','Registration→Live','Live→Matched'];
+  const convData = [
+    (201/995*100).toFixed(1),
+    (378/201*100).toFixed(1),
+    (252/378*100).toFixed(1),
+    (35/252*100).toFixed(1),
+    (54/35*100).toFixed(1),
+    (75/54*100).toFixed(1),
+  ];
+  new Chart(document.getElementById('chartConvRates'), {
+    type: 'bar',
+    data: {
+      labels,
+      datasets: [{ label: 'Conversion %', data: convData, backgroundColor: ['#2E75B6','#E07B00','#8E44AD','#D4AC0D','#1E6B1E','#0E7C7B'] }]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: { x: { ticks: { font: { size: 9 } } }, y: { beginAtZero: true, title: { display: true, text: '%' } } }
+    }
+  });
+
+  // Trend line (simulated months)
+  new Chart(document.getElementById('chartTrend'), {
+    type: 'line',
+    data: {
+      labels: ['Jan','Feb','Mar','Apr','May'],
+      datasets: [
+        { label: 'Live Sellers', data: [28,32,38,44,54], borderColor: '#1E6B1E', backgroundColor: 'rgba(30,107,30,0.1)', tension: 0.4, fill: true },
+        { label: 'Matched', data: [40,48,55,63,75], borderColor: '#2E75B6', backgroundColor: 'rgba(46,117,182,0.1)', tension: 0.4, fill: true },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+      scales: { y: { beginAtZero: true } }
+    }
+  });
+}
+
+// ─── TERRITORY ─────────────────────────────────────────────────────────────
+function initTerritory() {
+  const names = GABAY_DATA.map(g => g.name.split(' ')[0]);
+  new Chart(document.getElementById('chartTerritory'), {
+    type: 'radar',
+    data: {
+      labels: ['Pool Size','Assigned','Attempting','Negotiation','Live','Matched'],
+      datasets: GABAY_DATA.map((g,i) => ({
+        label: g.name.split(' ')[0],
+        data: [g.pool/12, g.assigned/5, g.attempting/7, g.negotiation/5, g.live, g.matched],
+        borderColor: COLORS[i],
+        backgroundColor: COLORS[i] + '22',
+        pointBackgroundColor: COLORS[i],
+        borderWidth: 2,
+      }))
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'bottom', labels: { font: { size: 10 }, padding: 6 } } },
+      scales: { r: { beginAtZero: true, ticks: { font: { size: 9 } } } }
+    }
+  });
+
+  const effDiv = document.getElementById('efficiencyBody');
+  const sorted = [...GABAY_DATA].sort((a,b) => (b.matched/b.pool)-(a.matched/a.pool));
+  effDiv.innerHTML = sorted.map((g,i) => {
+    const eff = ((g.matched/g.pool)*100).toFixed(1);
+    return `<div style="margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;margin-bottom:3px;font-size:12px">
+        <span><strong>${g.name}</strong></span>
+        <span style="font-weight:700;color:var(--mid-blue)">${eff}% &nbsp;<small style="color:var(--text-muted)">(${g.matched}/${g.pool})</small></span>
+      </div>
+      <div class="prog-bar" style="height:8px"><div class="prog-fill ${eff>=12?'green':eff>=8?'':'orange'}" style="width:${Math.min(eff*8,100)}%"></div></div>
+    </div>`;
+  }).join('');
+}
+
+// ─── REGISTRATION ──────────────────────────────────────────────────────────
+function initRegistration() {
+  new Chart(document.getElementById('chartRegBar'), {
+    type: 'bar',
+    data: {
+      labels: GABAY_DATA.map(g => g.name.split(' ')[0]),
+      datasets: [
+        { label: 'Registration', data: GABAY_DATA.map(g => g.registration), backgroundColor: '#D4AC0D' },
+        { label: 'Live', data: GABAY_DATA.map(g => g.live), backgroundColor: '#1E6B1E' },
+        { label: 'Matched', data: GABAY_DATA.map(g => g.matched), backgroundColor: '#2E75B6' },
+      ]
+    },
+    options: { responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+      scales: { x: { stacked: false, ticks: { font: { size: 10 } } }, y: { beginAtZero: true } }
+    }
+  });
+
+  const tbody = document.getElementById('regTbody');
+  const sorted = [...GABAY_DATA].sort((a,b) => b.live - a.live);
+  tbody.innerHTML = sorted.map((g,i) => {
+    const statusColor = g.live >= 8 ? 'green' : g.live >= 4 ? 'blue' : 'orange';
+    const statusText = g.live >= 8 ? 'Excellent' : g.live >= 4 ? 'On Track' : 'Needs Attention';
+    return `<tr>
+      <td data-label="#">${i+1}</td>
+      <td data-label="Gabay"><strong>${g.name}</strong></td>
+      <td data-label="Registration">${g.registration}</td>
+      <td data-label="Live"><strong>${g.live}</strong></td>
+      <td data-label="Matched"><strong>${g.matched}</strong></td>
+      <td data-label="Status"><span class="pill ${statusColor}">${statusText}</span></td>
+    </tr>`;
+  }).join('') +
+  `<tr class="summary-row"><td colspan="2">TOTAL</td><td>35</td><td>54</td><td>75</td><td></td></tr>`;
+}
+
+// ─── EXPORT CSV ────────────────────────────────────────────────────────────
+function exportCSV() {
+  const headers = ['Name','Pool','Assigned','Attempting','Negotiation','Registration','Live','Matched','Conv%','Notes'];
+  const rows = GABAY_DATA.map(g => [
+    g.name, g.pool, g.assigned, g.attempting, g.negotiation,
+    g.registration, g.live, g.matched, ((g.matched/g.pool)*100).toFixed(1)+'%', g.notes
+  ]);
+  const csv = [headers, ...rows].map(r => r.join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = 'LSAMS_Gabay_Report_May2026.csv';
+  a.click();
+}
+
+// ─── BOOT ──────────────────────────────────────────────────────────────────
+chartsInitialized['dashboard'] = true;
+setTimeout(() => initDashboard(), 100);
+</script>
+</body>
+</html>

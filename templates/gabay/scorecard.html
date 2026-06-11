@@ -1,0 +1,126 @@
+{% extends "base.html" %}
+{% block title %}Scorecard — {{ gabay.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('gabay_list') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to Gabay Agents
+    </a>
+    <div class="page-title mt-1">{{ gabay.full_name }} — Scorecard</div>
+  </div>
+  <span class="badge" style="background:#1F3864;color:white;font-size:12px;padding:6px 14px">GABAY</span>
+</div>
+
+<!-- TOP KPIs -->
+<div class="row g-3 mb-4">
+  {% for val, lbl, color in [
+      (total,'Total Leads','#2E75B6'),
+      (live_total,'Live Sellers','#15803d'),
+      (conversion,'Conversion %','#7c3aed'),
+      (visits_total,'Total Visits','#E07B00'),
+      (pipeline.negotiation,'In Negotiation','#be185d'),
+      (pipeline.registration,'In Registration','#4338ca'),
+  ] %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:{{ color }}">
+      <div class="kpi-lbl">{{ lbl }}</div>
+      <div class="kpi-val" style="color:{{ color }}">{{ val }}{% if lbl == 'Conversion %' %}%{% endif %}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<div class="row g-3">
+  <!-- MONTHLY TREND CHART -->
+  <div class="col-md-7">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-graph-up me-2"></i>Monthly Performance (last 6 months)</div>
+      <div class="card-body">
+        <canvas id="trendChart" height="100"></canvas>
+      </div>
+    </div>
+
+    <!-- PIPELINE BREAKDOWN -->
+    <div class="card">
+      <div class="card-header"><i class="bi bi-funnel me-2"></i>Pipeline Breakdown</div>
+      <div class="card-body">
+        {% set items = [
+          ('Assigned', pipeline.assigned, '#2E75B6'),
+          ('Attempting', pipeline.attempting, '#E07B00'),
+          ('Negotiation', pipeline.negotiation, '#7c3aed'),
+          ('Registration', pipeline.registration, '#be185d'),
+          ('Live', pipeline.live, '#15803d'),
+          ('Closed', pipeline.closed, '#b91c1c'),
+        ] %}
+        {% set max_v = [pipeline.assigned,pipeline.attempting,pipeline.negotiation,pipeline.registration,pipeline.live,pipeline.closed]|max or 1 %}
+        {% for lbl, cnt, color in items %}
+        <div class="d-flex align-items-center gap-2 mb-2" style="font-size:12px">
+          <span style="width:90px;font-weight:600;color:#4a5568">{{ lbl }}</span>
+          <div class="progress flex-grow-1" style="height:12px">
+            <div class="progress-bar" style="width:{{ (cnt/max_v*100)|int }}%;background:{{ color }}"></div>
+          </div>
+          <span style="width:28px;text-align:right;font-weight:800;color:{{ color }}">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+
+  <!-- VISIT OUTCOMES + RECENT VISITS -->
+  <div class="col-md-5">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-pie-chart me-2"></i>Visit Outcomes</div>
+      <div class="card-body" style="max-height:220px;overflow-y:auto">
+        {% if outcome_counts %}
+        {% set total_outcomes = outcome_counts.values()|sum %}
+        {% for outcome, cnt in outcome_counts.items()|sort(attribute='1', reverse=True) %}
+        {% set colors = {'interested':'#15803d','callback':'#2E75B6','not_home':'#E07B00','rejected':'#b91c1c','registered':'#7c3aed','follow_up':'#be185d'} %}
+        {% set oc = colors.get(outcome, '#9aabc5') %}
+        <div class="d-flex align-items-center gap-2 mb-2" style="font-size:12px">
+          <span style="width:90px;color:#4a5568;font-weight:600">{{ outcome.replace('_',' ').title() }}</span>
+          <div class="progress flex-grow-1" style="height:10px">
+            <div class="progress-bar" style="width:{{ (cnt/total_outcomes*100)|int }}%;background:{{ oc }}"></div>
+          </div>
+          <span style="font-weight:700;color:{{ oc }};width:24px;text-align:right">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+        {% else %}
+        <div style="text-align:center;color:#9aabc5;font-size:12px;padding:20px">No visits recorded yet.</div>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-clock-history me-2"></i>Recent Visits</div>
+      <div style="max-height:260px;overflow-y:auto">
+        {% for v in recent_visits %}
+        <div style="padding:8px 16px;border-bottom:1px solid #F0F4FA;font-size:12px">
+          <div style="font-weight:700;color:#1F3864">{{ v.lead.seller_name if v.lead else '—' }}</div>
+          <div style="color:#9aabc5">{{ v.visited_at.strftime('%b %d, %Y · %I:%M %p') }}</div>
+          {% if v.notes %}<div style="color:#4a5568;font-size:11px;margin-top:2px">{{ v.notes[:60] }}{% if v.notes|length>60 %}…{% endif %}</div>{% endif %}
+        </div>
+        {% else %}
+        <div style="padding:20px;text-align:center;color:#9aabc5;font-size:12px">No visits yet.</div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const months = {{ months | tojson }};
+new Chart(document.getElementById('trendChart'), {
+  type: 'bar',
+  data: {
+    labels: months.map(m => m.label),
+    datasets: [
+      { label: 'Visits', data: months.map(m => m.visits), backgroundColor: '#2E75B6', borderRadius: 4 },
+      { label: 'Live Sellers', data: months.map(m => m.live), backgroundColor: '#15803d', borderRadius: 4 },
+    ]
+  },
+  options: { responsive: true, plugins: { legend: { position: 'bottom' } },
+             scales: { x: { grid: { display: false } }, y: { beginAtZero: true, grid: { color: '#F0F4FA' } } } }
+});
+</script>
+{% endblock %}

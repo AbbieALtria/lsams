@@ -1,0 +1,178 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-speedometer2 me-2"></i>Dashboard</div>
+  <div style="color:#9aabc5;font-size:12px"><i class="bi bi-calendar3 me-1"></i>{{ now.strftime('%B %Y') if now else 'Live Data' }}</div>
+</div>
+
+<!-- KPI CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#1F3864">
+      <div class="kpi-lbl">Total Pool</div>
+      <div class="kpi-val">{{ total_pool }}</div>
+      <div class="kpi-sub" style="color:#9aabc5">All leads</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#2E75B6">
+      <div class="kpi-lbl">Assigned</div>
+      <div class="kpi-val">{{ assigned }}</div>
+      <div class="kpi-sub">{{ '%.1f'|format(assigned/total_pool*100 if total_pool else 0) }}% of pool</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#E07B00">
+      <div class="kpi-lbl">Attempting</div>
+      <div class="kpi-val">{{ attempting }}</div>
+      <div class="kpi-sub" style="color:#E07B00">{{ '%.1f'|format(attempting/total_pool*100 if total_pool else 0) }}% of pool</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#7c3aed">
+      <div class="kpi-lbl">Negotiation</div>
+      <div class="kpi-val">{{ negotiation }}</div>
+      <div class="kpi-sub text-purple">{{ '%.1f'|format(negotiation/total_pool*100 if total_pool else 0) }}% of pool</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl">Live Sellers</div>
+      <div class="kpi-val">{{ live }}</div>
+      <div class="kpi-sub">{{ '%.1f'|format(live/total_pool*100 if total_pool else 0) }}% activation</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#065f46">
+      <div class="kpi-lbl">Matched</div>
+      <div class="kpi-val">{{ matched }}</div>
+      <div class="kpi-sub">{{ '%.1f'|format(matched/total_pool*100 if total_pool else 0) }}% match rate</div>
+    </div>
+  </div>
+</div>
+
+<!-- CHARTS ROW -->
+<div class="row g-3 mb-4">
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header">Pipeline Distribution</div>
+      <div class="card-body">
+        <canvas id="chartPipeline" style="max-height:240px"></canvas>
+      </div>
+    </div>
+  </div>
+  <div class="col-md-7">
+    <div class="card h-100">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        Live vs Matched — by Gabay
+        <a href="{{ url_for('reports') }}" class="btn btn-sm" style="background:#1F3864;color:white;font-size:11px">Full Reports</a>
+      </div>
+      <div class="card-body">
+        <canvas id="chartGabay" style="max-height:240px"></canvas>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GABAY PERFORMANCE TABLE -->
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    Gabay Performance Summary
+    <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-primary" style="font-size:11px">Manage Agents</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          <th>#</th><th>Gabay</th><th>Assigned</th><th>Attempting</th>
+          <th>Negotiation</th><th>Reg</th><th>Live</th><th>Matched</th><th>Conv%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for g in gabay_stats|sort(attribute='matched', reverse=True) %}
+        <tr>
+          <td><span class="badge rounded-pill {% if loop.index == 1 %}bg-warning text-dark{% elif loop.index == 2 %}bg-secondary{% elif loop.index == 3 %}text-white{% else %}bg-light text-dark{% endif %}"
+                    style="{% if loop.index == 3 %}background:#cd7f32{% endif %}">{{ loop.index }}</span></td>
+          <td><strong>{{ g.name }}</strong></td>
+          <td>{{ g.assigned }}</td>
+          <td>{{ g.attempting }}</td>
+          <td>{{ g.negotiation }}</td>
+          <td>{{ g.registration }}</td>
+          <td><span class="badge" style="background:#dcfce7;color:#15803d">{{ g.live }}</span></td>
+          <td><strong>{{ g.matched }}</strong></td>
+          <td>
+            {% set conv = (g.matched / g.pool * 100) if g.pool else 0 %}
+            <span class="badge {% if conv >= 10 %}bg-success{% elif conv >= 5 %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+              {{ '%.1f'|format(conv) }}%
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center text-muted py-4">No Gabay data yet. <a href="{{ url_for('new_gabay') }}">Add agents</a> and import leads to begin.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- RECENT ACTIVITY -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    Recent Visits
+    <a href="{{ url_for('visits') }}" class="btn btn-sm btn-outline-primary" style="font-size:11px">View All</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Gabay</th><th>Seller</th><th>Outcome</th><th>Date</th></tr></thead>
+      <tbody>
+        {% for v in recent_visits %}
+        <tr>
+          <td>{{ v.gabay.full_name if v.gabay else '—' }}</td>
+          <td><a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}">{{ v.lead.seller_name if v.lead else '—' }}</a></td>
+          <td>
+            <span class="badge bg-{{ v.outcome_color }}">{{ v.outcome_label }}</span>
+          </td>
+          <td style="color:#9aabc5;font-size:12px">{{ v.visited_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="4" class="text-center text-muted py-3">No visits recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const gabayStats = {{ gabay_stats | tojson }};
+const names = gabayStats.map(g => g.name.split(' ')[0]);
+
+new Chart(document.getElementById('chartPipeline'), {
+  type: 'doughnut',
+  data: {
+    labels: ['Pool','Assigned','Attempting','Negotiation','Reg','Live','Matched'],
+    datasets: [{ data: [{{ total_pool - assigned }},{{ assigned }},{{ attempting }},{{ negotiation }},{{ registration }},{{ live }},{{ matched }}],
+      backgroundColor: ['#cbd5e1','#93c5fd','#fcd34d','#c4b5fd','#f9a8d4','#86efac','#6ee7b7'], borderWidth: 2, borderColor: '#fff' }]
+  },
+  options: { responsive: true, maintainAspectRatio: false, plugins: { legend: { position: 'bottom', labels: { font: { size: 11 }, padding: 8 } } } }
+});
+
+new Chart(document.getElementById('chartGabay'), {
+  type: 'bar',
+  data: {
+    labels: names,
+    datasets: [
+      { label: 'Live', data: gabayStats.map(g => g.live), backgroundColor: '#86efac' },
+      { label: 'Matched', data: gabayStats.map(g => g.matched), backgroundColor: '#1F3864' },
+    ]
+  },
+  options: { responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { position: 'top', labels: { font: { size: 11 } } } },
+    scales: { x: { ticks: { font: { size: 10 } } }, y: { beginAtZero: true, ticks: { stepSize: 1 } } }
+  }
+});
+</script>
+{% endblock %}

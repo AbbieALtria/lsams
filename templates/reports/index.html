@@ -1,0 +1,266 @@
+{% extends "base.html" %}
+{% block title %}Reports{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-bar-chart-line me-2"></i>Reports & Analytics</div>
+  {% if current_user.is_supervisor %}
+  <a href="{{ url_for('export_leads') }}" class="btn btn-sm" style="background:#1F3864;color:white">
+    <i class="bi bi-download me-1"></i>Export All Leads
+  </a>
+  {% endif %}
+</div>
+
+<!-- NAV TABS -->
+<ul class="nav nav-tabs mb-3" id="reportTabs">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#tabKPI">📊 KPI Dashboard</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabGabay">👤 Gabay Performance</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabPipeline">🔀 Pipeline</a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#tabTrend">📈 Trends</a></li>
+</ul>
+
+<div class="tab-content" id="reportTabContent">
+
+  <!-- KPI TAB -->
+  <div class="tab-pane fade show active" id="tabKPI">
+    <div id="kpiCards" class="row g-3 mb-4">
+      <div class="col-12 text-center py-4 text-muted"><div class="spinner-border spinner-border-sm"></div> Loading...</div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header">Pipeline Distribution</div>
+          <div class="card-body"><canvas id="chartKpiDonut" style="max-height:260px"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header">Pipeline Funnel</div>
+          <div class="card-body" id="funnelBody"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GABAY TAB -->
+  <div class="tab-pane fade" id="tabGabay">
+    <div class="row g-3 mb-3">
+      <div class="col-md-12">
+        <div class="card">
+          <div class="card-header d-flex align-items-center justify-content-between">
+            Gabay Performance Table
+            <button onclick="exportGabayCSV()" class="btn btn-sm" style="background:#1F3864;color:white;font-size:11px"><i class="bi bi-download me-1"></i>CSV</button>
+          </div>
+          <div class="table-responsive">
+            <table class="table table-hover mb-0" id="gabayTable">
+              <thead><tr><th>#</th><th>Gabay</th><th>Total Leads</th><th>Attempting</th><th>Negotiation</th><th>Reg</th><th>Live</th><th>Matched</th><th>Visits</th><th>Conv%</th></tr></thead>
+              <tbody id="gabayTbody"><tr><td colspan="10" class="text-center py-3"><div class="spinner-border spinner-border-sm"></div></td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-7">
+        <div class="card">
+          <div class="card-header">Matched Sellers — Horizontal Ranking</div>
+          <div class="card-body"><canvas id="chartGabayBar" style="max-height:300px"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header">Live Sellers Contribution</div>
+          <div class="card-body"><canvas id="chartLivePie" style="max-height:300px"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- PIPELINE TAB -->
+  <div class="tab-pane fade" id="tabPipeline">
+    <div class="row g-3">
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">Stage-to-Stage Conversion Rates</div>
+          <div class="card-body"><canvas id="chartConvRates" style="max-height:280px"></canvas></div>
+        </div>
+      </div>
+      <div class="col-md-6">
+        <div class="card">
+          <div class="card-header">Gabay Comparison — All KPIs</div>
+          <div class="card-body"><canvas id="chartRadar" style="max-height:280px"></canvas></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- TREND TAB -->
+  <div class="tab-pane fade" id="tabTrend">
+    <div class="card">
+      <div class="card-header">Daily Visit Activity</div>
+      <div class="card-body"><canvas id="chartVisitTrend" style="max-height:300px"></canvas></div>
+    </div>
+  </div>
+
+</div>
+{% endblock %}
+{% block scripts %}
+<script>
+const COLORS = ['#1F3864','#2E75B6','#15803d','#E07B00','#7c3aed','#b91c1c','#0e7c7b','#d4ac0d','#5d6d7e'];
+let kpiData = {}, gabayData = [];
+
+async function loadAll() {
+  const [kpi, gabay, pipeline, trend] = await Promise.all([
+    fetch('/api/reports/kpi').then(r => r.json()),
+    fetch('/api/reports/gabay-performance').then(r => r.json()),
+    fetch('/api/reports/pipeline').then(r => r.json()),
+    fetch('/api/reports/visits-trend').then(r => r.json()),
+  ]);
+  kpiData = kpi; gabayData = gabay;
+  renderKPI(kpi, pipeline);
+  renderGabay(gabay);
+  renderPipeline(pipeline, gabay);
+  renderTrend(trend);
+}
+
+function renderKPI(kpi, pipeline) {
+  const grid = document.getElementById('kpiCards');
+  const cards = [
+    {lbl:'Total Pool', val:kpi.total_pool, color:'#1F3864', sub:'All leads'},
+    {lbl:'Assigned', val:kpi.assigned, color:'#2E75B6', sub: pct(kpi.assigned, kpi.total_pool)+'% of pool'},
+    {lbl:'Attempting', val:kpi.attempting, color:'#E07B00', sub: pct(kpi.attempting, kpi.total_pool)+'% of pool'},
+    {lbl:'Negotiation', val:kpi.negotiation, color:'#7c3aed', sub: pct(kpi.negotiation, kpi.total_pool)+'% of pool'},
+    {lbl:'Registration', val:kpi.registration, color:'#be185d', sub:''},
+    {lbl:'Live Sellers', val:kpi.live, color:'#15803d', sub: pct(kpi.live, kpi.total_pool)+'% activation'},
+    {lbl:'Matched', val:kpi.matched, color:'#065f46', sub:'+' + kpi.vw_rrld + ' VW-RRLD, ' + kpi.vw + ' VW'},
+    {lbl:'Active Gabay', val:kpi.total_gabay, color:'#1F3864', sub:''},
+    {lbl:'Total Visits', val:kpi.total_visits, color:'#2E75B6', sub:''},
+  ];
+  grid.innerHTML = cards.map(c => `
+    <div class="col-6 col-md-4 col-lg-3">
+      <div class="kpi-card" style="border-left-color:${c.color}">
+        <div class="kpi-lbl">${c.lbl}</div>
+        <div class="kpi-val">${c.val.toLocaleString()}</div>
+        <div class="kpi-sub" style="color:${c.color}">${c.sub}</div>
+      </div>
+    </div>`).join('');
+
+  // Donut
+  new Chart(document.getElementById('chartKpiDonut'), {
+    type:'doughnut',
+    data:{
+      labels:['Pool','Assigned','Attempting','Negotiation','Registration','Live','Matched'],
+      datasets:[{data:[pipeline.pool,pipeline.assigned,pipeline.attempting,pipeline.negotiation,pipeline.registration,pipeline.live,pipeline.matched],
+        backgroundColor:['#cbd5e1','#93c5fd','#fcd34d','#c4b5fd','#f9a8d4','#86efac','#6ee7b7'],borderWidth:2,borderColor:'#fff'}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:11},padding:8}}}}
+  });
+
+  // Funnel
+  const stages = [
+    {l:'Total Pool', v:kpi.total_pool, c:'#1F3864'},
+    {l:'Assigned', v:kpi.assigned, c:'#2E75B6'},
+    {l:'Attempting', v:kpi.attempting, c:'#E07B00'},
+    {l:'Negotiation', v:kpi.negotiation, c:'#7c3aed'},
+    {l:'Registration', v:kpi.registration, c:'#be185d'},
+    {l:'Live Sellers', v:kpi.live, c:'#15803d'},
+    {l:'Matched', v:kpi.matched, c:'#065f46'},
+  ];
+  const max = stages[0].v || 1;
+  document.getElementById('funnelBody').innerHTML = stages.map(s => `
+    <div class="d-flex align-items-center mb-2 gap-2">
+      <div style="width:110px;font-size:11px;font-weight:700;color:#4a5568;flex-shrink:0">${s.l}</div>
+      <div style="flex:1">
+        <div style="height:28px;background:${s.c};border-radius:6px;width:${Math.max(s.v/max*100,4)}%;display:flex;align-items:center;padding-left:8px;min-width:50px">
+          <span style="font-size:12px;font-weight:700;color:white">${s.v.toLocaleString()}</span>
+        </div>
+      </div>
+      <div style="width:40px;text-align:right;font-size:11px;color:#9aabc5">${pct(s.v,max)}%</div>
+    </div>`).join('');
+}
+
+function renderGabay(data) {
+  const ranks = ['🥇','🥈','🥉'];
+  document.getElementById('gabayTbody').innerHTML = data.map((g,i) => `
+    <tr>
+      <td>${ranks[i]||i+1}</td>
+      <td><strong>${g.name}</strong></td>
+      <td>${g.pool}</td><td>${g.attempting}</td><td>${g.negotiation}</td>
+      <td>${g.registration}</td>
+      <td><span class="badge" style="background:#dcfce7;color:#15803d">${g.live}</span></td>
+      <td><strong>${g.matched}</strong></td>
+      <td>${g.visits}</td>
+      <td><span class="badge ${g.conv_rate>=10?'bg-success':g.conv_rate>=5?'bg-primary':'bg-warning text-dark'}">${g.conv_rate}%</span></td>
+    </tr>`).join('') +
+    `<tr style="background:#1F3864;color:white;font-weight:700">
+      <td colspan="2">TOTAL</td>
+      <td>${sum(data,'pool')}</td><td>${sum(data,'attempting')}</td><td>${sum(data,'negotiation')}</td>
+      <td>${sum(data,'registration')}</td><td>${sum(data,'live')}</td><td>${sum(data,'matched')}</td>
+      <td>${sum(data,'visits')}</td><td></td>
+    </tr>`;
+
+  new Chart(document.getElementById('chartGabayBar'), {
+    type:'bar',
+    data:{labels:data.map(g=>g.name.split(' ')[0]),
+      datasets:[{label:'Matched',data:data.map(g=>g.matched),backgroundColor:COLORS}]},
+    options:{indexAxis:'y',responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false}},scales:{x:{beginAtZero:true},y:{ticks:{font:{size:11}}}}}
+  });
+  new Chart(document.getElementById('chartLivePie'), {
+    type:'pie',
+    data:{labels:data.map(g=>g.name.split(' ')[0]),
+      datasets:[{data:data.map(g=>g.live||1),backgroundColor:COLORS,borderWidth:2,borderColor:'#fff'}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6}}}}
+  });
+}
+
+function renderPipeline(pipeline, gabay) {
+  const labels = ['Pool→Assigned','Assigned→Attempting','Attempting→Neg.','Neg.→Reg.','Reg.→Live'];
+  const vals = [pipeline.pool,pipeline.assigned,pipeline.attempting,pipeline.negotiation,pipeline.registration,pipeline.live];
+  const conv = vals.slice(1).map((v,i)=>vals[i]>0?+(v/vals[i]*100).toFixed(1):0);
+  new Chart(document.getElementById('chartConvRates'), {
+    type:'bar',
+    data:{labels,datasets:[{label:'Conversion %',data:conv,backgroundColor:COLORS}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{x:{ticks:{font:{size:9}}},y:{beginAtZero:true,title:{display:true,text:'%'}}}}
+  });
+  new Chart(document.getElementById('chartRadar'), {
+    type:'radar',
+    data:{
+      labels:['Assigned','Attempting','Negotiation','Live','Matched'],
+      datasets: gabay.map((g,i)=>({
+        label:g.name.split(' ')[0],data:[g.assigned,g.attempting,g.negotiation,g.live,g.matched],
+        borderColor:COLORS[i],backgroundColor:COLORS[i]+'22',pointBackgroundColor:COLORS[i],borderWidth:2,
+      }))
+    },
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{position:'bottom',labels:{font:{size:10},padding:6}}},
+      scales:{r:{beginAtZero:true,ticks:{font:{size:9}}}}}
+  });
+}
+
+function renderTrend(data) {
+  new Chart(document.getElementById('chartVisitTrend'), {
+    type:'line',
+    data:{
+      labels:data.map(d=>d.date),
+      datasets:[{label:'Visits',data:data.map(d=>d.count),borderColor:'#1F3864',backgroundColor:'rgba(31,56,100,0.1)',tension:0.4,fill:true}]
+    },
+    options:{responsive:true,maintainAspectRatio:false,scales:{y:{beginAtZero:true}}}
+  });
+}
+
+function pct(a,b){ return b>0 ? (a/b*100).toFixed(1) : 0; }
+function sum(arr,key){ return arr.reduce((s,g)=>s+(g[key]||0),0); }
+
+function exportGabayCSV() {
+  const h = ['Name','Pool','Attempting','Negotiation','Registration','Live','Matched','Visits','Conv%'];
+  const rows = gabayData.map(g=>[g.name,g.pool,g.attempting,g.negotiation,g.registration,g.live,g.matched,g.visits,g.conv_rate+'%']);
+  const csv = [h,...rows].map(r=>r.join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv],{type:'text/csv'}));
+  a.download = 'LSAMS_Report.csv'; a.click();
+}
+
+loadAll();
+</script>
+{% endblock %}

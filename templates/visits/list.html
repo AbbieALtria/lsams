@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% block title %}Visits{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-geo-alt me-2"></i>Visit Log</div>
+</div>
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    All Visits <span class="badge bg-secondary">{{ pagination.total }}</span>
+    <span style="font-size:12px;color:#9aabc5">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead><tr><th>Date</th><th>Gabay</th><th>Seller</th><th>City</th><th>Outcome</th><th>GPS</th><th>Follow-Up</th></tr></thead>
+      <tbody>
+        {% for v in pagination.items %}
+        <tr>
+          <td style="font-size:12px">{{ v.visited_at.strftime('%b %d, %Y') }}<br><small class="text-muted">{{ v.visited_at.strftime('%I:%M %p') }}</small></td>
+          <td>{{ v.gabay.full_name if v.gabay else '—' }}</td>
+          <td><a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}" class="text-decoration-none" style="color:#1F3864">{{ v.lead.seller_name if v.lead else '—' }}</a></td>
+          <td>{{ v.lead.city if v.lead else '—' }}</td>
+          <td><span class="badge bg-{{ v.outcome_color }}">{{ v.outcome_label }}</span></td>
+          <td style="font-size:11px">
+            {% if v.gps_lat %}<span class="text-success"><i class="bi bi-geo-alt-fill"></i> Yes</span>
+            {% else %}<span class="text-muted">—</span>{% endif %}
+          </td>
+          <td style="font-size:12px">{{ v.follow_up_date.strftime('%b %d') if v.follow_up_date else '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No visits recorded yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if pagination.pages > 1 %}
+  <div class="card-body py-2 d-flex justify-content-center">
+    <nav><ul class="pagination pagination-sm mb-0">
+      {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="{{ url_for('visits', page=pagination.prev_num) }}">‹</a></li>{% endif %}
+      {% for p in pagination.iter_pages() %}{% if p %}<li class="page-item {% if p == pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('visits', page=p) }}">{{ p }}</a></li>{% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}{% endfor %}
+      {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="{{ url_for('visits', page=pagination.next_num) }}">›</a></li>{% endif %}
+    </ul></nav>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}

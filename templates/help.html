@@ -1,0 +1,475 @@
+{% extends "base.html" %}
+{% block title %}Help & User Guide{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-question-circle me-2"></i>Help & User Guide</div>
+  <span style="background:#1F3864;color:white;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700">
+    You are: {{ current_user.role.upper() }}
+  </span>
+</div>
+
+<!-- ROLE TABS -->
+<ul class="nav nav-tabs mb-4" id="helpTabs">
+  <li class="nav-item">
+    <a class="nav-link {% if current_user.role in ('admin','manager','supervisor') %}active{% endif %}" data-bs-toggle="tab" href="#tabMyRole">
+      <i class="bi bi-person-circle me-1"></i>My Role Guide
+    </a>
+  </li>
+  {% if current_user.is_supervisor %}
+  <li class="nav-item">
+    <a class="nav-link {% if current_user.role == 'gabay' %}active{% endif %}" data-bs-toggle="tab" href="#tabAssign">
+      <i class="bi bi-person-check me-1"></i>Assignment Guide
+    </a>
+  </li>
+  {% endif %}
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabPipeline">
+      <i class="bi bi-arrow-right-circle me-1"></i>Pipeline Flow
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabImport">
+      <i class="bi bi-file-earmark-spreadsheet me-1"></i>Excel Import
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabFaq">
+      <i class="bi bi-patch-question me-1"></i>FAQ
+    </a>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ══════════ MY ROLE GUIDE ══════════ -->
+  <div class="tab-pane fade show {% if current_user.role in ('admin','manager','supervisor') %}active{% endif %}" id="tabMyRole">
+
+    {% if current_user.role == 'admin' %}
+    <!-- ADMIN GUIDE -->
+    <div class="card mb-3" style="border-top:4px solid #1F3864">
+      <div class="card-body">
+        <div class="d-flex gap-3 align-items-center mb-3">
+          <div style="width:50px;height:50px;border-radius:12px;background:#E8EFF9;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="bi bi-shield-lock" style="font-size:24px;color:#1F3864"></i>
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:18px;color:#1F3864">Administrator</div>
+            <div style="color:#9aabc5;font-size:13px">You have full access to everything in LSAMS.</div>
+          </div>
+        </div>
+        <div class="alert alert-warning py-2" style="font-size:13px">
+          <i class="bi bi-exclamation-triangle me-2"></i><strong>You go first.</strong> The system cannot be used by anyone until you complete setup.
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-2" style="font-weight:800;color:#1F3864;font-size:15px"><i class="bi bi-list-check me-2"></i>Your Setup Checklist</div>
+    {% for done, step, where, detail in [
+      (False,'Create Gabay accounts','Gabay Agents → Add Agent','One account per field agent. Give them their username and password.'),
+      (False,'Create Manager account','Gabay Agents → Add Agent → Role: Manager','Operations Manager needs their own login.'),
+      (False,'Import Lazada Excel file','Leads → Import Leads','Upload the Excel file from Lazada. System auto-detects columns.'),
+      (False,'Assign leads to Gabay','Assign Leads (sidebar)','Use the Assignment Center to distribute leads to field agents.'),
+      (False,'Tell Gabay to log in','Share URL: http://192.168.10.78:5001','Gabay opens this URL on their phone. No app install needed.'),
+    ] %}
+    <div class="card mb-2">
+      <div class="card-body py-2 px-3 d-flex align-items-start gap-3">
+        <div style="width:28px;height:28px;border-radius:50%;background:#E8EFF9;display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:2px">
+          <i class="bi bi-circle" style="color:#9aabc5;font-size:14px"></i>
+        </div>
+        <div>
+          <div style="font-weight:700;font-size:13px;color:#1F3864">{{ step }}</div>
+          <div style="font-size:11px;color:#2E75B6;margin-bottom:2px"><i class="bi bi-arrow-right me-1"></i>{{ where }}</div>
+          <div style="font-size:12px;color:#4a5568">{{ detail }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+
+    {% elif current_user.role == 'manager' %}
+    <!-- MANAGER GUIDE -->
+    <div class="card mb-3" style="border-top:4px solid #2E75B6">
+      <div class="card-body">
+        <div class="d-flex gap-3 align-items-center mb-3">
+          <div style="width:50px;height:50px;border-radius:12px;background:#dbeafe;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="bi bi-briefcase" style="font-size:24px;color:#2E75B6"></i>
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:18px;color:#1F3864">Operations Manager</div>
+            <div style="color:#9aabc5;font-size:13px">You run daily operations — assign leads, monitor team, approve registrations.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+      {% for title, icon, color, bg, steps in [
+        ('Morning Routine','bi-sunrise','#E07B00','#FFF9E6',[
+          ('Check Dashboard','Dashboard → KPI cards show overnight activity'),
+          ('Review follow-ups','Leads → Filter by status: Attempting → See who needs follow-up today'),
+          ('Assign new pool leads','Assign Leads → pick leads → pick Gabay → click Assign'),
+        ]),
+        ('During the Day','bi-clock','#2E75B6','#EFF6FF',[
+          ('Monitor visit activity','Dashboard → Recent Visits shows live field updates'),
+          ('Check registrations','Registrations → Any "Pending" need your review'),
+          ('Approve or reject','Registrations → View → Approve / Reject with reason'),
+        ]),
+        ('End of Day','bi-moon','#1F3864','#E8EFF9',[
+          ('Review KPI summary','Reports → KPI Dashboard → check today\'s numbers'),
+          ('Check Gabay performance','Reports → Gabay Performance → conversion rates'),
+          ('Export if needed','Reports → Export button → download Excel'),
+        ]),
+      ] %}
+      <div class="col-md-4">
+        <div class="card h-100" style="border-top:3px solid {{ color }}">
+          <div class="card-header py-2" style="background:{{ bg }}">
+            <i class="bi {{ icon }} me-2" style="color:{{ color }}"></i><strong style="color:#1F3864;font-size:13px">{{ title }}</strong>
+          </div>
+          <div class="card-body p-3">
+            {% for step, desc in steps %}
+            <div class="mb-2">
+              <div style="font-weight:700;font-size:12px;color:#1F3864">{{ step }}</div>
+              <div style="font-size:11px;color:#9aabc5">{{ desc }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    {% else %}
+    <!-- GABAY GUIDE -->
+    <div class="card mb-3" style="border-top:4px solid #15803d">
+      <div class="card-body">
+        <div class="d-flex gap-3 align-items-center mb-3">
+          <div style="width:50px;height:50px;border-radius:12px;background:#dcfce7;display:flex;align-items:center;justify-content:center;flex-shrink:0">
+            <i class="bi bi-person-walking" style="font-size:24px;color:#15803d"></i>
+          </div>
+          <div>
+            <div style="font-weight:800;font-size:18px;color:#1F3864">Gabay — Field Agent</div>
+            <div style="color:#9aabc5;font-size:13px">You visit sellers and update the system from your phone in the field.</div>
+          </div>
+        </div>
+        <div class="alert alert-info py-2" style="font-size:13px">
+          <i class="bi bi-phone me-2"></i><strong>Use your phone browser.</strong> Open <code>http://192.168.10.78:5001</code> — no app to install.
+        </div>
+      </div>
+    </div>
+
+    <div class="mb-2" style="font-weight:800;color:#1F3864;font-size:15px">Your Daily Workflow</div>
+    {% for num, icon, color, step, where, detail in [
+      ('1','bi-phone','#2E75B6','Open LSAMS on your phone','Browser → http://192.168.10.78:5001','Log in with your username and password.'),
+      ('2','bi-list-ul','#1F3864','Check your assigned leads','Leads (sidebar)','You only see your own leads. No one else\'s.'),
+      ('3','bi-geo-alt','#E07B00','Arrive at seller location','Lead → Record Visit','Open the lead, tap "Record Visit", tap "Get Location" for GPS check-in.'),
+      ('4','bi-chat-dots','#7c3aed','Talk to the seller','During Visit form','Fill in outcome: Interested / Follow-Up / Not Interested / No Contact.'),
+      ('5','bi-file-earmark-check','#15803d','If interested → Start Registration','Lead → Start Registration','Collect their documents and tick off the checklist.'),
+      ('6','bi-send','#065f46','Submit registration','Registration → Submit for Review','Manager will review and approve or reject.'),
+    ] %}
+    <div class="card mb-2">
+      <div class="card-body py-2 px-3 d-flex align-items-start gap-3">
+        <div style="width:30px;height:30px;border-radius:50%;background:{{ color }};display:flex;align-items:center;justify-content:center;flex-shrink:0;margin-top:1px">
+          <span style="color:white;font-weight:900;font-size:13px">{{ num }}</span>
+        </div>
+        <div>
+          <div class="d-flex align-items-center gap-2 mb-1">
+            <i class="bi {{ icon }}" style="color:{{ color }}"></i>
+            <strong style="font-size:13px;color:#1F3864">{{ step }}</strong>
+          </div>
+          <div style="font-size:11px;color:#2E75B6;font-weight:600;margin-bottom:2px">{{ where }}</div>
+          <div style="font-size:12px;color:#4a5568">{{ detail }}</div>
+        </div>
+      </div>
+    </div>
+    {% endfor %}
+    {% endif %}
+  </div>
+
+  <!-- ══════════ ASSIGNMENT GUIDE ══════════ -->
+  {% if current_user.is_supervisor %}
+  <div class="tab-pane fade" id="tabAssign">
+    <div class="row g-3 mb-4">
+      <div class="col-12">
+        <div class="card" style="border-left:5px solid #E07B00">
+          <div class="card-body">
+            <div style="font-weight:800;font-size:16px;color:#1F3864;margin-bottom:6px">
+              <i class="bi bi-person-check me-2" style="color:#E07B00"></i>How Lead Assignment Works
+            </div>
+            <div style="font-size:13px;color:#4a5568">
+              After importing leads, they sit in the <strong>Pool</strong> — unassigned to anyone.
+              The Manager or Admin uses the <strong>Assignment Center</strong> to distribute leads to each Gabay.
+              Gabay then see only their assigned leads when they log in.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3 METHODS -->
+    <div class="mb-2" style="font-weight:800;color:#1F3864;font-size:15px">3 Ways to Assign Leads</div>
+    <div class="row g-3 mb-4">
+      {% for num, title, icon, color, bg, steps, tip in [
+        ('Method 1','Manual Selection','bi-hand-index','#1F3864','#E8EFF9',[
+          'Go to <strong>Assign Leads</strong> in the sidebar',
+          'The left panel shows all <strong>unassigned pool leads</strong>',
+          'Click on any row to select it (row highlights)',
+          'Or tick the checkbox next to each lead',
+          'Use <strong>"Select all on this page"</strong> to grab all at once',
+          'Filter by city to assign area-by-area',
+          'At the bottom, choose the Gabay from the dropdown',
+          'Click the orange <strong>Assign</strong> button',
+        ],'Best for: Careful, targeted assignment of specific leads to specific Gabay'),
+        ('Method 2','Click Gabay Card First','bi-person-card','#2E75B6','#dbeafe',[
+          'Go to <strong>Assign Leads</strong> in the sidebar',
+          'At the top, you see <strong>Gabay Workload Cards</strong>',
+          'Click the card of the Gabay you want to assign to',
+          'Card turns blue — the dropdown auto-selects that Gabay',
+          'Then select leads from the table below',
+          'Click the orange <strong>Assign</strong> button',
+        ],'Best for: When you want to fill up a specific Gabay\'s workload'),
+        ('Method 3','Auto-Distribute','bi-shuffle','#15803d','#dcfce7',[
+          'Go to <strong>Assign Leads</strong> in the sidebar',
+          'Click the <strong>Auto</strong> button (next to the Assign button)',
+          'A confirmation box appears showing how many leads per Gabay',
+          'Click <strong>Auto-Distribute</strong> to confirm',
+          'System divides all pool leads equally across all 9 Gabay',
+          'Takes only 1 second for hundreds of leads',
+        ],'Best for: Quick bulk distribution at the start of a new batch'),
+      ] %}
+      <div class="col-md-4">
+        <div class="card h-100" style="border-top:4px solid {{ color }}">
+          <div class="card-header py-2" style="background:{{ bg }}">
+            <i class="bi {{ icon }} me-2" style="color:{{ color }}"></i>
+            <strong style="color:#1F3864;font-size:13px">{{ num }}: {{ title }}</strong>
+          </div>
+          <div class="card-body p-3">
+            {% for s in steps %}
+            <div class="d-flex gap-2 mb-2">
+              <i class="bi bi-dot" style="color:{{ color }};font-size:18px;flex-shrink:0;margin-top:-2px"></i>
+              <span style="font-size:12px;color:#4a5568">{{ s|safe }}</span>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:{{ bg }};font-size:11px;color:#4a5568">
+              <i class="bi bi-lightbulb me-1" style="color:{{ color }}"></i>{{ tip }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- AI SUGGESTION SECTION -->
+    <div class="card mb-3" style="border-left:5px solid #7c3aed">
+      <div class="card-body">
+        <div style="font-weight:800;font-size:15px;color:#1F3864;margin-bottom:6px">
+          <i class="bi bi-stars me-2" style="color:#7c3aed"></i>Smart Assignment (AI Suggestions + Map)
+        </div>
+        <div style="font-size:13px;color:#4a5568;margin-bottom:10px">
+          The <strong>Smart Assign</strong> page analyses the city distribution of pool leads and suggests which Gabay should handle each territory.
+          You see leads plotted on a map — review the suggestion, adjust if needed, then approve with one click.
+        </div>
+        <div class="row g-2" style="font-size:12px">
+          {% for icon, label, desc in [
+            ('bi-map','Map View','Leads are shown as dots on the Metro Manila map, colour-coded by suggested Gabay'),
+            ('bi-cpu','Territory Suggestion','System groups leads by city and suggests the Gabay with the lightest current workload for each area'),
+            ('bi-check2-circle','One-Click Approve','Review the suggestion, optionally swap Gabay, then click Approve All'),
+            ('bi-arrow-counterclockwise','You Stay in Control','The system only suggests — you make the final decision before anything is assigned'),
+          ] %}
+          <div class="col-md-3">
+            <div class="p-2 rounded text-center" style="background:#F5F0FF">
+              <i class="bi {{ icon }}" style="font-size:22px;color:#7c3aed;display:block;margin-bottom:4px"></i>
+              <div style="font-weight:700;color:#1F3864">{{ label }}</div>
+              <div style="color:#9aabc5;font-size:11px">{{ desc }}</div>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+        <div class="mt-3">
+          <a href="{{ url_for('smart_assign') }}" class="btn" style="background:#7c3aed;color:white;font-size:13px">
+            <i class="bi bi-stars me-2"></i>Open Smart Assignment Map
+          </a>
+        </div>
+      </div>
+    </div>
+
+    <!-- AFTER ASSIGNMENT -->
+    <div class="card">
+      <div class="card-header" style="font-weight:800;color:#1F3864">
+        <i class="bi bi-question-circle me-2"></i>After You Assign — What Happens?
+      </div>
+      <div class="card-body p-0">
+        {% for q, a in [
+          ('Does the Gabay get notified?', 'Not yet automatically — you can tell them verbally or by message. When they next log in, their new leads are waiting.'),
+          ('Can I reassign a lead?', 'Yes. Open any lead → Lead Detail page → Assignment section → choose a different Gabay → click Assign.'),
+          ('Can I see who assigned what?', 'Yes. Every assignment is logged with the date, who assigned, and who it was assigned to. Open a lead and see the assignment history.'),
+          ('What if a Gabay has too many leads?', 'Check the workload bars on the Assignment Center — leads beyond 80 show in red. Reassign from overloaded Gabay to lighter ones.'),
+          ('Can I assign by city or territory?', 'Yes. On the Assignment Center, use the City filter to show only leads from one city, then assign them all to one Gabay who covers that area.'),
+        ] %}
+        <div style="padding:12px 18px;border-bottom:1px solid #E0E6EF">
+          <div style="font-weight:700;font-size:13px;color:#1F3864;margin-bottom:3px"><i class="bi bi-chevron-right me-1" style="color:#2E75B6"></i>{{ q }}</div>
+          <div style="font-size:12px;color:#4a5568">{{ a }}</div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+  {% endif %}
+
+  <!-- ══════════ PIPELINE FLOW ══════════ -->
+  <div class="tab-pane fade" id="tabPipeline">
+    <div class="card mb-3">
+      <div class="card-header" style="background:#1F3864;color:white;font-weight:800">Lead Pipeline — Full Status Flow</div>
+      <div class="card-body">
+        <div class="d-flex flex-wrap align-items-start gap-2 mb-4">
+          {% for status, color, bg, who, desc in [
+            ('Pool','#9aabc5','#e2e8f0','Admin/Manager','Lead just imported, not yet given to anyone.'),
+            ('Assigned','#1d4ed8','#dbeafe','Gabay','Gabay has this lead in their list.'),
+            ('Attempting Contact','#b45309','#fef3c7','Gabay','Gabay is trying to reach the seller.'),
+            ('Negotiation','#4338ca','#e0e7ff','Gabay','Seller is interested, Gabay is discussing onboarding.'),
+            ('Registration','#be185d','#fce7f3','Gabay','Documents are being collected.'),
+            ('Live Seller','#15803d','#dcfce7','Manager','Seller is activated on Lazada.'),
+            ('Matched','#065f46','#d1fae5','Manager','Activated + VW or VW-RRLD classification.'),
+          ] %}
+          <div style="flex:1;min-width:120px;max-width:160px">
+            <div class="text-center p-2 rounded mb-1" style="background:{{ bg }}">
+              <div style="font-weight:700;font-size:12px;color:{{ color }}">{{ status }}</div>
+              <div style="font-size:10px;color:#9aabc5;margin-top:2px">by {{ who }}</div>
+            </div>
+            <div style="font-size:10px;color:#9aabc5;text-align:center">{{ desc }}</div>
+          </div>
+          {% if not loop.last %}
+          <div style="font-size:20px;color:#E0E6EF;align-self:flex-start;margin-top:14px">›</div>
+          {% endif %}
+          {% endfor %}
+        </div>
+
+        <div class="row g-2" style="font-size:12px">
+          <div class="col-md-6">
+            <div class="p-3 rounded" style="background:#F0F4FA">
+              <div style="font-weight:700;color:#1F3864;margin-bottom:8px">Who changes each status?</div>
+              {% for from_s, to_s, who, how in [
+                ('Pool','Assigned','Manager/Admin','When they assign the lead in Assignment Center'),
+                ('Assigned','Attempting','Gabay','Automatically when they record the first visit'),
+                ('Attempting','Negotiation','Gabay','When visit outcome = Interested'),
+                ('Negotiation','Registration','Gabay','When they create a registration for the seller'),
+                ('Registration','Live/Matched','Manager','When Manager approves the registration'),
+              ] %}
+              <div class="mb-1 d-flex gap-2">
+                <span style="background:#E8EFF9;color:#1F3864;border-radius:4px;padding:1px 5px;font-size:10px;font-weight:700;white-space:nowrap">{{ from_s }} → {{ to_s }}</span>
+                <span style="color:#4a5568">{{ who }}: {{ how }}</span>
+              </div>
+              {% endfor %}
+            </div>
+          </div>
+          <div class="col-md-6">
+            <div class="p-3 rounded" style="background:#FFFBEB">
+              <div style="font-weight:700;color:#92400e;margin-bottom:8px">VW vs VW-RRLD</div>
+              <div class="mb-2"><span style="background:#dbeafe;color:#1d4ed8;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">VW</span> <span style="color:#4a5568;margin-left:6px">Verified Seller — basic Lazada activation</span></div>
+              <div class="mb-2"><span style="background:#E0E7FF;color:#4338ca;padding:2px 7px;border-radius:10px;font-size:11px;font-weight:700">VW-RRLD</span> <span style="color:#4a5568;margin-left:6px">Verified + RRLD accreditation</span></div>
+              <div style="color:#78350f;font-size:11px;margin-top:8px">Both are set by the Manager when approving a registration. A lead with either becomes <strong>Matched</strong> instead of just Live.</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ EXCEL IMPORT ══════════ -->
+  <div class="tab-pane fade" id="tabImport">
+    <div class="row g-3">
+      <div class="col-md-5">
+        <div class="card">
+          <div class="card-header" style="background:#15803d;color:white;font-weight:800">Step-by-Step Import</div>
+          <div class="card-body p-0">
+            {% for num, step, detail in [
+              ('1','Log in as Admin','admin / Admin@2026'),
+              ('2','Click Leads in sidebar','Left navigation menu'),
+              ('3','Click Import Leads','Top-right button on the Leads page'),
+              ('4','Click the upload area','Select your .xlsx or .csv file'),
+              ('5','Wait for the result','System shows: X added, X skipped, X errors'),
+              ('6','Go to Assign Leads','Sidebar → Assign Leads — distribute to Gabay'),
+            ] %}
+            <div class="d-flex gap-3 p-3" style="border-bottom:1px solid #E0E6EF">
+              <div style="width:28px;height:28px;border-radius:50%;background:#15803d;color:white;font-weight:800;font-size:12px;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div>
+                <div style="font-weight:700;font-size:13px;color:#1F3864">{{ step }}</div>
+                <div style="font-size:11px;color:#9aabc5">{{ detail }}</div>
+              </div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+      <div class="col-md-7">
+        <div class="card mb-3">
+          <div class="card-header" style="font-weight:800;color:#1F3864">Expected Column Names</div>
+          <div class="table-responsive">
+            <table class="table table-sm mb-0" style="font-size:12px">
+              <thead><tr><th>Column</th><th>Alternatives</th><th>Required?</th></tr></thead>
+              <tbody>
+                {% for col, alt, req in [
+                  ('seller_name','name, contact_person','Required'),
+                  ('business_name','shop_name','Optional'),
+                  ('contact_number','mobile, phone','Optional'),
+                  ('email','—','Optional'),
+                  ('address','—','Optional'),
+                  ('city','—','Optional'),
+                  ('region','—','Optional'),
+                  ('category','—','Optional'),
+                  ('lazada_id','id','Recommended'),
+                ] %}
+                <tr>
+                  <td><code>{{ col }}</code></td>
+                  <td style="color:#9aabc5">{{ alt }}</td>
+                  <td><span class="badge {% if req == 'Required' %}bg-danger{% elif req == 'Recommended' %}bg-warning text-dark{% else %}bg-secondary{% endif %}" style="font-size:10px">{{ req }}</span></td>
+                </tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          </div>
+        </div>
+        <div class="p-3 rounded" style="background:#F0F4FA;font-size:12px">
+          <div style="font-weight:700;color:#1F3864;margin-bottom:6px"><i class="bi bi-info-circle me-1"></i>Good to Know</div>
+          <ul class="mb-0 ps-3" style="color:#4a5568">
+            <li>Column names are not case-sensitive — SELLER_NAME and seller_name both work</li>
+            <li>Duplicate <code>lazada_id</code> values are automatically skipped</li>
+            <li>Rows with blank seller names are skipped</li>
+            <li>You can import in multiple batches — duplicates won't be added twice</li>
+            <li>After import, all leads go to <strong>Pool</strong> status — unassigned</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ══════════ FAQ ══════════ -->
+  <div class="tab-pane fade" id="tabFaq">
+    <div class="accordion" id="faqAccordion">
+      {% set faqs = [
+        ('Who logs in first?','Admin logs in first (admin / Admin@2026), creates all user accounts, imports the lead file, then assigns leads. No one else can do anything until Admin sets this up.'),
+        ('Can a Gabay see other agents\' leads?','No. Gabay agents can only see leads assigned to them. They cannot view other agents\' sellers, performance data, or assignment decisions.'),
+        ('What happens after a Gabay records a visit as "Interested"?','The lead automatically moves to Negotiation status. Gabay can then create a Registration to start collecting the seller\'s documents.'),
+        ('Who approves a registration?','Only Operations Manager or Admin. After approval, the seller becomes LIVE. If rejected, the reason is recorded and Gabay is notified to correct and resubmit.'),
+        ('What is VW vs VW-RRLD?','VW = Verified Seller on Lazada. VW-RRLD = Verified Seller with RRLD accreditation. Set by the Manager at approval. Leads with either classification show as Matched.'),
+        ('How do I use LSAMS on my phone?','Open your phone browser and go to http://192.168.10.78:5001 — no app install needed. The full system works on mobile browsers including GPS check-in.'),
+        ('What if GPS doesn\'t work during a visit?','The system allows manual location entry as fallback. The GPS address field becomes editable so Gabay can type the location manually.'),
+        ('Can I re-assign a lead to a different Gabay?','Yes. Open the lead detail page → Assignment section → select a new Gabay → click Assign. All assignment history is logged.'),
+        ('What does Auto-Distribute do?','It divides all unassigned pool leads equally across all active Gabay agents. If you have 100 leads and 9 Gabay, each gets roughly 11 leads. Always shows a confirmation before running.'),
+      ] %}
+      {% for q, a in faqs %}
+      <div class="accordion-item">
+        <h2 class="accordion-header">
+          <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq{{ loop.index }}" style="font-size:13px;font-weight:600;color:#1F3864">
+            {{ q }}
+          </button>
+        </h2>
+        <div id="faq{{ loop.index }}" class="accordion-collapse collapse" data-bs-parent="#faqAccordion">
+          <div class="accordion-body" style="font-size:13px;color:#4a5568">{{ a }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+</div>
+{% endblock %}

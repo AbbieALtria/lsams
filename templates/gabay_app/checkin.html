@@ -1,0 +1,415 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Check In{% endblock %}
+{% block extra_head %}
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+<style>
+  #minimap { height: 180px; border-radius: 14px; margin-top: 10px; }
+
+  .step-label {
+    display: flex; align-items: center; gap: 10px;
+    font-size: 16px; font-weight: 800; color: #1F3864; margin-bottom: 10px; margin-top: 20px;
+  }
+  .step-num {
+    width: 30px; height: 30px; border-radius: 50%; background: #CBD5E1; color: white;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 14px; font-weight: 800; flex-shrink: 0; transition: background 0.3s;
+  }
+  .step-num.done { background: #15803d; }
+  .step-num.active { background: #1F3864; }
+
+  .outcome-grid { display: grid; grid-template-columns: repeat(3,1fr); gap: 10px; }
+  .outcome-opt {
+    border: 2px solid #E0E6EF; border-radius: 16px; padding: 14px 6px;
+    text-align: center; cursor: pointer; transition: all 0.18s;
+    background: white; -webkit-tap-highlight-color: transparent;
+  }
+  .outcome-opt:active { transform: scale(0.93); }
+  .outcome-opt.selected {
+    border-color: var(--oc);
+    background: var(--oc);
+    box-shadow: 0 4px 14px rgba(0,0,0,0.2);
+  }
+  .outcome-opt.selected .oc-label { color: white; }
+  .oc-icon { font-size: 28px; display: block; margin-bottom: 5px; }
+  .oc-label { font-size: 11px; font-weight: 800; color: #4a5568; line-height: 1.3; }
+
+  .gps-big {
+    background: #F0F4FA; border: 2px dashed #CBD5E1; border-radius: 16px;
+    padding: 22px 16px; text-align: center; cursor: pointer; width: 100%; transition: all 0.2s;
+  }
+  .gps-big.got { background: #f0fdf4; border-color: #15803d; border-style: solid; }
+  .gps-big:active { transform: scale(0.98); }
+</style>
+{% endblock %}
+{% block content %}
+
+<!-- HEADER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div>
+    <div style="font-size:20px;font-weight:800;color:#1F3864">
+      📍 <span data-i18n="checkin_title">Check In</span>
+    </div>
+    <div style="font-size:12px;color:#9aabc5" data-i18n="checkin_sub">Log your seller visit</div>
+  </div>
+  <button onclick="openHelp('help_checkin_title','help_checkin_body')"
+          style="background:#F0F4FA;border:none;border-radius:10px;padding:8px 12px;
+                 font-size:12px;font-weight:700;color:#9aabc5;cursor:pointer">
+    <i class="bi bi-question-circle me-1"></i>Help
+  </button>
+</div>
+
+<!-- TIP -->
+<div class="tip-bubble" style="margin-bottom:4px">
+  <i class="bi bi-info-circle-fill" style="color:#2E75B6"></i>
+  Fill in all 3 steps below, then tap <strong>Submit</strong>. GPS is required so your supervisor can verify the visit.
+</div>
+
+<form method="POST" id="checkinForm" enctype="multipart/form-data">
+
+  <!-- STEP 1 -->
+  <div class="step-label">
+    <div class="step-num active" id="step1num">1</div>
+    <div>
+      <div data-i18n="checkin_step1">Which seller did you visit?</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5" data-i18n="checkin_step1_sub">Select from your lead list</div>
+    </div>
+  </div>
+
+  <select name="lead_id" class="m-form-control" style="font-size:15px;padding:14px 16px"
+          required id="leadSelect">
+    <option value="" data-i18n="checkin_select_placeholder">— Select a seller —</option>
+    {% for lead in my_leads %}
+    <option value="{{ lead.id }}" {% if selected_lead and selected_lead.id == lead.id %}selected{% endif %}>
+      {{ lead.seller_name }} · {{ lead.city or '' }}
+    </option>
+    {% endfor %}
+  </select>
+
+  <!-- seller preview chip -->
+  <div id="sellerChip" style="display:none;align-items:center;gap:12px;margin-top:8px;
+       padding:12px 14px;background:#EEF2FF;border-radius:14px;border:2px solid #4338ca">
+    <div id="sellerAvatar" style="width:40px;height:40px;border-radius:11px;background:#4338ca;
+         color:white;display:flex;align-items:center;justify-content:center;
+         font-size:18px;font-weight:800;flex-shrink:0">?</div>
+    <div style="flex:1">
+      <div style="font-weight:800;color:#1F3864;font-size:15px" id="sellerName">—</div>
+      <div style="font-size:12px;color:#6366f1" id="sellerCity">—</div>
+    </div>
+    <span style="font-size:20px">✅</span>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="step-label">
+    <div class="step-num" id="step2num">2</div>
+    <div>
+      <div data-i18n="checkin_step2">Where are you now?</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5" data-i18n="checkin_step2_sub">Tap to get your GPS location</div>
+    </div>
+  </div>
+
+  <button type="button" class="gps-big" id="gpsBtn" onclick="getLocation()">
+    <div style="font-size:40px;margin-bottom:6px" id="gpsEmoji">📡</div>
+    <div style="font-weight:800;font-size:15px;color:#1F3864" id="gpsBtnText"
+         data-i18n="checkin_gps_tap">Tap for GPS Location</div>
+    <div style="font-size:12px;color:#9aabc5;margin-top:4px" id="gpsBtnSub"
+         data-i18n="checkin_gps_sub">Required for check-in</div>
+  </button>
+  <div id="minimap" style="display:none"></div>
+  <input type="hidden" name="gps_lat" id="gps_lat">
+  <input type="hidden" name="gps_lng" id="gps_lng">
+  <input type="hidden" name="gps_address" id="gps_address">
+
+  <!-- STEP 3 -->
+  <div class="step-label">
+    <div class="step-num" id="step3num">3</div>
+    <div>
+      <div data-i18n="checkin_step3">What happened?</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5" data-i18n="checkin_step3_sub">Select the visit outcome</div>
+    </div>
+  </div>
+
+  <div class="outcome-grid">
+    <div class="outcome-opt" data-val="interested" onclick="selectOutcome(this)" style="--oc:#15803d">
+      <span class="oc-icon">👍</span>
+      <span class="oc-label" data-i18n="outcome_interested">Interested</span>
+    </div>
+    <div class="outcome-opt" data-val="callback" onclick="selectOutcome(this)" style="--oc:#2E75B6">
+      <span class="oc-icon">📞</span>
+      <span class="oc-label" data-i18n="outcome_callback">Call Back</span>
+    </div>
+    <div class="outcome-opt" data-val="not_home" onclick="selectOutcome(this)" style="--oc:#E07B00">
+      <span class="oc-icon">🚪</span>
+      <span class="oc-label" data-i18n="outcome_not_home">Not Home</span>
+    </div>
+    <div class="outcome-opt" data-val="rejected" onclick="selectOutcome(this)" style="--oc:#b91c1c">
+      <span class="oc-icon">❌</span>
+      <span class="oc-label" data-i18n="outcome_rejected">Rejected</span>
+    </div>
+    <div class="outcome-opt" data-val="registered" onclick="selectOutcome(this)" style="--oc:#7c3aed">
+      <span class="oc-icon">📝</span>
+      <span class="oc-label" data-i18n="outcome_registered">Registered!</span>
+    </div>
+    <div class="outcome-opt" data-val="follow_up" onclick="selectOutcome(this)" style="--oc:#be185d">
+      <span class="oc-icon">📅</span>
+      <span class="oc-label" data-i18n="outcome_follow_up">Follow Up</span>
+    </div>
+  </div>
+  <input type="hidden" name="outcome" id="outcomeInput" required>
+
+  <!-- FOLLOW-UP DATE -->
+  <div id="followupRow" style="display:none;margin-top:10px;background:#fce7f3;
+       border-radius:14px;padding:14px 16px;border-left:4px solid #be185d">
+    <div style="font-size:13px;font-weight:800;color:#be185d;margin-bottom:8px"
+         data-i18n="checkin_followup_q">📅 When to follow up?</div>
+    <input type="date" name="follow_up_date" class="m-form-control" id="followupDate"
+           style="font-size:15px;padding:12px 14px;background:white">
+  </div>
+
+  <!-- STEP 4: PHOTOS -->
+  <div class="step-label" style="margin-top:20px">
+    <div class="step-num" id="step4num">4</div>
+    <div>
+      <div>Proof Photos <span style="font-size:12px;font-weight:400;color:#9aabc5">(Optional but recommended)</span></div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5">Selfie + photo of seller / store</div>
+    </div>
+  </div>
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:4px">
+    <!-- SELFIE -->
+    <div>
+      <input type="file" name="photo_selfie" id="selfieInput"
+             accept="image/*" capture="user" style="display:none"
+             onchange="previewPhoto(this,'selfiePreview')">
+      <div onclick="document.getElementById('selfieInput').click()"
+           id="selfieBox"
+           style="border:2px dashed #CBD5E1;border-radius:16px;padding:16px 8px;
+                  text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s;
+                  min-height:110px;display:flex;flex-direction:column;
+                  align-items:center;justify-content:center">
+        <div style="font-size:32px;margin-bottom:6px">🤳</div>
+        <div style="font-size:11px;font-weight:700;color:#4a5568">Take Selfie</div>
+        <div style="font-size:10px;color:#9aabc5;margin-top:2px">Front camera</div>
+      </div>
+      <img id="selfiePreview" src="" alt=""
+           style="display:none;width:100%;border-radius:14px;margin-top:6px;
+                  max-height:130px;object-fit:cover;border:2px solid #15803d">
+    </div>
+    <!-- PROOF PHOTO -->
+    <div>
+      <input type="file" name="photo_proof" id="proofInput"
+             accept="image/*" capture="environment" style="display:none"
+             onchange="previewPhoto(this,'proofPreview')">
+      <div onclick="document.getElementById('proofInput').click()"
+           id="proofBox"
+           style="border:2px dashed #CBD5E1;border-radius:16px;padding:16px 8px;
+                  text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s;
+                  min-height:110px;display:flex;flex-direction:column;
+                  align-items:center;justify-content:center">
+        <div style="font-size:32px;margin-bottom:6px">📸</div>
+        <div style="font-size:11px;font-weight:700;color:#4a5568">Proof Photo</div>
+        <div style="font-size:10px;color:#9aabc5;margin-top:2px">Store / meeting</div>
+      </div>
+      <img id="proofPreview" src="" alt=""
+           style="display:none;width:100%;border-radius:14px;margin-top:6px;
+                  max-height:130px;object-fit:cover;border:2px solid #15803d">
+    </div>
+  </div>
+  <div style="font-size:11px;color:#9aabc5;text-align:center;margin-bottom:4px">
+    <i class="bi bi-info-circle me-1"></i>Photos are saved as proof of visit for your supervisor
+  </div>
+
+  <!-- STEP 5: NOTES -->
+  <div class="step-label" style="margin-top:20px">
+    <div class="step-num" id="step5num">5</div>
+    <div>
+      <span data-i18n="checkin_step4">Notes</span>
+      <span style="font-size:12px;font-weight:400;color:#9aabc5;margin-left:4px"
+            data-i18n="checkin_step4_opt">(Optional)</span>
+    </div>
+  </div>
+
+  <textarea name="notes" class="m-form-control" rows="3"
+            style="font-size:14px;padding:14px;margin-bottom:4px"
+            data-i18n="checkin_notes_ph"
+            placeholder="What happened during the visit?"></textarea>
+
+  <!-- STATUS UPDATE -->
+  <div style="margin-top:14px;background:#F8FAFD;border-radius:14px;padding:14px 16px;
+              border:1.5px solid #E0E6EF;margin-bottom:24px">
+    <div style="font-size:13px;font-weight:700;color:#9aabc5;margin-bottom:8px">
+      <span data-i18n="checkin_status_label">Update Lead Status?</span>
+      <span style="font-weight:400" data-i18n="checkin_status_opt"> (Optional)</span>
+    </div>
+    <select name="new_status" class="m-form-control" style="background:white;font-size:14px">
+      <option value="" data-i18n="checkin_keep_status">— Keep current status —</option>
+      <option value="attempting" data-i18n="checkin_status_attempt">Attempting</option>
+      <option value="negotiation" data-i18n="checkin_status_nego">In Negotiation</option>
+      <option value="registration" data-i18n="checkin_status_reg">Registration</option>
+      <option value="closed" data-i18n="checkin_status_closed">Closed (No Sale)</option>
+    </select>
+  </div>
+
+  <!-- SUBMIT -->
+  <button type="submit" class="m-btn-orange" id="submitBtn" disabled
+          style="padding:18px;font-size:17px;border-radius:16px;opacity:0.45;
+                 box-shadow:0 4px 16px rgba(255,153,0,0.25);transition:opacity 0.3s,box-shadow 0.3s">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <span data-i18n="checkin_submit">Submit Check-In</span>
+  </button>
+  <div id="hintText" style="text-align:center;font-size:12px;color:#9aabc5;
+                            margin-top:10px;padding-bottom:8px"
+       data-i18n="checkin_hint">
+    Select seller, location, and outcome to submit
+  </div>
+
+</form>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let map, marker;
+const leadData = {
+  {% for lead in my_leads %}
+  "{{ lead.id }}": { name: {{ lead.seller_name|tojson }}, city: "{{ lead.city or '' }}" },
+  {% endfor %}
+};
+
+document.getElementById('leadSelect').addEventListener('change', function() {
+  const v = this.value;
+  const chip = document.getElementById('sellerChip');
+  if (v && leadData[v]) {
+    const d = leadData[v];
+    document.getElementById('sellerName').textContent = d.name;
+    document.getElementById('sellerCity').textContent = '📍 ' + d.city;
+    document.getElementById('sellerAvatar').textContent = d.name[0].toUpperCase();
+    chip.style.display = 'flex';
+    document.getElementById('step1num').className = 'step-num done';
+    document.getElementById('step2num').className = 'step-num active';
+  } else {
+    chip.style.display = 'none';
+    document.getElementById('step1num').className = 'step-num active';
+    document.getElementById('step2num').className = 'step-num';
+  }
+  validateForm();
+});
+
+if (document.getElementById('leadSelect').value) {
+  document.getElementById('leadSelect').dispatchEvent(new Event('change'));
+}
+
+function getLocation() {
+  const btn = document.getElementById('gpsBtn');
+  document.getElementById('gpsEmoji').textContent = '⏳';
+  document.getElementById('gpsBtnText').textContent = t('checkin_gps_loading');
+  document.getElementById('gpsBtnSub').textContent = t('checkin_gps_loading_sub');
+  btn.style.opacity = '0.7';
+
+  navigator.geolocation.getCurrentPosition(pos => {
+    const lat = pos.coords.latitude, lng = pos.coords.longitude;
+    document.getElementById('gps_lat').value = lat;
+    document.getElementById('gps_lng').value = lng;
+    document.getElementById('gpsEmoji').textContent = '✅';
+    document.getElementById('gpsBtnText').textContent = t('checkin_gps_done');
+    document.getElementById('gpsBtnSub').textContent = lat.toFixed(5) + ', ' + lng.toFixed(5);
+    btn.classList.add('got');
+    btn.style.opacity = '1';
+    document.getElementById('step2num').className = 'step-num done';
+    document.getElementById('step3num').className = 'step-num active';
+
+    fetch(`https://nominatim.openstreetmap.org/reverse?format=json&lat=${lat}&lon=${lng}`)
+      .then(r => r.json()).then(d => {
+        const addr = d.display_name || `${lat},${lng}`;
+        document.getElementById('gps_address').value = addr;
+        document.getElementById('gpsBtnSub').textContent = '📍 ' + addr.substring(0, 55) + (addr.length > 55 ? '…' : '');
+      }).catch(() => { document.getElementById('gps_address').value = `${lat},${lng}`; });
+
+    const mapEl = document.getElementById('minimap');
+    mapEl.style.display = 'block';
+    if (!map) {
+      map = L.map('minimap').setView([lat, lng], 16);
+      L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png').addTo(map);
+      marker = L.marker([lat, lng]).addTo(map);
+    } else {
+      map.setView([lat, lng], 16); marker.setLatLng([lat, lng]);
+    }
+    validateForm();
+  }, () => {
+    document.getElementById('gpsEmoji').textContent = '❗';
+    document.getElementById('gpsBtnText').textContent = t('checkin_gps_error');
+    document.getElementById('gpsBtnSub').textContent = t('checkin_gps_error_sub');
+    btn.style.opacity = '1';
+  }, { enableHighAccuracy: true, timeout: 15000 });
+}
+
+function selectOutcome(el) {
+  document.querySelectorAll('.outcome-opt').forEach(o => o.classList.remove('selected'));
+  el.classList.add('selected');
+  document.getElementById('outcomeInput').value = el.dataset.val;
+  const needDate = ['follow_up','callback'].includes(el.dataset.val);
+  document.getElementById('followupRow').style.display = needDate ? 'block' : 'none';
+  document.getElementById('step3num').className = 'step-num done';
+  document.getElementById('step4num').className = 'step-num active';
+  validateForm();
+}
+
+function validateForm() {
+  const ok = document.getElementById('gps_lat').value &&
+             document.getElementById('outcomeInput').value &&
+             document.getElementById('leadSelect').value;
+  const btn = document.getElementById('submitBtn');
+  const hint = document.getElementById('hintText');
+  btn.disabled = !ok;
+  btn.style.opacity = ok ? '1' : '0.45';
+  btn.style.boxShadow = ok ? '0 6px 20px rgba(255,153,0,0.5)' : '0 4px 16px rgba(255,153,0,0.2)';
+  if (ok) {
+    hint.textContent = t('checkin_ready');
+    hint.style.color = '#15803d';
+    hint.style.fontWeight = '700';
+  } else {
+    hint.textContent = t('checkin_hint');
+    hint.style.color = '#9aabc5';
+    hint.style.fontWeight = '400';
+  }
+}
+
+// Offline save
+document.getElementById('checkinForm').addEventListener('submit', async e => {
+  if (navigator.onLine) return;
+  e.preventDefault();
+  const data = new FormData(e.target);
+  const db = await openDB();
+  const tx = db.transaction('pending_visits', 'readwrite');
+  await tx.objectStore('pending_visits').add({
+    lead_id: data.get('lead_id'), data: Object.fromEntries(data), saved_at: new Date().toISOString()
+  });
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    const sw = await navigator.serviceWorker.ready;
+    await sw.sync.register('sync-visits');
+  }
+  alert('Saved offline. Will sync when connected.');
+});
+
+function previewPhoto(input, previewId) {
+  const file = input.files[0];
+  if (!file) return;
+  const preview = document.getElementById(previewId);
+  const boxId = previewId.replace('Preview', 'Box');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  const box = document.getElementById(boxId);
+  box.style.borderColor = '#15803d';
+  box.style.background = '#f0fdf4';
+  box.innerHTML = '<div style="font-size:22px">✅</div><div style="font-size:10px;font-weight:700;color:#15803d;margin-top:4px">Tap to retake</div>';
+}
+
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('lsams', 1);
+    req.onupgradeneeded = e => e.target.result.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
+  });
+}
+</script>
+{% endblock %}

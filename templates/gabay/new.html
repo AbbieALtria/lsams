@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}Add Agent{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-person-plus me-2"></i>Add User / Agent</div>
+  <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-secondary">Back</a>
+</div>
+<div class="row justify-content-center">
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header">New User Account</div>
+      <div class="card-body">
+        <form method="POST">
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">FULL NAME *</label>
+            <input type="text" name="full_name" class="form-control" required placeholder="e.g. Abigail Bulasco">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">USERNAME *</label>
+            <input type="text" name="username" class="form-control" required placeholder="e.g. abigail.bulasco">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">EMAIL *</label>
+            <input type="email" name="email" class="form-control" required placeholder="e.g. abigail@lsams.local">
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">ROLE *</label>
+            <select name="role" class="form-select" required>
+              <option value="gabay">Gabay (Field Agent)</option>
+              <option value="supervisor">Supervisor</option>
+              <option value="manager">Operations Manager</option>
+              <option value="admin">Administrator</option>
+            </select>
+          </div>
+          <div class="mb-4">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">PASSWORD *</label>
+            <input type="password" name="password" class="form-control" required minlength="6" placeholder="Minimum 6 characters">
+          </div>
+          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
+            <i class="bi bi-person-check me-1"></i>Create User
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

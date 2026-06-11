@@ -1,0 +1,645 @@
+{% extends "base.html" %}
+{% block title %}Lead Assignment{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-person-check me-2"></i>Lead Assignment Center</div>
+  <div style="font-size:12px;color:#9aabc5">Assign unassigned leads from the pool to Gabay field agents</div>
+</div>
+
+<!-- HOW IT WORKS BANNER -->
+<div class="card mb-4" style="background:linear-gradient(135deg,#1F3864,#2E75B6);border:none">
+  <div class="card-body py-3">
+    <div class="row align-items-center g-3">
+      <div class="col-12 col-md-8">
+        <div style="color:white;font-weight:800;font-size:14px;margin-bottom:8px"><i class="bi bi-info-circle me-2"></i>How Assignment Works</div>
+        <div class="d-flex flex-wrap gap-3">
+          {% for step, icon, label in [
+            ('1','bi-funnel','Leads arrive in the Pool after import'),
+            ('2','bi-person-check','Manager/Admin assigns leads to Gabay'),
+            ('3','bi-phone','Gabay sees their leads on mobile'),
+            ('4','bi-geo-alt','Gabay visits sellers in the field'),
+          ] %}
+          <div class="d-flex align-items-center gap-2">
+            <div style="width:24px;height:24px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:white;flex-shrink:0">{{ step }}</div>
+            <span style="font-size:12px;color:#8aaed4">{{ label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+      <div class="col-12 col-md-4 text-md-end d-flex flex-column align-items-md-end gap-2">
+        <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px;display:inline-block;text-align:center">
+          <div style="color:#8aaed4;font-size:11px;font-weight:700">UNASSIGNED IN POOL</div>
+          <div style="color:white;font-size:36px;font-weight:900">{{ pool_count }}</div>
+          <div style="color:#F90;font-size:11px">leads waiting for assignment</div>
+        </div>
+        <a href="{{ url_for('smart_assign') }}"
+           style="background:#FF9900;color:#1F3864;font-weight:800;border-radius:10px;padding:10px 20px;text-decoration:none;font-size:13px;display:inline-flex;align-items:center;gap:8px;box-shadow:0 4px 14px rgba(0,0,0,0.2)">
+          <i class="bi bi-stars" style="font-size:16px"></i>
+          Smart Assignment Map
+        </a>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- POOL CITY ALERT: leads whose city already has a Gabay but are still unassigned -->
+{% if orphan_cities %}
+<div class="alert mb-3 p-3" style="background:#FEF2F2;border:1px solid #fca5a5;border-radius:10px">
+  <div class="d-flex align-items-start gap-2">
+    <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;font-size:18px;flex-shrink:0;margin-top:2px"></i>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#b91c1c;font-size:13px;margin-bottom:4px">
+        {{ pool_count }} leads in the pool were not assigned — their city already has a Gabay
+      </div>
+      <div style="font-size:12px;color:#78350f;margin-bottom:8px">
+        These leads were left over because the Smart Assignment algorithm hit its load cap before covering all leads.
+        You can assign them now with one click per city.
+      </div>
+      <div class="d-flex flex-wrap gap-2">
+        {% for city, count, gabay_name, gabay_id in orphan_cities %}
+        <form method="POST" action="{{ url_for('assign_remaining_city') }}" style="display:inline">
+          <input type="hidden" name="city" value="{{ city }}">
+          <input type="hidden" name="gabay_id" value="{{ gabay_id }}">
+          <button type="submit" class="btn btn-sm" style="background:#b91c1c;color:white;font-size:11px;font-weight:600">
+            <i class="bi bi-person-check me-1"></i>
+            Assign {{ count }} {{ city }} leads → {{ gabay_name.split()[0] }}
+          </button>
+        </form>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- GABAY SUMMARY CARDS -->
+{% set all_totals = gabay_users | map(attribute='id') | map('string') | list %}
+{% set total_assigned = gabay_counts.values() | map(attribute='total') | sum %}
+{% set n_gabay = gabay_users | length %}
+{% set fair_share = (total_assigned / [n_gabay, 1]|max) | int %}
+
+<div class="d-flex align-items-center justify-content-between flex-wrap gap-2 mb-2">
+  <div style="font-size:11px;font-weight:700;color:#9aabc5;text-transform:uppercase;letter-spacing:1px">
+    Gabay Agents — Current Workload
+  </div>
+  <!-- Color legend -->
+  <div class="d-flex align-items-center gap-3" style="font-size:11px">
+    <span style="color:#9aabc5">Load guide:</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#15803d;margin-right:4px"></span><strong style="color:#15803d">Light</strong> &lt; {{ (fair_share * 0.75)|int }} leads</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#E07B00;margin-right:4px"></span><strong style="color:#E07B00">Normal</strong> {{ (fair_share * 0.75)|int }}–{{ (fair_share * 1.25)|int }}</span>
+    <span><span style="display:inline-block;width:10px;height:10px;border-radius:2px;background:#b91c1c;margin-right:4px"></span><strong style="color:#b91c1c">Heavy</strong> &gt; {{ (fair_share * 1.25)|int }} leads</span>
+    <span style="color:#9aabc5">· Fair share: ~{{ fair_share }} each</span>
+  </div>
+</div>
+
+<div class="row g-2 mb-4" id="gabayCards">
+  {% for g in gabay_users %}
+  {% set g_total = gabay_counts.get(g.id, {}).get('total', 0) %}
+  {% set low_thresh  = (fair_share * 0.75) | int %}
+  {% set high_thresh = (fair_share * 1.25) | int %}
+  {% if g_total > high_thresh %}
+    {% set status_color = '#b91c1c' %}
+    {% set status_bg    = '#FEF2F2' %}
+    {% set status_label = 'Heavy Load' %}
+    {% set bar_class    = 'bg-danger' %}
+  {% elif g_total >= low_thresh %}
+    {% set status_color = '#E07B00' %}
+    {% set status_bg    = '#FFFBEB' %}
+    {% set status_label = 'Normal' %}
+    {% set bar_class    = 'bg-warning' %}
+  {% else %}
+    {% set status_color = '#15803d' %}
+    {% set status_bg    = '#F0FDF4' %}
+    {% set status_label = 'Light Load' %}
+    {% set bar_class    = 'bg-success' %}
+  {% endif %}
+  <div class="col-6 col-md-4 col-lg-3">
+    <div class="card gabay-select-card h-100" data-gabay-id="{{ g.id }}" data-gabay-name="{{ g.full_name }}"
+         onclick="selectGabay({{ g.id }}, '{{ g.full_name }}')"
+         style="cursor:pointer;border:2px solid transparent;transition:all 0.2s;background:{{ status_bg }}">
+      <div class="card-body p-2 text-center">
+        <div style="width:36px;height:36px;border-radius:50%;background:{{ status_color }}22;display:flex;align-items:center;justify-content:center;margin:0 auto 6px">
+          <i class="bi bi-person" style="font-size:18px;color:{{ status_color }}"></i>
+        </div>
+        <div style="font-weight:700;font-size:12px;color:#1F3864;line-height:1.2">{{ g.full_name }}</div>
+        <div class="mt-2">
+          <div style="font-size:22px;font-weight:900;color:{{ status_color }}">{{ g_total }}</div>
+          <div style="font-size:9px;color:#9aabc5">LEADS ASSIGNED</div>
+        </div>
+        <!-- Status badge -->
+        <div style="margin-top:4px">
+          <span style="font-size:10px;font-weight:700;color:{{ status_color }};background:{{ status_color }}18;
+                       padding:2px 8px;border-radius:10px">
+            {{ status_label }}
+          </span>
+        </div>
+        <div class="progress mt-2" style="height:5px;border-radius:4px">
+          <div class="progress-bar {{ bar_class }}"
+               style="width:{{ [(g_total / [(fair_share * 1.5)|int, 1]|max * 100)|int, 100]|min }}%"></div>
+        </div>
+        {% if fair_share > 0 %}
+        <div style="font-size:9px;color:#9aabc5;margin-top:3px">
+          {{ ((g_total / fair_share) * 100)|int }}% of fair share ({{ fair_share }})
+        </div>
+        {% endif %}
+        {% if g_total > 0 %}
+        <button class="btn btn-sm mt-2 w-100" style="font-size:10px;font-weight:600;background:#E8EFF9;color:#1F3864;border:none"
+          onclick="event.stopPropagation();openReassign({{ g.id }}, '{{ g.full_name }}')">
+          <i class="bi bi-arrow-left-right me-1"></i>Reassign Leads
+        </button>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- REASSIGN PANEL (shown when a Gabay card is clicked in reassign mode) -->
+<div id="reassignPanel" style="display:none" class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between" style="background:#1F3864;color:white">
+    <span>
+      <i class="bi bi-arrow-left-right me-2"></i>
+      Reassign leads from <strong id="reassignGabayName">—</strong>
+      <span class="badge ms-2" style="background:rgba(255,255,255,0.2)" id="reassignTotal">0 leads</span>
+    </span>
+    <button class="btn btn-sm" style="background:rgba(255,255,255,0.15);color:white" onclick="closeReassign()">
+      <i class="bi bi-x-lg"></i> Close
+    </button>
+  </div>
+
+  <div class="card-body py-2 px-3" style="background:#F8FAFC;border-bottom:1px solid #E0E6EF">
+    <div class="d-flex gap-2 align-items-center flex-wrap">
+      <input type="text" id="reassignSearch" class="form-control form-control-sm" placeholder="Search seller or city…" style="max-width:200px" oninput="filterReassignTable()">
+      <select id="reassignCityFilter" class="form-select form-select-sm" style="max-width:140px" onchange="filterReassignTable()">
+        <option value="">All Cities</option>
+      </select>
+      <span id="reassignSelCount" style="font-size:12px;color:#9aabc5;margin-left:auto">0 selected</span>
+    </div>
+  </div>
+
+  <div style="max-height:360px;overflow-y:auto">
+    <table class="table table-hover mb-0" style="font-size:12px">
+      <thead style="position:sticky;top:0;z-index:1">
+        <tr>
+          <th style="width:36px">
+            <input type="checkbox" id="checkAllReassign" class="form-check-input" onchange="toggleAllReassign(this)">
+          </th>
+          <th>Seller</th>
+          <th>Business</th>
+          <th>City</th>
+          <th>Category</th>
+        </tr>
+      </thead>
+      <tbody id="reassignTableBody"></tbody>
+    </table>
+  </div>
+
+  <div class="p-3" style="background:#1F3864;border-radius:0 0 12px 12px">
+    <div class="row g-2 align-items-center">
+      <div class="col-12 col-sm-6">
+        <div style="color:white;font-size:12px;font-weight:700;margin-bottom:4px">MOVE SELECTED TO:</div>
+        <select id="reassignTargetGabay" class="form-select form-select-sm">
+          <option value="">— Select Gabay Agent —</option>
+          {% for g in gabay_users %}
+          <option value="{{ g.id }}">{{ g.full_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-12 col-sm-6 d-flex gap-2 align-items-end">
+        <button class="btn flex-fill" style="background:#F90;color:#1F3864;font-weight:800;font-size:13px"
+          id="reassignBtn" disabled onclick="submitReassign()">
+          <i class="bi bi-arrow-left-right me-1"></i>
+          Move <span id="reassignBtnCount">0</span> Leads
+        </button>
+      </div>
+    </div>
+    <div style="color:#8aaed4;font-size:11px;margin-top:6px">
+      <i class="bi bi-lightbulb me-1"></i>
+      Select leads above, choose the destination Gabay, then click <strong style="color:#F90">Move Leads</strong>.
+    </div>
+  </div>
+</div>
+
+<!-- MAIN ASSIGNMENT PANEL -->
+<div class="row g-3">
+
+  <!-- LEFT: POOL LEADS -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between" style="background:#1F3864;color:white">
+        <span><i class="bi bi-funnel me-2"></i>Pool — Unassigned Leads</span>
+        <span class="badge" style="background:rgba(255,255,255,0.2)">{{ pool_count }} leads</span>
+      </div>
+      <div class="card-body py-2 px-3" style="background:#F8FAFC;border-bottom:1px solid #E0E6EF">
+        <form method="GET" class="d-flex gap-2 flex-wrap">
+          <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Search seller or city..." style="max-width:180px">
+          <select name="city" class="form-select form-select-sm" style="max-width:140px">
+            <option value="">All Cities</option>
+            {% for c in cities %}
+            <option value="{{ c }}" {% if city_filter == c %}selected{% endif %}>{{ c }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+          {% if search or city_filter %}<a href="{{ url_for('assign_center') }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
+        </form>
+      </div>
+
+      <form method="POST" action="{{ url_for('do_assign') }}" id="assignForm">
+        <!-- Select all / deselect -->
+        <div class="px-3 py-2 d-flex align-items-center gap-3" style="border-bottom:1px solid #E0E6EF;background:#FFFBEB">
+          <div class="form-check mb-0">
+            <input class="form-check-input" type="checkbox" id="checkAllPool" onchange="toggleAllPool(this)">
+            <label class="form-check-label" for="checkAllPool" style="font-size:12px;font-weight:600;color:#4a5568">Select all on this page</label>
+          </div>
+          <span id="selCount" style="font-size:12px;color:#9aabc5;margin-left:auto">0 selected</span>
+        </div>
+
+        <div class="table-responsive" style="max-height:420px;overflow-y:auto">
+          <table class="table table-hover mb-0" style="font-size:12px">
+            <thead style="position:sticky;top:0;z-index:1">
+              <tr>
+                <th style="width:36px"></th>
+                <th>Seller</th>
+                <th>Business</th>
+                <th>City</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for lead in pool_leads %}
+              <tr class="pool-row" onclick="toggleCheck(this)" style="cursor:pointer">
+                <td onclick="event.stopPropagation()">
+                  <input type="checkbox" name="lead_ids" value="{{ lead.id }}" class="form-check-input lead-cb" onchange="updateSelCount()">
+                </td>
+                <td>
+                  <div style="font-weight:600;color:#1F3864">{{ lead.seller_name }}</div>
+                  {% if lead.contact_number %}<div style="color:#9aabc5;font-size:10px">{{ lead.contact_number }}</div>{% endif %}
+                </td>
+                <td style="color:#4a5568">{{ lead.business_name or '—' }}</td>
+                <td>
+                  {% if lead.city %}<span class="badge" style="background:#E8EFF9;color:#1F3864;font-size:10px">{{ lead.city }}</span>{% else %}—{% endif %}
+                </td>
+                <td style="color:#9aabc5;font-size:11px">{{ lead.category or '—' }}</td>
+              </tr>
+              {% else %}
+              <tr>
+                <td colspan="5" class="text-center text-muted py-5">
+                  <i class="bi bi-check-circle" style="font-size:28px;color:#E0E6EF;display:block;margin-bottom:8px"></i>
+                  {% if search or city_filter %}No leads match your filter.{% else %}All leads have been assigned! 🎉{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+
+        <!-- PAGINATION -->
+        {% if pagination.pages > 1 %}
+        <div class="px-3 py-2 d-flex justify-content-center" style="border-top:1px solid #E0E6EF">
+          <nav><ul class="pagination pagination-sm mb-0">
+            {% if pagination.has_prev %}<li class="page-item"><a class="page-link" href="{{ url_for('assign_center', page=pagination.prev_num, q=search, city=city_filter) }}">‹</a></li>{% endif %}
+            {% for p in pagination.iter_pages(left_edge=1,right_edge=1,left_current=2,right_current=2) %}
+              {% if p %}<li class="page-item {% if p==pagination.page %}active{% endif %}"><a class="page-link" href="{{ url_for('assign_center', page=p, q=search, city=city_filter) }}">{{ p }}</a></li>
+              {% else %}<li class="page-item disabled"><span class="page-link">…</span></li>{% endif %}
+            {% endfor %}
+            {% if pagination.has_next %}<li class="page-item"><a class="page-link" href="{{ url_for('assign_center', page=pagination.next_num, q=search, city=city_filter) }}">›</a></li>{% endif %}
+          </ul></nav>
+        </div>
+        {% endif %}
+
+        <!-- ASSIGN BAR (bottom of left panel) -->
+        <div class="p-3" style="background:#1F3864;border-radius:0 0 12px 12px">
+          <div class="row g-2 align-items-center">
+            <div class="col-12 col-sm-6">
+              <div style="color:white;font-size:12px;font-weight:700;margin-bottom:4px">ASSIGN SELECTED TO:</div>
+              <select name="gabay_id" id="gabaySelect" class="form-select form-select-sm" required>
+                <option value="">— Select Gabay Agent —</option>
+                {% for g in gabay_users %}
+                <option value="{{ g.id }}">{{ g.full_name }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="col-12 col-sm-6 d-flex gap-2 align-items-end">
+              <button type="submit" class="btn flex-fill" style="background:#F90;color:#1F3864;font-weight:800;font-size:13px" id="assignBtn" disabled>
+                <i class="bi bi-person-check me-1"></i>
+                Assign <span id="assignBtnCount">0</span> Leads
+              </button>
+              <button type="button" class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:white" onclick="autoDistribute()">
+                <i class="bi bi-shuffle"></i> Auto
+              </button>
+            </div>
+          </div>
+          <div style="color:#8aaed4;font-size:11px;margin-top:6px">
+            <i class="bi bi-lightbulb me-1"></i>Tip: Click rows to select them, or use the checkbox. <strong style="color:#F90">Auto</strong> evenly distributes all pool leads across all Gabay.
+          </div>
+        </div>
+
+      </form>
+    </div>
+  </div>
+
+  <!-- RIGHT: ALREADY ASSIGNED -->
+  <div class="col-md-5">
+    <div class="card mb-3">
+      <div class="card-header" style="font-weight:700;color:#1F3864">
+        <i class="bi bi-list-check me-2"></i>Assigned Leads — Recent
+      </div>
+      <div class="table-responsive" style="max-height:320px;overflow-y:auto">
+        <table class="table table-hover mb-0" style="font-size:12px">
+          <thead><tr><th>Seller</th><th>Gabay</th><th>Date</th></tr></thead>
+          <tbody>
+            {% for lead in recent_assigned %}
+            <tr>
+              <td>
+                <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="text-decoration-none" style="color:#1F3864;font-weight:600">{{ lead.seller_name }}</a>
+                {% if lead.city %}<br><span style="color:#9aabc5;font-size:10px">{{ lead.city }}</span>{% endif %}
+              </td>
+              <td style="color:#4a5568">{{ lead.assigned_gabay.full_name.split()[0] if lead.assigned_gabay else '—' }}</td>
+              <td style="color:#9aabc5;font-size:11px">{{ lead.assigned_at.strftime('%b %d') if lead.assigned_at else '—' }}</td>
+            </tr>
+            {% else %}
+            <tr><td colspan="3" class="text-center text-muted py-3">No assignments yet.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- GABAY WORKLOAD SUMMARY -->
+    <div class="card">
+      <div class="card-header" style="font-weight:700;color:#1F3864">
+        <i class="bi bi-bar-chart me-2"></i>Workload Distribution
+      </div>
+      <div class="card-body">
+        {% for g in gabay_users %}
+        {% set total = gabay_counts.get(g.id, {}).get('total', 0) %}
+        {% set live = gabay_counts.get(g.id, {}).get('live', 0) %}
+        {% set matched = gabay_counts.get(g.id, {}).get('matched', 0) %}
+        <div class="mb-3">
+          <div class="d-flex justify-content-between align-items-center mb-1">
+            <span style="font-size:12px;font-weight:600;color:#1F3864">{{ g.full_name }}</span>
+            <span style="font-size:11px;color:#9aabc5">{{ total }} leads</span>
+          </div>
+          <div class="progress" style="height:8px;border-radius:4px">
+            {% set max_leads = 150 %}
+            <div class="progress-bar {% if total > 100 %}bg-danger{% elif total > 60 %}bg-warning{% else %}bg-success{% endif %}"
+                 style="width:{{ [(total / max_leads * 100)|int, 100]|min }}%"></div>
+          </div>
+          <div style="font-size:10px;color:#9aabc5;margin-top:2px">
+            {{ live }} live · {{ matched }} matched
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- REASSIGN CONFIRM MODAL -->
+<div class="modal fade" id="reassignConfirmModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered" style="max-width:420px">
+    <div class="modal-content" style="border-radius:14px;overflow:hidden">
+      <div class="modal-header border-0 pb-0" style="background:#F5F0FF">
+        <div style="width:100%;text-align:center;padding-top:12px">
+          <div style="width:52px;height:52px;border-radius:50%;background:#7c3aed22;display:flex;align-items:center;justify-content:center;margin:0 auto 8px">
+            <i class="bi bi-arrow-left-right" style="font-size:24px;color:#7c3aed"></i>
+          </div>
+          <div style="font-weight:800;font-size:16px;color:#1F3864">Move Leads</div>
+        </div>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" style="position:absolute;top:12px;right:12px"></button>
+      </div>
+      <div class="modal-body text-center pt-2" style="background:#F5F0FF">
+        <p style="font-size:14px;color:#4a5568;margin:0">
+          Move <strong id="confirmLeadCount" style="color:#7c3aed;font-size:18px">0</strong> lead(s)<br>
+          <span style="font-size:12px;color:#9aabc5">from <strong id="confirmFromName">—</strong></span><br>
+          <i class="bi bi-arrow-down" style="color:#7c3aed;font-size:18px;margin:4px 0;display:block"></i>
+          <strong id="confirmToName" style="font-size:15px;color:#1F3864">—</strong>
+        </p>
+      </div>
+      <div class="modal-footer border-0 pt-0" style="background:#F5F0FF;gap:8px;justify-content:center;padding-bottom:20px">
+        <button type="button" class="btn btn-outline-secondary btn-sm px-4" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn btn-sm px-4" id="confirmReassignBtn"
+          style="background:#7c3aed;color:white;font-weight:700"
+          onclick="executeReassign()">
+          <i class="bi bi-arrow-left-right me-1"></i>Yes, Move Leads
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- AUTO DISTRIBUTE MODAL -->
+<div class="modal fade" id="autoModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#1F3864;color:white">
+        <h5 class="modal-title"><i class="bi bi-shuffle me-2"></i>Auto-Distribute Leads</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body">
+        <div class="p-3 rounded mb-3" style="background:#FFFBEB;border:1px solid #fcd34d">
+          <strong style="color:#92400e">What this does:</strong><br>
+          <span style="font-size:13px;color:#78350f">Automatically assigns all <strong>{{ pool_count }} unassigned pool leads</strong> evenly across all {{ gabay_users|length }} active Gabay agents (~{{ (pool_count / [gabay_users|length, 1]|max)|int }} leads each).</span>
+        </div>
+        <p style="font-size:13px">Each Gabay will receive an equal share of the remaining pool. This cannot be undone easily — leads will need to be manually reassigned.</p>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
+        <form method="POST" action="{{ url_for('auto_distribute') }}" style="display:inline">
+          <button type="submit" class="btn" style="background:#1F3864;color:white">
+            <i class="bi bi-shuffle me-1"></i>Auto-Distribute {{ pool_count }} Leads
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleAllPool(cb) {
+  document.querySelectorAll('.lead-cb').forEach(c => c.checked = cb.checked);
+  updateSelCount();
+}
+function toggleCheck(row) {
+  const cb = row.querySelector('.lead-cb');
+  if (cb) { cb.checked = !cb.checked; updateSelCount(); }
+}
+function updateSelCount() {
+  const n = document.querySelectorAll('.lead-cb:checked').length;
+  document.getElementById('selCount').textContent = n + ' selected';
+  document.getElementById('assignBtnCount').textContent = n;
+  document.getElementById('assignBtn').disabled = n === 0;
+}
+function selectGabay(id, name) {
+  document.querySelectorAll('.gabay-select-card').forEach(c => {
+    c.style.borderColor = 'transparent';
+    c.style.background = '';
+  });
+  const card = document.querySelector(`[data-gabay-id="${id}"]`);
+  if (card) { card.style.borderColor = '#1F3864'; card.style.background = '#E8EFF9'; }
+  document.getElementById('gabaySelect').value = id;
+}
+function autoDistribute() {
+  new bootstrap.Modal(document.getElementById('autoModal')).show();
+}
+
+// ─── REASSIGN PANEL ──────────────────────────────────────────────────────────
+let reassignGabayId = null;
+let reassignAllLeads = [];
+
+function openReassign(gabayId, gabayName) {
+  reassignGabayId = gabayId;
+  document.getElementById('reassignGabayName').textContent = gabayName;
+  document.getElementById('reassignPanel').style.display = '';
+  document.getElementById('reassignPanel').scrollIntoView({ behavior: 'smooth', block: 'start' });
+
+  // Exclude this gabay from the target dropdown
+  const sel = document.getElementById('reassignTargetGabay');
+  Array.from(sel.options).forEach(o => {
+    o.disabled = (parseInt(o.value) === gabayId);
+    if (parseInt(o.value) === gabayId) o.textContent = o.textContent.replace(' (current)', '') + ' (current)';
+  });
+  sel.value = '';
+
+  // Fetch leads for this gabay
+  document.getElementById('reassignTableBody').innerHTML =
+    '<tr><td colspan="5" class="text-center py-4"><div class="spinner-border spinner-border-sm text-secondary"></div> Loading…</td></tr>';
+
+  fetch(`/assign/gabay-leads/${gabayId}`, { credentials: 'same-origin' })
+    .then(r => {
+      if (!r.ok) throw new Error('Server returned ' + r.status);
+      return r.json();
+    })
+    .then(data => {
+      reassignAllLeads = data.leads;
+      document.getElementById('reassignTotal').textContent = data.leads.length + ' leads';
+      const cities = [...new Set(data.leads.map(l => l.city).filter(Boolean))].sort();
+      const citySel = document.getElementById('reassignCityFilter');
+      citySel.innerHTML = '<option value="">All Cities</option>' +
+        cities.map(c => `<option value="${c}">${c}</option>`).join('');
+      renderReassignTable(data.leads);
+    })
+    .catch(err => {
+      document.getElementById('reassignTableBody').innerHTML =
+        `<tr><td colspan="5" class="text-center text-danger py-4"><i class="bi bi-exclamation-triangle me-1"></i>Failed to load leads: ${err.message}. Please refresh and try again.</td></tr>`;
+    });
+}
+
+function closeReassign() {
+  document.getElementById('reassignPanel').style.display = 'none';
+  reassignGabayId = null;
+  reassignAllLeads = [];
+  // restore target dropdown
+  const sel = document.getElementById('reassignTargetGabay');
+  Array.from(sel.options).forEach(o => {
+    o.disabled = false;
+    o.textContent = o.textContent.replace(' (current)', '');
+  });
+}
+
+function filterReassignTable() {
+  const q = document.getElementById('reassignSearch').value.toLowerCase();
+  const city = document.getElementById('reassignCityFilter').value;
+  const filtered = reassignAllLeads.filter(l => {
+    const matchQ = !q || (l.seller||'').toLowerCase().includes(q) || (l.city||'').toLowerCase().includes(q) || (l.business||'').toLowerCase().includes(q);
+    const matchCity = !city || l.city === city;
+    return matchQ && matchCity;
+  });
+  renderReassignTable(filtered);
+}
+
+function renderReassignTable(leads) {
+  const tbody = document.getElementById('reassignTableBody');
+  if (!leads.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No leads found.</td></tr>';
+    updateReassignCount();
+    return;
+  }
+  tbody.innerHTML = leads.map(l => `
+    <tr class="reassign-row" onclick="toggleReassignRow(this)" style="cursor:pointer">
+      <td onclick="event.stopPropagation()">
+        <input type="checkbox" class="form-check-input reassign-cb" value="${l.id}" onchange="updateReassignCount()">
+      </td>
+      <td><div style="font-weight:600;color:#1F3864">${l.seller||'—'}</div>
+          ${l.phone ? `<div style="color:#9aabc5;font-size:10px">${l.phone}</div>` : ''}</td>
+      <td style="color:#4a5568">${l.business||'—'}</td>
+      <td>${l.city ? `<span class="badge" style="background:#E8EFF9;color:#1F3864;font-size:10px">${l.city}</span>` : '—'}</td>
+      <td style="color:#9aabc5;font-size:11px">${l.category||'—'}</td>
+    </tr>`).join('');
+  updateReassignCount();
+}
+
+function toggleReassignRow(row) {
+  const cb = row.querySelector('.reassign-cb');
+  if (cb) { cb.checked = !cb.checked; updateReassignCount(); }
+}
+
+function toggleAllReassign(master) {
+  document.querySelectorAll('.reassign-cb').forEach(cb => cb.checked = master.checked);
+  updateReassignCount();
+}
+
+function updateReassignCount() {
+  const n = document.querySelectorAll('.reassign-cb:checked').length;
+  document.getElementById('reassignSelCount').textContent = n + ' selected';
+  document.getElementById('reassignBtnCount').textContent = n;
+  document.getElementById('reassignBtn').disabled = n === 0;
+}
+
+function submitReassign() {
+  const ids = [...document.querySelectorAll('.reassign-cb:checked')].map(cb => cb.value);
+  const targetId = document.getElementById('reassignTargetGabay').value;
+  if (!ids.length) return;
+  if (!targetId) {
+    document.getElementById('reassignTargetGabay').focus();
+    document.getElementById('reassignTargetGabay').style.border = '2px solid #b91c1c';
+    setTimeout(() => document.getElementById('reassignTargetGabay').style.border = '', 2000);
+    return;
+  }
+  const targetName = document.getElementById('reassignTargetGabay').selectedOptions[0].text;
+  document.getElementById('confirmLeadCount').textContent = ids.length;
+  document.getElementById('confirmFromName').textContent = document.getElementById('reassignGabayName').textContent;
+  document.getElementById('confirmToName').textContent = targetName;
+  new bootstrap.Modal(document.getElementById('reassignConfirmModal')).show();
+}
+
+function executeReassign() {
+  const ids = [...document.querySelectorAll('.reassign-cb:checked')].map(cb => cb.value);
+  const targetId = document.getElementById('reassignTargetGabay').value;
+  bootstrap.Modal.getInstance(document.getElementById('reassignConfirmModal')).hide();
+
+  // Show inline progress
+  const btn = document.getElementById('reassignBtn');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Moving…';
+
+  const form = document.createElement('form');
+  form.method = 'POST';
+  form.action = '/assign/reassign';
+  ids.forEach(id => {
+    const inp = document.createElement('input');
+    inp.type = 'hidden'; inp.name = 'lead_ids'; inp.value = id;
+    form.appendChild(inp);
+  });
+  const g = document.createElement('input');
+  g.type = 'hidden'; g.name = 'gabay_id'; g.value = targetId;
+  form.appendChild(g);
+  document.body.appendChild(form);
+  form.submit();
+}
+// Sync gabay card click with select dropdown
+document.getElementById('gabaySelect').addEventListener('change', function() {
+  const id = this.value;
+  document.querySelectorAll('.gabay-select-card').forEach(c => {
+    c.style.borderColor = 'transparent'; c.style.background = '';
+  });
+  if (id) {
+    const card = document.querySelector(`[data-gabay-id="${id}"]`);
+    if (card) { card.style.borderColor = '#1F3864'; card.style.background = '#E8EFF9'; }
+  }
+});
+</script>
+{% endblock %}

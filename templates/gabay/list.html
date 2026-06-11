@@ -1,0 +1,55 @@
+{% extends "base.html" %}
+{% block title %}Gabay Agents{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-person-badge me-2"></i>Gabay Agents</div>
+  {% if current_user.is_admin %}
+  <a href="{{ url_for('new_gabay') }}" class="btn btn-sm" style="background:#1F3864;color:white">
+    <i class="bi bi-person-plus me-1"></i>Add Agent
+  </a>
+  {% endif %}
+</div>
+
+<div class="row g-3">
+  {% for a in agents %}
+  <div class="col-md-4 col-lg-3">
+    <div class="card h-100">
+      <div class="card-body text-center">
+        <div style="width:52px;height:52px;border-radius:50%;background:#E8EFF9;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">
+          <i class="bi bi-person" style="font-size:26px;color:#1F3864"></i>
+        </div>
+        <div class="fw-bold" style="color:#1F3864">{{ a.full_name }}</div>
+        <div style="font-size:11px;color:#9aabc5">@{{ a.username }}</div>
+        <span class="badge bg-secondary mt-1" style="font-size:10px">{{ a.role }}</span>
+        <div class="row g-2 mt-2 text-center">
+          <div class="col-6">
+            <div style="font-size:20px;font-weight:800;color:#1F3864">{{ stats[a.id].matched }}</div>
+            <div style="font-size:10px;color:#9aabc5">MATCHED</div>
+          </div>
+          <div class="col-6">
+            <div style="font-size:20px;font-weight:800;color:#15803d">{{ stats[a.id].live }}</div>
+            <div style="font-size:10px;color:#9aabc5">LIVE</div>
+          </div>
+          <div class="col-6">
+            <div style="font-size:16px;font-weight:700;color:#4a5568">{{ stats[a.id].total }}</div>
+            <div style="font-size:10px;color:#9aabc5">TOTAL LEADS</div>
+          </div>
+          <div class="col-6">
+            <div style="font-size:16px;font-weight:700;color:#4a5568">{{ stats[a.id].visits }}</div>
+            <div style="font-size:10px;color:#9aabc5">VISITS</div>
+          </div>
+        </div>
+        <div class="d-flex gap-2 mt-2">
+          <a href="{{ url_for('leads', gabay=a.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1" style="font-size:11px">View Leads</a>
+          <a href="{{ url_for('gabay_scorecard', gabay_id=a.id) }}" class="btn btn-sm" style="background:#EEF2FF;color:#4338ca;font-size:11px">Scorecard</a>
+        </div>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12 text-center text-muted py-5">
+    No Gabay agents yet. <a href="{{ url_for('new_gabay') }}">Add your first agent.</a>
+  </div>
+  {% endfor %}
+</div>
+{% endblock %}

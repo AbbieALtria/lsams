@@ -1,0 +1,535 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSAMS — System Presentation 2026</title>
+<style>
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{width:100%;height:100%;overflow:hidden;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;background:#111}
+
+/* ── SLIDE ENGINE ── */
+.deck{position:fixed;inset:0;z-index:1}
+.slide{
+  position:absolute;inset:0;
+  display:none;
+  opacity:0;
+  transition:opacity 0.4s ease;
+  overflow:hidden;
+}
+.slide.active{display:flex;opacity:1}
+
+/* ── NAVBAR ── */
+.nav{
+  position:fixed;bottom:0;left:0;right:0;height:52px;z-index:999;
+  background:rgba(10,12,20,0.92);backdrop-filter:blur(12px);
+  border-top:1px solid rgba(255,255,255,0.07);
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 28px;gap:16px;
+}
+.nav-btn{
+  background:rgba(255,255,255,0.1);border:1px solid rgba(255,255,255,0.12);
+  color:white;border-radius:8px;padding:7px 20px;font-size:13px;
+  font-weight:600;cursor:pointer;transition:background 0.15s;white-space:nowrap;
+}
+.nav-btn:hover:not(:disabled){background:rgba(255,255,255,0.2)}
+.nav-btn:disabled{opacity:0.2;cursor:default}
+.dots{display:flex;gap:6px;align-items:center}
+.dot{width:8px;height:8px;border-radius:50%;background:rgba(255,255,255,0.2);border:none;cursor:pointer;transition:all 0.25s;padding:0;flex-shrink:0}
+.dot.active{background:#FF9900;width:24px;border-radius:4px}
+.nav-info{color:rgba(255,255,255,0.4);font-size:12px;white-space:nowrap}
+.nav-title{color:rgba(255,255,255,0.55);font-size:12px;min-width:140px}
+.fs-btn{background:none;border:1px solid rgba(255,255,255,0.15);color:rgba(255,255,255,0.45);border-radius:6px;padding:5px 10px;font-size:11px;cursor:pointer}
+.fs-btn:hover{color:white;border-color:rgba(255,255,255,0.4)}
+
+/* ── PROGRESS ── */
+.prog{position:fixed;top:0;left:0;height:3px;background:#FF9900;z-index:1000;transition:width 0.35s ease;border-radius:0 2px 2px 0}
+
+/* ══════════════════════════════════════════════════════
+   SLIDE LAYOUTS
+══════════════════════════════════════════════════════ */
+
+/* COVER — full dark navy */
+.s-cover{
+  background:#1F3864;
+  flex-direction:column;justify-content:flex-end;
+  padding:0 0 80px 80px;
+}
+.s-cover::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 70% 30%, rgba(46,117,182,0.35) 0%, transparent 60%),
+             radial-gradient(ellipse at 20% 80%, rgba(255,153,0,0.12) 0%, transparent 50%);
+}
+.s-cover>*{position:relative;z-index:1}
+
+/* SPLIT — left dark, right white */
+.s-split{flex-direction:row}
+.s-split-left{
+  width:42%;background:#1F3864;
+  padding:60px 48px;display:flex;flex-direction:column;justify-content:center;
+  flex-shrink:0;
+}
+.s-split-right{
+  flex:1;background:#ffffff;
+  padding:60px 52px;display:flex;flex-direction:column;justify-content:center;
+  overflow-y:auto;
+}
+
+/* FULL WHITE */
+.s-white{
+  background:#ffffff;
+  flex-direction:column;
+  padding:52px 80px 70px;
+  overflow-y:auto;
+}
+
+/* DARK CTA — similar to cover */
+.s-cta{
+  background:#1F3864;
+  flex-direction:column;justify-content:center;
+  padding:0 80px 70px;
+}
+.s-cta::before{
+  content:'';position:absolute;inset:0;
+  background:radial-gradient(ellipse at 80% 20%, rgba(46,117,182,0.3) 0%, transparent 55%),
+             radial-gradient(ellipse at 10% 90%, rgba(255,153,0,0.1) 0%, transparent 45%);
+}
+.s-cta>*{position:relative;z-index:1}
+
+/* ── TOPBAR LOGO ON EACH SLIDE ── */
+.slide-logo{
+  position:absolute;top:22px;right:28px;
+  font-size:13px;font-weight:800;letter-spacing:0.5px;z-index:10;
+}
+.logo-light{color:rgba(255,255,255,0.18)}
+.logo-dark{color:rgba(31,56,100,0.15)}
+
+/* ── SLIDE NUMBER ── */
+.snum{
+  position:absolute;bottom:64px;right:24px;
+  font-size:10px;font-weight:700;z-index:10;
+}
+.snum-light{color:rgba(255,255,255,0.15)}
+.snum-dark{color:rgba(31,56,100,0.1)}
+
+/* ══════════════════════════════════════════════════════
+   TYPOGRAPHY
+══════════════════════════════════════════════════════ */
+.tag{display:inline-flex;align-items:center;gap:6px;padding:5px 14px;border-radius:20px;font-size:11px;font-weight:700;letter-spacing:0.8px;text-transform:uppercase;margin-bottom:20px}
+.tag-o{background:rgba(255,153,0,0.18);color:#FF9900}
+.tag-b{background:rgba(46,117,182,0.15);color:#2E75B6}
+.tag-g{background:rgba(21,128,61,0.15);color:#15803d}
+.tag-p{background:rgba(124,58,237,0.15);color:#7c3aed}
+.tag-r{background:rgba(190,24,93,0.15);color:#be185d}
+
+.bar{width:44px;height:4px;border-radius:2px;background:#FF9900;margin-bottom:20px}
+
+h1.h-cover{font-size:54px;font-weight:800;color:white;line-height:1.15;margin-bottom:14px}
+h1.h-cover span{color:#FF9900}
+.p-cover{font-size:16px;color:rgba(255,255,255,0.6);line-height:1.65;max-width:580px;margin-bottom:36px}
+
+h2.h-white{font-size:32px;font-weight:800;color:#1F3864;line-height:1.2;margin-bottom:8px}
+h2.h-dark{font-size:28px;font-weight:800;color:white;line-height:1.2;margin-bottom:8px}
+.sub-white{font-size:15px;color:#6b7a99;line-height:1.6;margin-bottom:24px}
+.sub-dark{font-size:14px;color:rgba(255,255,255,0.6);line-height:1.6;margin-bottom:22px}
+
+/* ══════════════════════════════════════════════════════
+   COMPONENTS
+══════════════════════════════════════════════════════ */
+
+/* Stats row */
+.stats-row{display:flex;gap:36px;flex-wrap:wrap}
+.stat-val{font-size:40px;font-weight:800;color:#FF9900;line-height:1}
+.stat-lbl{font-size:12px;color:rgba(255,255,255,0.45);margin-top:4px}
+
+/* KPI boxes */
+.kpi-row{display:grid;grid-template-columns:repeat(4,1fr);gap:14px;margin-bottom:20px}
+.kpi-box{background:#F5F8FD;border-radius:14px;padding:18px 16px;border-left:4px solid}
+.kpi-val{font-size:26px;font-weight:800;line-height:1;margin-bottom:4px}
+.kpi-lbl{font-size:11px;color:#9aabc5;font-weight:700;text-transform:uppercase;letter-spacing:0.5px}
+
+/* Role cards */
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:13px;margin-top:6px}
+.role-card{border-radius:13px;padding:16px 14px;border-left:4px solid;background:#FAFBFE}
+.role-name{font-size:14px;font-weight:800;margin-bottom:5px}
+.role-desc{font-size:12px;color:#6b7a99;line-height:1.5}
+
+/* Pipeline */
+.pipe-list{margin-top:8px}
+.pipe-row{display:flex;align-items:center;gap:10px;margin-bottom:11px}
+.pipe-dot{width:11px;height:11px;border-radius:50%;flex-shrink:0}
+.pipe-lbl{width:100px;font-size:13px;font-weight:600;color:#4a5568}
+.pipe-track{flex:1;height:13px;background:#EEF2F9;border-radius:7px;overflow:hidden}
+.pipe-fill{height:100%;border-radius:7px}
+.pipe-n{width:30px;text-align:right;font-size:12px;font-weight:800}
+
+/* Feature list */
+.feat-list{margin-top:16px}
+.feat-item{display:flex;gap:12px;align-items:flex-start;padding:10px 0;border-bottom:1px solid #F0F4FA;font-size:13px;color:#1F3864;line-height:1.5}
+.feat-item:last-child{border-bottom:none}
+.feat-dot{width:9px;height:9px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.feat-item-w{display:flex;gap:12px;align-items:flex-start;padding:9px 0;border-bottom:1px solid rgba(255,255,255,0.08);font-size:13px;color:rgba(255,255,255,0.8);line-height:1.5}
+.feat-item-w:last-child{border-bottom:none}
+
+/* Module grid */
+.module-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:12px;margin-top:14px}
+.mod-card{border-radius:12px;padding:14px 15px;border-left:4px solid;background:#FAFBFE}
+.mod-title{font-size:13px;font-weight:800;color:#1F3864;margin-bottom:4px}
+.mod-desc{font-size:12px;color:#6b7a99;line-height:1.45}
+
+/* Timeline */
+.tl-item{display:flex;gap:16px;margin-bottom:18px;align-items:flex-start}
+.tl-dot{width:13px;height:13px;border-radius:50%;flex-shrink:0;margin-top:4px}
+.tl-main{font-size:15px;font-weight:700;color:#1F3864}
+.tl-sub{font-size:12px;color:#9aabc5;margin-top:3px}
+.tl-main-w{font-size:15px;font-weight:700;color:white}
+.tl-sub-w{font-size:12px;color:rgba(255,255,255,0.5);margin-top:3px}
+
+/* Method cards */
+.method-card{border-radius:13px;padding:16px;border:1.5px solid #E0E6EF;margin-bottom:12px}
+.method-card.highlight{border-color:#7c3aed;background:#F5F0FF}
+.method-title{font-size:14px;font-weight:800;color:#1F3864;margin-bottom:5px}
+.method-title.purple{color:#7c3aed}
+.method-desc{font-size:12px;color:#6b7a99;line-height:1.5}
+
+/* CTA grid */
+.cta-grid{display:grid;grid-template-columns:1fr 1fr;gap:13px;max-width:560px;margin-top:24px}
+.cta-box{background:rgba(255,255,255,0.09);border:1px solid rgba(255,255,255,0.1);border-radius:13px;padding:17px 18px}
+.cta-lbl{font-size:10px;color:rgba(255,255,255,0.4);text-transform:uppercase;letter-spacing:0.8px;margin-bottom:6px;font-weight:700}
+.cta-val{font-size:15px;font-weight:700;color:white}
+
+/* Info box */
+.info-box{background:#F8FAFD;border-radius:13px;border:1px solid #E8EFF9;padding:16px 18px}
+.info-title{font-size:13px;font-weight:800;color:#1F3864;margin-bottom:8px}
+.info-body{font-size:12px;color:#6b7a99;line-height:2}
+
+/* Alert strip */
+.alert-strip{padding:13px 18px;border-radius:11px;border-left:4px solid #FF9900;background:#FFF8ED;font-size:13px;color:#92600A;margin-top:16px}
+</style>
+</head>
+<body>
+
+<div class="prog" id="prog" style="width:11.11%"></div>
+
+<div class="deck">
+
+<!-- ══ SLIDE 1: COVER ══════════════════════════════════════════════════════ -->
+<div class="slide active s-cover" id="s0">
+  <div class="logo-light slide-logo">LSAMS ●</div>
+  <div class="snum snum-light">1 / 9</div>
+
+  <div class="tag tag-o">Lazada · Altria Management Corporation · 2026</div>
+  <h1 class="h-cover">LSAMS<br><span>Lazada Seller Activation</span><br>Management System</h1>
+  <p class="p-cover">End-to-end field activation platform — from lead import to live seller. Built for the Lazada ecosystem, designed for mobile field teams.</p>
+
+  <div class="stats-row">
+    <div><div class="stat-val">200+</div><div class="stat-lbl">Leads Managed</div></div>
+    <div><div class="stat-val">9</div><div class="stat-lbl">Gabay Agents</div></div>
+    <div><div class="stat-val">6</div><div class="stat-lbl">User Roles</div></div>
+    <div><div class="stat-val">PWA</div><div class="stat-lbl">Mobile Ready</div></div>
+    <div><div class="stat-val">0</div><div class="stat-lbl">App Store Needed</div></div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 2: PROBLEM & SOLUTION ════════════════════════════════════════ -->
+<div class="slide s-split" id="s1">
+  <div class="s-split-left">
+    <div class="logo-light slide-logo">LSAMS ●</div>
+    <div class="snum snum-light">2 / 9</div>
+    <div class="bar"></div>
+    <div class="tag tag-o">The Challenge</div>
+    <h2 class="h-dark">Managing seller activation manually</h2>
+    <p class="sub-dark">Spreadsheets, phone calls, zero visibility into what happens in the field.</p>
+    <div class="feat-list">
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>No visibility into field activity</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>Leads scattered in multiple spreadsheets</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>No GPS verification of visits</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>Duplicate leads across batches</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>No Gabay performance tracking</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#ef4444"></div>Lazada had no real-time dashboard</div>
+    </div>
+  </div>
+  <div class="s-split-right">
+    <div class="logo-dark slide-logo">LSAMS ●</div>
+    <div class="tag tag-b">The Solution</div>
+    <h2 class="h-white">One unified platform</h2>
+    <p class="sub-white">Everything in one system — leads, visits, registrations, assignments, reports.</p>
+    <div class="feat-list">
+      <div class="feat-item"><div class="feat-dot" style="background:#2E75B6"></div><div><strong>Lead pipeline</strong> — full tracking from pool to live seller in 8 clear stages</div></div>
+      <div class="feat-item"><div class="feat-dot" style="background:#15803d"></div><div><strong>GPS-verified visits</strong> — Gabay logs coordinates, outcome and notes on mobile</div></div>
+      <div class="feat-item"><div class="feat-dot" style="background:#7c3aed"></div><div><strong>Smart AI assignment map</strong> — distributes leads by city territory and workload balance</div></div>
+      <div class="feat-item"><div class="feat-dot" style="background:#be185d"></div><div><strong>Lazada executive portal</strong> — live KPIs and charts, dedicated read-only login</div></div>
+      <div class="feat-item"><div class="feat-dot" style="background:#E07B00"></div><div><strong>Duplicate detection</strong> — Excel import checks Lazada ID and phone on every upload</div></div>
+      <div class="feat-item"><div class="feat-dot" style="background:#065f46"></div><div><strong>Notifications &amp; stalled alerts</strong> — auto-flags leads with no visit in 7 days</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 3: USER ROLES ════════════════════════════════════════════════ -->
+<div class="slide s-white" id="s2">
+  <div class="logo-dark slide-logo">LSAMS ●</div>
+  <div class="snum snum-dark">3 / 9</div>
+  <div class="tag tag-b">Access Control</div>
+  <h2 class="h-white" style="color:#1F3864">Six roles — right access for every team member</h2>
+  <p class="sub-white" style="color:#6b7a99">Each role has a dedicated interface. Gabay agents get a mobile app. Lazada team gets a clean executive portal.</p>
+  <div class="role-grid">
+    <div class="role-card" style="border-color:#7c3aed">
+      <div class="role-name" style="color:#7c3aed">⚡  Power User (Superadmin)</div>
+      <div class="role-desc">Full system override. Manages all users, resets passwords, sees everything. Reserved for Sir Abbie.</div>
+    </div>
+    <div class="role-card" style="border-color:#1F3864">
+      <div class="role-name" style="color:#1F3864">🔧  Admin</div>
+      <div class="role-desc">System configuration, user management, full data access across all modules.</div>
+    </div>
+    <div class="role-card" style="border-color:#2E75B6">
+      <div class="role-name" style="color:#2E75B6">📋  Manager</div>
+      <div class="role-desc">Approves registrations, views Daily Digest, monitors all Gabay performance and scorecards.</div>
+    </div>
+    <div class="role-card" style="border-color:#E07B00">
+      <div class="role-name" style="color:#E07B00">🗺  Supervisor</div>
+      <div class="role-desc">Assigns leads via Smart Map or manual bulk upload. Exports data. Manages campaigns.</div>
+    </div>
+    <div class="role-card" style="border-color:#15803d">
+      <div class="role-name" style="color:#15803d">🚴  Gabay Agent</div>
+      <div class="role-desc">Field agent on mobile PWA. Logs GPS visits, updates lead status, sees only their own pipeline.</div>
+    </div>
+    <div class="role-card" style="border-color:#be185d">
+      <div class="role-name" style="color:#be185d">🏢  Lazada (Read-Only)</div>
+      <div class="role-desc">Clean KPI dashboard. Lance, Grace, LazadaMGR. Aggregated data only — no personal seller info.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 4: LEAD PIPELINE ═════════════════════════════════════════════ -->
+<div class="slide s-split" id="s3">
+  <div class="s-split-left" style="width:38%">
+    <div class="logo-light slide-logo">LSAMS ●</div>
+    <div class="snum snum-light">4 / 9</div>
+    <div class="bar"></div>
+    <h2 class="h-dark">Lead Pipeline</h2>
+    <p class="sub-dark">Every seller moves through 8 defined stages. Each stage has a responsible role and clear exit criteria.</p>
+    <div style="font-size:13px;color:rgba(255,255,255,0.55);line-height:2.5;margin-bottom:22px">
+      Pool → Assigned → Attempting<br>→ Negotiation → Registration<br>→ Live → Matched → Closed
+    </div>
+    <div style="background:rgba(255,153,0,0.15);border-left:3px solid #FF9900;border-radius:10px;padding:13px 15px">
+      <div style="font-size:11px;font-weight:700;color:#FF9900;margin-bottom:4px;text-transform:uppercase;letter-spacing:0.5px">Priority Scoring</div>
+      <div style="font-size:12px;color:rgba(255,255,255,0.65);line-height:1.6">Stalled · Hot · Warm · Normal<br>Auto-flagged by age + visit recency</div>
+    </div>
+  </div>
+  <div class="s-split-right">
+    <div class="logo-dark slide-logo">LSAMS ●</div>
+    <div class="tag tag-b">Live pipeline snapshot</div>
+    <div class="pipe-list">
+      <div class="pipe-row"><div class="pipe-dot" style="background:#9aabc5"></div><span class="pipe-lbl">Pool</span><div class="pipe-track"><div class="pipe-fill" style="width:100%;background:#9aabc5"></div></div><span class="pipe-n" style="color:#9aabc5">200</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#2E75B6"></div><span class="pipe-lbl">Assigned</span><div class="pipe-track"><div class="pipe-fill" style="width:78%;background:#2E75B6"></div></div><span class="pipe-n" style="color:#2E75B6">156</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#E07B00"></div><span class="pipe-lbl">Attempting</span><div class="pipe-track"><div class="pipe-fill" style="width:60%;background:#E07B00"></div></div><span class="pipe-n" style="color:#E07B00">120</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#7c3aed"></div><span class="pipe-lbl">Negotiation</span><div class="pipe-track"><div class="pipe-fill" style="width:43%;background:#7c3aed"></div></div><span class="pipe-n" style="color:#7c3aed">85</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#be185d"></div><span class="pipe-lbl">Registration</span><div class="pipe-track"><div class="pipe-fill" style="width:28%;background:#be185d"></div></div><span class="pipe-n" style="color:#be185d">55</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#15803d"></div><span class="pipe-lbl">Live ✓</span><div class="pipe-track"><div class="pipe-fill" style="width:18%;background:#15803d"></div></div><span class="pipe-n" style="color:#15803d">36</span></div>
+      <div class="pipe-row"><div class="pipe-dot" style="background:#065f46"></div><span class="pipe-lbl">Matched ✓</span><div class="pipe-track"><div class="pipe-fill" style="width:9%;background:#065f46"></div></div><span class="pipe-n" style="color:#065f46">18</span></div>
+    </div>
+    <div style="background:#F5F8FD;border-radius:12px;padding:15px 16px;margin-top:18px;font-size:12px;color:#4a5568;line-height:1.9">
+      <strong>Duplicate Detection</strong> — checks Lazada ID &amp; phone on every Excel import<br>
+      <strong>Assignment Audit Trail</strong> — every re-assignment logged with who, when, by whom<br>
+      <strong>Campaign Tracking</strong> — conversion rate per batch file
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 5: KEY MODULES ═══════════════════════════════════════════════ -->
+<div class="slide s-white" id="s4">
+  <div class="logo-dark slide-logo">LSAMS ●</div>
+  <div class="snum snum-dark">5 / 9</div>
+  <div class="tag tag-p">System Capabilities</div>
+  <h2 class="h-white" style="color:#1F3864">12 integrated modules — one platform</h2>
+  <div class="module-grid">
+    <div class="mod-card" style="border-color:#2E75B6"><div class="mod-title">Lead Management</div><div class="mod-desc">Excel import with duplicate detection, bulk &amp; smart assignment, status tracking, full audit trail.</div></div>
+    <div class="mod-card" style="border-color:#E07B00"><div class="mod-title">GPS Visit Logging</div><div class="mod-desc">Gabay logs visits with live GPS coordinates, outcome type, notes, follow-up date.</div></div>
+    <div class="mod-card" style="border-color:#7c3aed"><div class="mod-title">Smart Assignment Map (AI)</div><div class="mod-desc">Groups leads by city on Leaflet map. AI picks lightest-loaded Gabay per territory. One-click approve.</div></div>
+    <div class="mod-card" style="border-color:#15803d"><div class="mod-title">Registration &amp; Approval</div><div class="mod-desc">Document checklist (DTI, TIN, Bank, Gov ID), manager review, VW / VW-RRLD classification.</div></div>
+    <div class="mod-card" style="border-color:#1F3864"><div class="mod-title">Reports &amp; Analytics</div><div class="mod-desc">Live KPI dashboard, Gabay scorecards, pipeline funnel, visit trends, CSV export.</div></div>
+    <div class="mod-card" style="border-color:#be185d"><div class="mod-title">Notifications &amp; Alerts</div><div class="mod-desc">Stalled lead alerts (7 days no visit), follow-up reminders, pending registration flags.</div></div>
+    <div class="mod-card" style="border-color:#065f46"><div class="mod-title">Manager Daily Digest</div><div class="mod-desc">Morning brief — visits today, inactive Gabay alerts, pipeline snapshot. Printable.</div></div>
+    <div class="mod-card" style="border-color:#BA7517"><div class="mod-title">Batch / Campaign Tracking</div><div class="mod-desc">Every Excel import tracked as a campaign with conversion rate and status breakdown.</div></div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 6: MOBILE PWA ════════════════════════════════════════════════ -->
+<div class="slide s-split" id="s5">
+  <div class="s-split-left">
+    <div class="logo-light slide-logo">LSAMS ●</div>
+    <div class="snum snum-light">6 / 9</div>
+    <div class="bar" style="background:#15803d"></div>
+    <div class="tag tag-g">Gabay Mobile App</div>
+    <h2 class="h-dark">Works on any phone — no App Store needed</h2>
+    <p class="sub-dark">Progressive Web App (PWA). No Apple or Google approval. Update the server once — all phones get it instantly.</p>
+    <div class="feat-list">
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>Install on phone home screen (2 minutes)</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>Works <strong style="color:#FF9900">offline</strong> — syncs automatically when back online</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>GPS check-in with live map preview</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>Today's follow-ups highlighted on home</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>Stalled lead warnings (7+ days no visit)</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#4ade80"></div>Personal scorecard &amp; conversion rate</div>
+    </div>
+  </div>
+  <div class="s-split-right">
+    <div class="logo-dark slide-logo">LSAMS ●</div>
+    <div class="tag tag-g">How Gabay agents install it</div>
+    <div class="tl-item"><div class="tl-dot" style="background:#15803d"></div><div><div class="tl-main">Open browser on phone</div><div class="tl-sub">Navigate to 192.168.10.78:5001</div></div></div>
+    <div class="tl-item"><div class="tl-dot" style="background:#15803d"></div><div><div class="tl-main">Log in with Gabay credentials</div><div class="tl-sub">Auto-redirected to the mobile home screen</div></div></div>
+    <div class="tl-item"><div class="tl-dot" style="background:#15803d"></div><div><div class="tl-main">Tap "Add to Home Screen"</div><div class="tl-sub">Browser prompts automatically — also in browser menu</div></div></div>
+    <div class="tl-item"><div class="tl-dot" style="background:#FF9900"></div><div><div class="tl-main">LSAMS icon appears on home screen</div><div class="tl-sub">Opens full-screen, looks and feels like a native app</div></div></div>
+    <div style="margin-top:10px" class="info-box">
+      <div class="info-title">Mobile app screens</div>
+      <div class="info-body">🏠 Home — KPI tiles, follow-ups, priority leads<br>👥 My Leads — filter by status, search<br>📍 Check In — GPS, outcome, notes<br>📋 History — visit log by date<br>👤 Me — personal scorecard, pipeline</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 7: LAZADA PORTAL ═════════════════════════════════════════════ -->
+<div class="slide s-white" id="s6">
+  <div class="logo-dark slide-logo">LSAMS ●</div>
+  <div class="snum snum-dark">7 / 9</div>
+  <div class="tag tag-r">For the Lazada Team</div>
+  <h2 class="h-white" style="color:#1F3864">Lazada Executive Portal — live data, zero complexity</h2>
+  <p class="sub-white" style="color:#6b7a99">Lance, Grace, and LazadaMGR each have a dedicated login. They land directly on a clean executive dashboard — no internal operations visible.</p>
+  <div class="kpi-row">
+    <div class="kpi-box" style="border-color:#2E75B6"><div class="kpi-val" style="color:#2E75B6">Total Leads</div><div class="kpi-lbl">Full pipeline count</div></div>
+    <div class="kpi-box" style="border-color:#15803d"><div class="kpi-val" style="color:#15803d">Live Sellers</div><div class="kpi-lbl">Active on Lazada</div></div>
+    <div class="kpi-box" style="border-color:#E07B00"><div class="kpi-val" style="color:#E07B00">Conversion %</div><div class="kpi-lbl">Pool → Live rate</div></div>
+    <div class="kpi-box" style="border-color:#7c3aed"><div class="kpi-val" style="color:#7c3aed">Monthly Trend</div><div class="kpi-lbl">6-month line chart</div></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:16px">
+    <div class="info-box">
+      <div class="info-title">📊 Charts included</div>
+      <div class="info-body">Pipeline funnel (all 8 stages)<br>Monthly visits vs new live sellers trend<br>Top cities — live seller counts bar chart<br>Category breakdown — doughnut chart</div>
+    </div>
+    <div class="info-box">
+      <div class="info-title">🔒 Privacy &amp; access rules</div>
+      <div class="info-body">No seller names or contact numbers shown<br>Aggregated numbers only — no personal data<br>Dark mode toggle built-in<br>Data refreshes on every page load</div>
+    </div>
+  </div>
+  <div class="alert-strip">
+    <strong>Login credentials:</strong> &nbsp; lance / Lazada@2026 &nbsp;·&nbsp; grace / Lazada@2026 &nbsp;·&nbsp; lazadamgr / Lazada@2026 &nbsp;&nbsp;→&nbsp;&nbsp;<strong>http://192.168.10.78:5001</strong>
+  </div>
+</div>
+
+<!-- ══ SLIDE 8: SMART ASSIGNMENT ═════════════════════════════════════════ -->
+<div class="slide s-split" id="s7">
+  <div class="s-split-left">
+    <div class="logo-light slide-logo">LSAMS ●</div>
+    <div class="snum snum-light">8 / 9</div>
+    <div class="bar" style="background:#7c3aed"></div>
+    <div class="tag tag-p">AI-Powered Feature</div>
+    <h2 class="h-dark">Smart Assignment Map</h2>
+    <p class="sub-dark">Replaces spreadsheet assignment with one visual review. Handles 200+ leads in seconds.</p>
+    <div class="feat-list">
+      <div class="feat-item-w"><div class="feat-dot" style="background:#a78bfa"></div>All pool leads plotted on Metro Manila map</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#a78bfa"></div>Grouped by city — circles sized by lead count</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#a78bfa"></div>AI assigns each city to lightest-loaded Gabay</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#a78bfa"></div>Supervisor swaps any city in one tap</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#a78bfa"></div>Workload preview shows before + after</div>
+      <div class="feat-item-w"><div class="feat-dot" style="background:#FF9900"></div>One button approves all — full audit logged</div>
+    </div>
+  </div>
+  <div class="s-split-right">
+    <div class="logo-dark slide-logo">LSAMS ●</div>
+    <div class="tag tag-p">3 assignment methods</div>
+    <div class="method-card">
+      <div class="method-title">1. Manual — checkbox selection</div>
+      <div class="method-desc">Tick individual leads on the table, pick a Gabay from the dropdown, click Assign. Best for one-off re-assignments.</div>
+    </div>
+    <div class="method-card">
+      <div class="method-title">2. Click Gabay card first</div>
+      <div class="method-desc">Click a Gabay workload card to pre-select them, then tick leads. Useful for balancing a specific agent's workload.</div>
+    </div>
+    <div class="method-card highlight">
+      <div class="method-title purple">3. Smart Map (AI) ← Recommended</div>
+      <div class="method-desc">System generates a full territory plan on a live map. Supervisor reviews, swaps cities if needed, approves all with one click. Full audit trail recorded.</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SLIDE 9: LIVE & READY ══════════════════════════════════════════════ -->
+<div class="slide s-cta" id="s8">
+  <div class="logo-light slide-logo">LSAMS ●</div>
+  <div class="snum snum-light">9 / 9</div>
+  <div class="bar"></div>
+  <div class="tag tag-o">Ready to Activate</div>
+  <h1 class="h-cover" style="font-size:46px;margin-bottom:12px">LSAMS is live<br>and running today</h1>
+  <p class="p-cover" style="margin-bottom:0">Access from any device on the office network. Gabay agents install the PWA in 2 minutes. Lazada team can log in right now.</p>
+  <div class="cta-grid">
+    <div class="cta-box"><div class="cta-lbl">System URL</div><div class="cta-val">192.168.10.78:5001</div></div>
+    <div class="cta-box"><div class="cta-lbl">Power User</div><div class="cta-val">superadmin / Super@2026</div></div>
+    <div class="cta-box"><div class="cta-lbl">Lazada Team Password</div><div class="cta-val">Lazada@2026</div></div>
+    <div class="cta-box"><div class="cta-lbl">Lazada Users</div><div class="cta-val">lance · grace · lazadamgr</div></div>
+    <div class="cta-box"><div class="cta-lbl">Gabay Agent</div><div class="cta-val">abigail.bulasco / Gabay@2026</div></div>
+    <div class="cta-box"><div class="cta-lbl">Manager Login</div><div class="cta-val">manager / Manager@2026</div></div>
+  </div>
+  <div style="margin-top:24px;font-size:12px;color:rgba(255,255,255,0.3)">
+    Built by Altria Management Corporation &nbsp;·&nbsp; Flask 3.1 · Bootstrap 5 · SQLite · Leaflet.js · Chart.js · PWA
+  </div>
+</div>
+
+</div><!-- /deck -->
+
+<!-- ══ NAVIGATION ══ -->
+<div class="nav">
+  <span class="nav-title" id="navTitle">Cover</span>
+  <div style="display:flex;align-items:center;gap:12px">
+    <button class="nav-btn" id="prevBtn" onclick="go(-1)" disabled>← Prev</button>
+    <div class="dots" id="dots"></div>
+    <button class="nav-btn" id="nextBtn" onclick="go(1)">Next →</button>
+  </div>
+  <div style="display:flex;align-items:center;gap:10px">
+    <span class="nav-info" id="counter">1 / 9</span>
+    <button class="fs-btn" onclick="toggleFS()">⛶ Fullscreen</button>
+  </div>
+</div>
+
+<script>
+const IDS    = ['s0','s1','s2','s3','s4','s5','s6','s7','s8'];
+const TITLES = ['Cover','Problem & Solution','User Roles','Lead Pipeline','Key Modules','Mobile PWA','Lazada Portal','Smart Assignment','Live & Ready'];
+let cur = 0;
+
+const dotsEl = document.getElementById('dots');
+IDS.forEach((_,i) => {
+  const b = document.createElement('button');
+  b.className = 'dot' + (i===0?' active':'');
+  b.title = TITLES[i];
+  b.onclick = () => goTo(i);
+  dotsEl.appendChild(b);
+});
+
+function goTo(n) {
+  const prev = document.getElementById(IDS[cur]);
+  prev.style.opacity = '0';
+  setTimeout(() => { prev.classList.remove('active'); }, 380);
+  dotsEl.children[cur].classList.remove('active');
+  cur = n;
+  const next = document.getElementById(IDS[cur]);
+  next.classList.add('active');
+  requestAnimationFrame(() => requestAnimationFrame(() => { next.style.opacity = '1'; }));
+  dotsEl.children[cur].classList.add('active');
+  document.getElementById('prevBtn').disabled = cur === 0;
+  document.getElementById('nextBtn').disabled = cur === IDS.length - 1;
+  document.getElementById('counter').textContent = (cur+1) + ' / ' + IDS.length;
+  document.getElementById('navTitle').textContent = TITLES[cur];
+  document.getElementById('prog').style.width = ((cur+1)/IDS.length*100) + '%';
+}
+
+function go(d) { if(cur+d>=0 && cur+d<IDS.length) goTo(cur+d); }
+
+document.addEventListener('keydown', e => {
+  if(e.key==='ArrowRight'||e.key==='ArrowDown'||e.key===' '){e.preventDefault();go(1);}
+  if(e.key==='ArrowLeft'||e.key==='ArrowUp'){e.preventDefault();go(-1);}
+  if(e.key==='f'||e.key==='F') toggleFS();
+});
+
+function toggleFS(){
+  if(!document.fullscreenElement) document.documentElement.requestFullscreen();
+  else document.exitFullscreen();
+}
+</script>
+</body>
+</html>

@@ -1,0 +1,191 @@
+{% extends "base.html" %}
+{% block title %}{{ lead.seller_name }}{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('leads') }}" class="text-muted text-decoration-none" style="font-size:12px"><i class="bi bi-arrow-left me-1"></i>Back to Leads</a>
+    <div class="page-title mt-1">{{ lead.seller_name }}</div>
+    <span class="badge badge-{{ lead.status }} rounded-pill mt-1">{{ lead.status_label }}</span>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if current_user.role == 'gabay' or current_user.is_supervisor %}
+    <a href="{{ url_for('new_visit', lead_id=lead.id) }}" class="btn btn-sm" style="background:#1F3864;color:white">
+      <i class="bi bi-geo-alt me-1"></i>Record Visit
+    </a>
+    {% endif %}
+    {% if lead.status == 'negotiation' and not lead.registration %}
+    <a href="{{ url_for('new_registration', lead_id=lead.id) }}" class="btn btn-sm btn-success">
+      <i class="bi bi-file-earmark-check me-1"></i>Start Registration
+    </a>
+    {% endif %}
+    {% if lead.registration %}
+    <a href="{{ url_for('registration_detail', reg_id=lead.registration.id) }}" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-file-earmark me-1"></i>View Registration
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- LEFT: Lead Info -->
+  <div class="col-md-5">
+    <div class="card mb-3">
+      <div class="card-header">Seller Information</div>
+      <div class="card-body">
+        <table class="table table-sm mb-0">
+          <tr><th style="width:130px;color:#9aabc5;font-size:11px">Shop Name</th><td><strong>{{ lead.seller_name }}</strong></td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Leads ID</th><td><code style="font-size:11px">{{ lead.lazada_id or '—' }}</code></td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Priority Tier</th><td>
+            {% if lead.priority_tier %}<span class="badge" style="background:#1F3864;color:white">{{ lead.priority_tier }}</span>{% else %}—{% endif %}
+          </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Project</th><td>{{ lead.project or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Cluster</th><td>{{ lead.cluster or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Category</th><td>{{ lead.category or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Store Link</th><td>
+            {% if lead.link %}<a href="{{ lead.link }}" target="_blank" style="font-size:12px;word-break:break-all">{{ lead.link }}</a>{% else %}—{% endif %}
+          </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Barangay</th><td>{{ lead.barangay or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">City</th><td>{{ lead.city or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Province</th><td>{{ lead.province or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Complete Address</th><td>{{ lead.address or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Sender Name</th><td>{{ lead.sender_name or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Contact Number</th><td>{{ lead.contact_number or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Email</th><td>{{ lead.email or '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Social Media</th><td>
+            {% if lead.social_media_link %}<a href="{{ lead.social_media_link }}" target="_blank" style="font-size:12px">{{ lead.social_media_link }}</a>{% else %}—{% endif %}
+          </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Batch</th><td><small>{{ lead.batch_ref or '—' }}</small></td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Imported</th><td><small>{{ lead.imported_at.strftime('%b %d, %Y') if lead.imported_at else '—' }}</small></td></tr>
+        </table>
+      </div>
+    </div>
+
+    <!-- ASSIGN -->
+    {% if current_user.is_supervisor %}
+    <div class="card mb-3">
+      <div class="card-header">Assignment</div>
+      <div class="card-body">
+        <div class="mb-2" style="font-size:13px">
+          <strong>Current Gabay:</strong>
+          {{ lead.assigned_gabay.full_name if lead.assigned_gabay else '<em class="text-muted">Unassigned</em>'|safe }}
+        </div>
+        <form method="POST" action="{{ url_for('assign_lead', lead_id=lead.id) }}" class="d-flex gap-2">
+          <select name="gabay_id" class="form-select form-select-sm" required>
+            <option value="">Select Gabay...</option>
+            {% for g in gabay_users %}
+            <option value="{{ g.id }}" {% if lead.gabay_id == g.id %}selected{% endif %}>{{ g.full_name }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-primary flex-shrink-0">Assign</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- UPDATE STATUS -->
+    {% if current_user.is_supervisor %}
+    <div class="card">
+      <div class="card-header">Update Pipeline Status</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('update_lead_status', lead_id=lead.id) }}" class="d-flex gap-2">
+          <select name="status" class="form-select form-select-sm" required>
+            {% for s in ['attempting','negotiation','registration','live','matched','closed'] %}
+            <option value="{{ s }}" {% if lead.status == s %}selected{% endif %}>{{ s.title() }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn btn-sm btn-outline-primary flex-shrink-0">Update</button>
+        </form>
+      </div>
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- RIGHT: Visit History -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header d-flex align-items-center justify-content-between">
+        Visit History <span class="badge bg-secondary">{{ visits|length }}</span>
+        {% if current_user.role == 'gabay' or current_user.is_supervisor %}
+        <a href="{{ url_for('new_visit', lead_id=lead.id) }}" class="btn btn-sm" style="background:#1F3864;color:white;font-size:11px">
+          <i class="bi bi-plus"></i> New Visit
+        </a>
+        {% endif %}
+      </div>
+      {% if visits %}
+      <div class="list-group list-group-flush">
+        {% for v in visits %}
+        <div class="list-group-item">
+          <div class="d-flex justify-content-between align-items-start">
+            <div>
+              <span class="badge bg-{{ v.outcome_color }} me-2">{{ v.outcome_label }}</span>
+              <small style="color:#9aabc5">{{ v.visited_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+            </div>
+            <small style="color:#9aabc5">{{ v.gabay.full_name if v.gabay else '' }}</small>
+          </div>
+          {% if v.gps_lat and v.gps_lng %}
+          <div style="font-size:11px;color:#2E75B6;margin-top:4px">
+            <i class="bi bi-geo-alt-fill"></i>
+            {% if v.gps_address %}{{ v.gps_address }}{% else %}{{ '%.4f'|format(v.gps_lat) }}, {{ '%.4f'|format(v.gps_lng) }}{% endif %}
+          </div>
+          {% endif %}
+          {% if v.notes %}
+          <p style="font-size:12px;color:#4a5568;margin-top:6px;margin-bottom:0">{{ v.notes }}</p>
+          {% endif %}
+          {% if v.follow_up_date %}
+          <div style="font-size:11px;color:#E07B00;margin-top:4px">
+            <i class="bi bi-calendar-event"></i> Follow-up: {{ v.follow_up_date.strftime('%b %d, %Y') }}
+          </div>
+          {% endif %}
+        </div>
+        {% endfor %}
+      </div>
+      {% else %}
+      <div class="card-body text-center text-muted py-4">
+        <i class="bi bi-geo-alt" style="font-size:28px;color:#E0E6EF"></i>
+        <p class="mt-2 mb-0">No visits recorded yet.</p>
+        {% if current_user.role == 'gabay' or current_user.is_supervisor %}
+        <a href="{{ url_for('new_visit', lead_id=lead.id) }}" class="btn btn-sm btn-primary mt-2">Record First Visit</a>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- ASSIGNMENT AUDIT TRAIL -->
+    {% if assignment_history %}
+    <div class="card mt-3">
+      <div class="card-header" style="font-size:13px">
+        <i class="bi bi-clock-history me-2"></i>Assignment History
+        <span class="badge bg-secondary ms-2">{{ assignment_history|length }}</span>
+      </div>
+      <div class="list-group list-group-flush">
+        {% for h in assignment_history %}
+        <div class="list-group-item py-2">
+          <div class="d-flex justify-content-between align-items-center">
+            <div style="font-size:12px">
+              <i class="bi bi-person-check-fill me-1" style="color:#2E75B6"></i>
+              <strong>{{ h.gabay_user.full_name if h.gabay_user else 'Unknown' }}</strong>
+              <span style="color:#9aabc5"> assigned by {{ h.assigned_by_user.full_name if h.assigned_by_user else 'System' }}</span>
+            </div>
+            <small style="color:#9aabc5">{{ h.assigned_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+    {% endif %}
+
+    <!-- PRIORITY INDICATOR -->
+    <div class="card mt-3">
+      <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">
+        <span style="font-size:12px;color:#9aabc5;font-weight:700">PRIORITY SCORE</span>
+        {% set pl = lead.priority_label %}
+        <span style="font-weight:800;font-size:14px;color:{{ pl[1] }}">
+          <i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }} ({{ lead.priority_score }} pts)
+        </span>
+        <span style="font-size:11px;color:#9aabc5">{{ lead.age_days }} days in pipeline</span>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

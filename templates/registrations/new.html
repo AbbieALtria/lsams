@@ -1,0 +1,47 @@
+{% extends "base.html" %}
+{% block title %}New Registration{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="text-muted text-decoration-none" style="font-size:12px"><i class="bi bi-arrow-left me-1"></i>Back to Lead</a>
+    <div class="page-title mt-1">Create Registration</div>
+    <div style="color:#9aabc5;font-size:13px">{{ lead.seller_name }}</div>
+  </div>
+</div>
+<div class="row justify-content-center">
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header">Document Checklist</div>
+      <div class="card-body">
+        <form method="POST" action="{{ url_for('new_registration', lead_id=lead.id) }}">
+          <div class="mb-3 p-3 rounded" style="background:#F0F4FA">
+            <div class="fw-bold mb-2" style="color:#1F3864">Check all documents collected:</div>
+            {% for field, label, desc in [
+              ('has_dti','DTI / SEC Registration','Required for all business types'),
+              ('has_permit','Business Permit / Mayor\'s Permit','Current year valid permit'),
+              ('has_gov_id','Government ID','Valid government-issued photo ID'),
+              ('has_tin','TIN Certificate','Tax Identification Number'),
+              ('has_bank','Bank Account Details','For seller payout setup'),
+            ] %}
+            <div class="form-check mb-2">
+              <input class="form-check-input" type="checkbox" name="{{ field }}" id="{{ field }}">
+              <label class="form-check-label" for="{{ field }}">
+                <strong>{{ label }}</strong><br>
+                <small class="text-muted">{{ desc }}</small>
+              </label>
+            </div>
+            {% endfor %}
+          </div>
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">NOTES</label>
+            <textarea name="notes" class="form-control" rows="3" placeholder="Additional notes or remarks..."></textarea>
+          </div>
+          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
+            <i class="bi bi-file-earmark-check me-1"></i>Create Registration
+          </button>
+        </form>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}

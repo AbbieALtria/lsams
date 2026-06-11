@@ -1,0 +1,498 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>{% block title %}LSAMS{% endblock %} — Lazada Seller Activation</title>
+<link rel="manifest" href="/static/manifest.json">
+<link rel="apple-touch-icon" href="/static/icons/icon-192.png">
+<meta name="theme-color" content="#1F3864">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
+<style>
+  :root {
+    --bs-primary: #1F3864;
+    --bs-primary-rgb: 31,56,100;
+    --sidebar-w: 240px;
+    --topbar-h: 56px;
+  }
+  body { background: #F0F4FA; font-size: 14px; }
+
+  /* TOPBAR */
+  .topbar {
+    height: var(--topbar-h); background: #1F3864;
+    position: fixed; top: 0; left: 0; right: 0; z-index: 1040;
+    display: flex; align-items: center; padding: 0 16px; gap: 12px;
+  }
+  .topbar .brand { color: white; font-weight: 800; font-size: 17px; letter-spacing: 0.5px; text-decoration: none; }
+  .topbar .brand span { color: #F90; }
+  .topbar .ms-auto { margin-left: auto !important; }
+  .topbar .user-pill {
+    background: rgba(255,255,255,0.12); color: white; border-radius: 20px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+  }
+  .topbar .role-badge {
+    background: #F90; color: #1F3864; border-radius: 10px;
+    padding: 1px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase;
+  }
+
+  /* SIDEBAR */
+  .sidebar {
+    width: var(--sidebar-w); background: #fff; position: fixed;
+    top: var(--topbar-h); bottom: 0; left: 0; z-index: 1030;
+    overflow-y: auto; border-right: 1px solid #E0E6EF;
+    transition: transform 0.3s ease;
+  }
+  .sidebar .nav-section { padding: 16px 16px 4px; font-size: 10px; font-weight: 700; color: #9aabc5; text-transform: uppercase; letter-spacing: 1px; }
+  .sidebar .nav-link {
+    display: flex; align-items: center; gap: 10px;
+    padding: 9px 16px; color: #4a5568; font-weight: 500; font-size: 13px;
+    border-radius: 8px; margin: 1px 8px; text-decoration: none;
+  }
+  .sidebar .nav-link:hover { background: #F0F4FA; color: #1F3864; }
+  .sidebar .nav-link.active { background: #E8EFF9; color: #1F3864; font-weight: 700; }
+  .sidebar .nav-link i { font-size: 16px; width: 20px; text-align: center; }
+  .sidebar .nav-link .badge { margin-left: auto; }
+
+  /* MAIN */
+  .main-content { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); padding: 24px; min-height: calc(100vh - var(--topbar-h)); }
+
+  /* KPI CARDS */
+  .kpi-card { background: white; border-radius: 12px; padding: 18px 16px; box-shadow: 0 2px 8px rgba(31,56,100,0.07); border-left: 4px solid #2E75B6; }
+  .kpi-card .kpi-val { font-size: 32px; font-weight: 800; color: #1F3864; line-height: 1; }
+  .kpi-card .kpi-lbl { font-size: 11px; font-weight: 700; color: #9aabc5; text-transform: uppercase; letter-spacing: 0.5px; }
+  .kpi-card .kpi-sub { font-size: 11px; color: #27ae60; font-weight: 600; }
+
+  /* CARDS */
+  .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(31,56,100,0.07); }
+  .card-header { background: white; border-bottom: 1px solid #E0E6EF; font-weight: 700; color: #1F3864; padding: 14px 18px; }
+  .card-header.dark { background: #1F3864; color: white; }
+
+  /* TABLE */
+  .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aabc5; font-weight: 700; border-bottom: 2px solid #E0E6EF; }
+  .table td { vertical-align: middle; font-size: 13px; }
+  .table-hover tbody tr:hover { background: #F0F4FA; }
+
+  /* STATUS BADGES */
+  .badge-pool { background: #e2e8f0; color: #4a5568; }
+  .badge-assigned { background: #dbeafe; color: #1d4ed8; }
+  .badge-attempting { background: #fef3c7; color: #b45309; }
+  .badge-negotiation { background: #e0e7ff; color: #4338ca; }
+  .badge-registration { background: #fce7f3; color: #be185d; }
+  .badge-live { background: #dcfce7; color: #15803d; }
+  .badge-matched { background: #d1fae5; color: #065f46; }
+  .badge-closed { background: #fee2e2; color: #b91c1c; }
+
+  /* MOBILE SIDEBAR TOGGLE */
+  .sidebar-toggle { display: none; background: none; border: none; color: white; font-size: 22px; }
+  .sidebar-backdrop { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.4); z-index: 1025; }
+
+  @media (max-width: 768px) {
+    .sidebar { transform: translateX(-100%); }
+    .sidebar.open { transform: translateX(0); }
+    .sidebar-toggle { display: block; }
+    .sidebar-backdrop.show { display: block; }
+    .main-content { margin-left: 0; padding: 16px; }
+  }
+
+  /* MISC */
+  .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
+  .page-title { font-size: 20px; font-weight: 800; color: #1F3864; }
+  .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .progress { height: 6px; }
+
+  /* ALERT */
+  .flash-container { position: fixed; top: 66px; right: 16px; z-index: 2000; width: 320px; }
+  .flash-container .alert { font-size: 13px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); }
+
+  /* Purple (not in BS5 by default) */
+  .text-purple { color: #7c3aed !important; }
+  .bg-purple { background: #ede9fe; color: #5b21b6; }
+
+  /* DARK MODE */
+  [data-theme="dark"] body { background: #0f172a; color: #cbd5e1; }
+  [data-theme="dark"] .sidebar { background: #1e293b; border-color: #334155; }
+  [data-theme="dark"] .sidebar .nav-link { color: #94a3b8; }
+  [data-theme="dark"] .sidebar .nav-link:hover,
+  [data-theme="dark"] .sidebar .nav-link.active { background: #2d3f55; color: white; }
+  [data-theme="dark"] .card { background: #1e293b; box-shadow: 0 2px 8px rgba(0,0,0,0.3); }
+  [data-theme="dark"] .card-header { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  [data-theme="dark"] .kpi-card { background: #1e293b; }
+  [data-theme="dark"] .kpi-card .kpi-val { color: #e2e8f0; }
+  [data-theme="dark"] .table { color: #cbd5e1; }
+  [data-theme="dark"] .table th { color: #64748b; border-color: #334155; }
+  [data-theme="dark"] .table td { border-color: #1e293b; }
+  [data-theme="dark"] .table-hover tbody tr:hover { background: #263347; }
+  [data-theme="dark"] .main-content { background: #0f172a; }
+  [data-theme="dark"] .form-control,
+  [data-theme="dark"] .form-select { background: #1e293b; border-color: #334155; color: #e2e8f0; }
+  [data-theme="dark"] .form-control:focus,
+  [data-theme="dark"] .form-select:focus { background: #263347; color: white; border-color: #4a6fa5; box-shadow: none; }
+  [data-theme="dark"] .page-title { color: #e2e8f0; }
+  [data-theme="dark"] .btn-outline-secondary { color: #94a3b8; border-color: #334155; }
+  [data-theme="dark"] input, [data-theme="dark"] select, [data-theme="dark"] textarea {
+    color-scheme: dark;
+  }
+  .dark-toggle { background: rgba(255,255,255,0.1); border: none; color: white;
+                  border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size: 16px; }
+  .dark-toggle:hover { background: rgba(255,255,255,0.2); }
+
+  /* NOTIFICATION BELL */
+  .notif-btn { position: relative; background: rgba(255,255,255,0.1); border: none;
+               color: white; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size:16px; }
+  .notif-btn:hover { background: rgba(255,255,255,0.2); }
+  .notif-badge { position: absolute; top: -4px; right: -4px; background: #E07B00; color: white;
+                  border-radius: 10px; font-size: 9px; font-weight: 800; padding: 1px 5px;
+                  min-width: 16px; text-align: center; }
+</style>
+{% block extra_head %}{% endblock %}
+</head>
+<body>
+
+<!-- TOPBAR -->
+<div class="topbar">
+  <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
+  <a class="brand" href="{{ url_for('dashboard') }}">LSAMS <span>●</span></a>
+  <span style="color:#8aaed4;font-size:12px;display:none;display:block">Lazada Seller Activation</span>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <!-- Notification Bell -->
+    <a href="{{ url_for('notifications') }}" class="notif-btn" id="notifBell" title="Notifications">
+      <i class="bi bi-bell-fill"></i>
+      {% if unread_notif > 0 %}
+      <span class="notif-badge" id="notifCount">{{ unread_notif }}</span>
+      {% else %}
+      <span class="notif-badge" id="notifCount" style="display:none">0</span>
+      {% endif %}
+    </a>
+    <!-- Dark Mode Toggle -->
+    <button class="dark-toggle" onclick="toggleDark()" id="darkBtn" title="Toggle dark mode">
+      <i class="bi bi-moon-stars-fill" id="darkIcon"></i>
+    </button>
+    {% if current_user.is_supervisor or current_user.is_superadmin %}
+    <button onclick="openShareModal()" title="Share App Link"
+            style="background:rgba(255,153,0,0.2);border:1px solid rgba(255,153,0,0.5);
+                   color:#FF9900;border-radius:10px;padding:5px 12px;
+                   font-size:12px;font-weight:700;cursor:pointer;display:flex;
+                   align-items:center;gap:5px">
+      <i class="bi bi-share-fill"></i><span class="d-none d-sm-inline">Share App</span>
+    </button>
+    {% endif %}
+    <div class="user-pill">
+      <i class="bi bi-person-circle"></i>
+      {{ current_user.full_name.split()[0] }}
+      <span class="role-badge">{{ current_user.role }}</span>
+    </div>
+    <a href="{{ url_for('logout') }}" class="btn btn-sm" style="background:rgba(255,255,255,0.1);color:white;border:none">
+      <i class="bi bi-box-arrow-right"></i>
+    </a>
+  </div>
+
+  <!-- SHARE APP MODAL -->
+  {% if current_user.is_supervisor or current_user.is_superadmin %}
+  <div id="shareModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.55);
+       z-index:2000;align-items:center;justify-content:center;padding:16px"
+       onclick="if(event.target===this)closeShareModal()">
+    <div style="background:white;border-radius:20px;padding:24px;width:100%;max-width:420px;
+                box-shadow:0 20px 60px rgba(0,0,0,0.3)">
+
+      <!-- Header -->
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:20px">
+        <div>
+          <div style="font-size:18px;font-weight:800;color:#1F3864">
+            <i class="bi bi-share-fill me-2" style="color:#FF9900"></i>Share LSAMS App
+          </div>
+          <div style="font-size:12px;color:#9aabc5;margin-top:2px">Send this link to your Gabay agents</div>
+        </div>
+        <button onclick="closeShareModal()" style="background:#F0F4FA;border:none;border-radius:10px;
+                padding:6px 12px;font-weight:700;color:#1F3864;cursor:pointer">✕</button>
+      </div>
+
+      <!-- URL box -->
+      <div style="background:#F0F4FA;border-radius:12px;padding:12px 14px;
+                  display:flex;align-items:center;gap:10px;margin-bottom:16px">
+        <div style="flex:1;font-size:12px;color:#1F3864;font-weight:600;
+                    word-break:break-all;font-family:monospace" id="shareUrl">
+          Loading...
+        </div>
+        <button onclick="copyLink()" id="copyBtn"
+                style="background:#1F3864;color:white;border:none;border-radius:8px;
+                       padding:7px 12px;font-size:12px;font-weight:700;cursor:pointer;
+                       flex-shrink:0;white-space:nowrap">
+          <i class="bi bi-clipboard me-1"></i>Copy
+        </button>
+      </div>
+
+      <!-- QR Code -->
+      <div style="text-align:center;margin-bottom:16px">
+        <div style="font-size:12px;font-weight:700;color:#9aabc5;margin-bottom:8px;
+                    text-transform:uppercase;letter-spacing:1px">
+          Scan QR Code
+        </div>
+        <div id="qrcode" style="display:inline-block;background:white;padding:10px;
+                                border-radius:12px;border:2px solid #E0E6EF"></div>
+        <div style="font-size:11px;color:#9aabc5;margin-top:6px">
+          Gabay can scan this to open the app
+        </div>
+      </div>
+
+      <!-- Share buttons -->
+      <div style="font-size:12px;font-weight:700;color:#9aabc5;margin-bottom:8px;
+                  text-transform:uppercase;letter-spacing:1px">Send via</div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:16px">
+        <button onclick="shareVia('viber')"
+                style="border:none;background:#7360F2;border-radius:12px;padding:10px 4px;
+                       color:white;cursor:pointer;font-size:11px;font-weight:700">
+          <i class="bi bi-phone-fill" style="font-size:20px;display:block;margin-bottom:3px"></i>Viber
+        </button>
+        <button onclick="shareVia('whatsapp')"
+                style="border:none;background:#25D366;border-radius:12px;padding:10px 4px;
+                       color:white;cursor:pointer;font-size:11px;font-weight:700">
+          <i class="bi bi-whatsapp" style="font-size:20px;display:block;margin-bottom:3px"></i>WhatsApp
+        </button>
+        <button onclick="shareVia('messenger')"
+                style="border:none;background:#006AFF;border-radius:12px;padding:10px 4px;
+                       color:white;cursor:pointer;font-size:11px;font-weight:700">
+          <i class="bi bi-messenger" style="font-size:20px;display:block;margin-bottom:3px"></i>Messenger
+        </button>
+        <button onclick="shareVia('sms')"
+                style="border:none;background:#34C759;border-radius:12px;padding:10px 4px;
+                       color:white;cursor:pointer;font-size:11px;font-weight:700">
+          <i class="bi bi-chat-fill" style="font-size:20px;display:block;margin-bottom:3px"></i>SMS
+        </button>
+      </div>
+
+      <!-- Native share button (mobile) -->
+      <button onclick="nativeShare()" id="nativeShareBtn" style="display:none;width:100%;
+              background:linear-gradient(135deg,#FF9900,#ffb347);color:white;border:none;
+              border-radius:14px;padding:14px;font-size:15px;font-weight:700;cursor:pointer;
+              box-shadow:0 4px 12px rgba(255,153,0,0.35)">
+        <i class="bi bi-share-fill me-2"></i>Share via Phone Apps
+      </button>
+
+      <div style="font-size:11px;color:#9aabc5;text-align:center;margin-top:12px">
+        💡 Tip: Agents open the link → tap <strong>Add to Home Screen</strong> to install like an app
+      </div>
+    </div>
+  </div>
+  <script src="https://cdn.jsdelivr.net/npm/qrcodejs@1.0.0/qrcode.min.js"></script>
+  <script>
+  let qrGenerated = false;
+  const GABAY_PATH = '/gabay/app';
+
+  function getAppUrl() {
+    return window.location.origin + GABAY_PATH;
+  }
+
+  function openShareModal() {
+    const modal = document.getElementById('shareModal');
+    modal.style.display = 'flex';
+    const url = getAppUrl();
+    document.getElementById('shareUrl').textContent = url;
+    if (!qrGenerated) {
+      new QRCode(document.getElementById('qrcode'), {
+        text: url, width: 160, height: 160,
+        colorDark: '#1F3864', colorLight: '#ffffff',
+        correctLevel: QRCode.CorrectLevel.M
+      });
+      qrGenerated = true;
+    }
+    if (navigator.share) {
+      document.getElementById('nativeShareBtn').style.display = 'block';
+    }
+  }
+
+  function closeShareModal() {
+    document.getElementById('shareModal').style.display = 'none';
+  }
+
+  function copyLink() {
+    navigator.clipboard.writeText(getAppUrl()).then(() => {
+      const btn = document.getElementById('copyBtn');
+      btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Copied!';
+      btn.style.background = '#15803d';
+      setTimeout(() => {
+        btn.innerHTML = '<i class="bi bi-clipboard me-1"></i>Copy';
+        btn.style.background = '#1F3864';
+      }, 2000);
+    });
+  }
+
+  function shareVia(platform) {
+    const url = encodeURIComponent(getAppUrl());
+    const msg = encodeURIComponent('Open LSAMS Gabay App: ' + getAppUrl());
+    const links = {
+      viber:     'viber://forward?text=' + msg,
+      whatsapp:  'https://wa.me/?text=' + msg,
+      messenger: 'https://www.facebook.com/dialog/send?link=' + url + '&app_id=0&redirect_uri=' + url,
+      sms:       'sms:?body=' + msg,
+    };
+    window.open(links[platform], '_blank');
+  }
+
+  function nativeShare() {
+    navigator.share({
+      title: 'LSAMS Gabay App',
+      text: 'Open your Gabay field app here:',
+      url: getAppUrl()
+    }).catch(() => {});
+  }
+  </script>
+  {% endif %}
+</div>
+
+<!-- SIDEBAR BACKDROP -->
+<div class="sidebar-backdrop" id="sidebarBackdrop" onclick="toggleSidebar()"></div>
+
+<!-- SIDEBAR -->
+<nav class="sidebar" id="sidebar">
+  <div style="padding:12px 8px 4px">
+    <div style="background:#F0F4FA;border-radius:10px;padding:10px 12px;margin-bottom:4px">
+      <div style="font-size:11px;color:#9aabc5;font-weight:700">Logged in as</div>
+      <div style="font-weight:700;color:#1F3864;font-size:13px">{{ current_user.full_name }}</div>
+    </div>
+  </div>
+
+  {% if current_user.is_superadmin %}
+  <div style="margin:8px 8px 4px;padding:8px 10px;background:#F5F0FF;border-radius:10px;border-left:3px solid #7c3aed">
+    <div style="font-size:10px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px">
+      <i class="bi bi-shield-lock-fill me-1"></i>Power User
+    </div>
+    <a href="{{ url_for('admin_users') }}" class="nav-link py-1 px-0" style="margin:0;font-size:12px;color:#7c3aed;font-weight:700">
+      <i class="bi bi-people-fill"></i> User Management
+    </a>
+    <a href="{{ url_for('city_mapping') }}" class="nav-link py-1 px-0" style="margin:0;font-size:12px;color:#7c3aed;font-weight:700">
+      <i class="bi bi-geo-alt-fill"></i> City Normalization
+    </a>
+  </div>
+  {% endif %}
+
+  <div class="nav-section">Main</div>
+  <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
+    <i class="bi bi-speedometer2"></i> Dashboard
+  </a>
+
+  <div class="nav-section">Operations</div>
+  {% if current_user.is_supervisor %}
+  <a href="{{ url_for('assign_center') }}" class="nav-link {% if request.endpoint == 'assign_center' or request.endpoint == 'do_assign' %}active{% endif %}"
+     style="{% if pool_nav_count and pool_nav_count > 0 %}background:#FFF9E6{% endif %}">
+    <i class="bi bi-person-check" style="color:#E07B00"></i>
+    <span style="font-weight:700">Assign Leads</span>
+    {% if pool_nav_count and pool_nav_count > 0 %}
+    <span class="badge ms-auto" style="background:#E07B00;color:white">{{ pool_nav_count }}</span>
+    {% endif %}
+  </a>
+  {% endif %}
+  <a href="{{ url_for('leads') }}" class="nav-link {% if 'lead' in request.endpoint and request.endpoint != 'assign_center' and request.endpoint != 'do_assign' and request.endpoint != 'auto_distribute' %}active{% endif %}">
+    <i class="bi bi-people"></i> Leads
+    <span class="badge" style="background:#1F3864;color:white" id="nav-pool-count"></span>
+  </a>
+  <a href="{{ url_for('visits') }}" class="nav-link {% if 'visit' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-geo-alt"></i> Visits
+  </a>
+  <a href="{{ url_for('registrations') }}" class="nav-link {% if 'registration' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-file-earmark-check"></i> Registrations
+  </a>
+
+  {% if current_user.is_supervisor %}
+  <div class="nav-section">Management</div>
+  <a href="{{ url_for('gabay_list') }}" class="nav-link {% if 'gabay' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-person-badge"></i> Gabay Agents
+  </a>
+  {% endif %}
+
+  <div class="nav-section">Analytics</div>
+  <a href="{{ url_for('reports') }}" class="nav-link {% if 'report' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-bar-chart-line"></i> Reports
+  </a>
+  {% if current_user.is_supervisor %}
+  <a href="{{ url_for('campaigns') }}" class="nav-link {% if 'campaign' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-collection"></i> Campaigns
+  </a>
+  <a href="{{ url_for('export_leads') }}" class="nav-link">
+    <i class="bi bi-download"></i> Export Data
+  </a>
+  {% endif %}
+
+  {% if current_user.is_manager %}
+  <a href="{{ url_for('daily_digest') }}" class="nav-link {% if request.endpoint == 'daily_digest' %}active{% endif %}">
+    <i class="bi bi-newspaper"></i> Daily Digest
+  </a>
+  {% endif %}
+
+  <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active{% endif %}">
+    <i class="bi bi-play-circle"></i> Presentation
+  </a>
+
+  <div class="nav-section">Support</div>
+  <a href="{{ url_for('notifications') }}" class="nav-link {% if 'notification' in request.endpoint %}active{% endif %}">
+    <i class="bi bi-bell"></i> Notifications
+    {% if unread_notif > 0 %}<span class="badge ms-auto" style="background:#E07B00;color:white">{{ unread_notif }}</span>{% endif %}
+  </a>
+  <a href="{{ url_for('help_page') }}" class="nav-link {% if request.endpoint == 'help_page' %}active{% endif %}">
+    <i class="bi bi-question-circle"></i> Help & User Guide
+  </a>
+
+  <div style="height:20px"></div>
+</nav>
+
+<!-- MAIN CONTENT -->
+<div class="main-content">
+  <!-- Flash messages -->
+  <div class="flash-container">
+    {% for cat, msg in get_flashed_messages(with_categories=true) %}
+    <div class="alert alert-{{ 'danger' if cat == 'error' else cat }} alert-dismissible fade show" role="alert">
+      {{ msg }}
+      <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endfor %}
+  </div>
+
+  {% block content %}{% endblock %}
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+<script>
+function toggleSidebar() {
+  document.getElementById('sidebar').classList.toggle('open');
+  document.getElementById('sidebarBackdrop').classList.toggle('show');
+}
+// Auto-dismiss alerts after 4s
+setTimeout(() => {
+  document.querySelectorAll('.flash-container .alert').forEach(a => {
+    const bsAlert = bootstrap.Alert.getOrCreateInstance(a);
+    bsAlert.close();
+  });
+}, 4000);
+
+// Dark mode
+function applyTheme(dark) {
+  document.documentElement.setAttribute('data-theme', dark ? 'dark' : 'light');
+  document.getElementById('darkIcon').className = dark ? 'bi bi-sun-fill' : 'bi bi-moon-stars-fill';
+}
+function toggleDark() {
+  const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
+  localStorage.setItem('lsams_dark', !isDark);
+  applyTheme(!isDark);
+}
+// Apply saved preference on load
+applyTheme(localStorage.getItem('lsams_dark') === 'true');
+
+// Live notification count refresh (every 90s)
+function refreshNotifCount() {
+  fetch('/api/notifications/unread')
+    .then(r => r.json())
+    .then(data => {
+      const el = document.getElementById('notifCount');
+      if (el) {
+        el.textContent = data.length;
+        el.style.display = data.length > 0 ? 'block' : 'none';
+      }
+    }).catch(() => {});
+}
+setTimeout(refreshNotifCount, 5000);
+setInterval(refreshNotifCount, 90000);
+</script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

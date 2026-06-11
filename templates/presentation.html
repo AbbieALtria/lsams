@@ -1,0 +1,92 @@
+{% extends "base.html" %}
+{% block title %}System Presentation{% endblock %}
+{% block content %}
+<div class="page-header" style="margin-bottom:16px">
+  <div>
+    <div class="page-title">System Presentation</div>
+    <div style="color:#9aabc5;font-size:12px">LSAMS — Lazada Seller Activation Management System · 9 slides</div>
+  </div>
+  <div class="ms-auto d-flex gap-2">
+    <a href="/static/LSAMS_Presentation.pdf" download class="btn btn-sm"
+       style="background:#1F3864;color:white;font-weight:700;border-radius:8px;padding:7px 16px;font-size:13px">
+      <i class="bi bi-file-earmark-pdf me-1"></i> Download PDF
+    </a>
+    <button onclick="openFS()" class="btn btn-sm"
+       style="background:#FF9900;color:#1F3864;font-weight:700;border-radius:8px;padding:7px 16px;font-size:13px">
+      <i class="bi bi-fullscreen me-1"></i> Fullscreen
+    </button>
+    <a href="/static/LSAMS_Presentation.html" target="_blank" class="btn btn-sm btn-outline-secondary"
+       style="font-size:13px;border-radius:8px;padding:7px 14px">
+      <i class="bi bi-box-arrow-up-right me-1"></i> Open Standalone
+    </a>
+  </div>
+</div>
+
+<!-- Viewer card -->
+<div class="card" style="border-radius:16px;overflow:hidden;box-shadow:0 4px 24px rgba(31,56,100,0.12);padding:0">
+  <div style="background:#111;padding:10px 16px;display:flex;align-items:center;gap:8px">
+    <span style="width:12px;height:12px;border-radius:50%;background:#ff5f57;display:inline-block"></span>
+    <span style="width:12px;height:12px;border-radius:50%;background:#febc2e;display:inline-block"></span>
+    <span style="width:12px;height:12px;border-radius:50%;background:#28c840;display:inline-block"></span>
+    <span style="color:rgba(255,255,255,0.3);font-size:12px;margin-left:6px">LSAMS_Presentation.html</span>
+    <span style="margin-left:auto;color:rgba(255,255,255,0.2);font-size:11px">Use ← → arrow keys or click Next/Prev inside the slide</span>
+  </div>
+  <iframe id="slideFrame"
+    src="/static/LSAMS_Presentation.html"
+    style="width:100%;height:calc(100vh - 220px);min-height:540px;border:none;display:block;background:#111"
+    title="LSAMS Presentation">
+  </iframe>
+</div>
+
+<!-- Slide quick-jump bar -->
+<div class="card mt-3" style="border-radius:14px;padding:16px 20px">
+  <div style="font-size:11px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:0.8px;margin-bottom:12px">Quick Jump</div>
+  <div style="display:flex;flex-wrap:wrap;gap:8px">
+    {% for n, title, icon in [
+      (0,'Cover','house-fill'),
+      (1,'Problem & Solution','lightbulb-fill'),
+      (2,'User Roles','people-fill'),
+      (3,'Lead Pipeline','funnel-fill'),
+      (4,'Key Modules','grid-3x3-gap-fill'),
+      (5,'Mobile PWA','phone-fill'),
+      (6,'Lazada Portal','graph-up'),
+      (7,'Smart Assignment','geo-alt-fill'),
+      (8,'Live & Ready','rocket-takeoff-fill'),
+    ] %}
+    <button onclick="jumpTo({{ n }})"
+      style="background:#F5F8FD;border:1px solid #E0E6EF;border-radius:8px;padding:6px 14px;font-size:12px;font-weight:600;color:#1F3864;cursor:pointer;transition:all 0.15s"
+      onmouseover="this.style.background='#1F3864';this.style.color='white'"
+      onmouseout="this.style.background='#F5F8FD';this.style.color='#1F3864'">
+      <i class="bi bi-{{ icon }} me-1"></i>{{ n+1 }}. {{ title }}
+    </button>
+    {% endfor %}
+  </div>
+</div>
+
+<script>
+function jumpTo(n) {
+  const fr = document.getElementById('slideFrame');
+  try {
+    fr.contentWindow.goTo(n);
+    fr.scrollIntoView({ behavior: 'smooth' });
+  } catch(e) {
+    // cross-origin fallback — shouldn't happen since same origin
+    fr.src = '/static/LSAMS_Presentation.html#' + n;
+  }
+}
+
+function openFS() {
+  const fr = document.getElementById('slideFrame');
+  if (fr.requestFullscreen) fr.requestFullscreen();
+  else if (fr.webkitRequestFullscreen) fr.webkitRequestFullscreen();
+}
+
+// Keyboard pass-through when iframe is focused
+document.addEventListener('keydown', e => {
+  const fr = document.getElementById('slideFrame');
+  if (document.activeElement !== fr) {
+    try { fr.contentWindow.focus(); } catch(e) {}
+  }
+});
+</script>
+{% endblock %}

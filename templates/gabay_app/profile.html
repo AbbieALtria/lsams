@@ -1,0 +1,215 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}My Profile{% endblock %}
+{% block content %}
+
+<!-- AVATAR + NAME -->
+<div style="text-align:center;padding:20px 0 24px">
+  <div style="width:80px;height:80px;border-radius:24px;background:#1F3864;
+              display:flex;align-items:center;justify-content:center;
+              font-size:32px;font-weight:800;color:white;margin:0 auto 12px">
+    {{ current_user.full_name[0].upper() }}
+  </div>
+  <div style="font-size:20px;font-weight:800;color:#1F3864">{{ current_user.full_name }}</div>
+  <div style="font-size:12px;color:#9aabc5;margin-top:4px">
+    <span style="background:#FF990022;color:#E07B00;padding:3px 12px;border-radius:10px;font-weight:700;font-size:11px">
+      GABAY AGENT
+    </span>
+  </div>
+</div>
+
+<!-- STATS -->
+<div class="kpi-row" style="margin-bottom:20px">
+  <div class="kpi-tile">
+    <div class="val">{{ stats.total }}</div>
+    <div class="lbl">Total Leads</div>
+  </div>
+  <div class="kpi-tile">
+    <div class="val" style="color:#15803d">{{ stats.live }}</div>
+    <div class="lbl">Live</div>
+  </div>
+  <div class="kpi-tile">
+    <div class="val" style="color:#E07B00">{{ stats.visits_this_month }}</div>
+    <div class="lbl">Visits This Month</div>
+  </div>
+</div>
+
+<!-- PIPELINE BREAKDOWN -->
+<div class="section-hdr">My Pipeline</div>
+<div class="m-card">
+  {% set pipeline = [
+    ('Assigned', stats.assigned, '#2E75B6'),
+    ('Attempting', stats.attempting, '#E07B00'),
+    ('Negotiation', stats.negotiation, '#7c3aed'),
+    ('Registration', stats.registration, '#be185d'),
+    ('Live', stats.live, '#15803d'),
+  ] %}
+  {% set max_val = [stats.assigned, stats.attempting, stats.negotiation, stats.registration, stats.live]|max or 1 %}
+  {% for label, count, color in pipeline %}
+  <div style="margin-bottom:12px">
+    <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px">
+      <span style="font-weight:600;color:#4a5568">{{ label }}</span>
+      <span style="font-weight:800;color:{{ color }}">{{ count }}</span>
+    </div>
+    <div style="background:#F0F4FA;border-radius:4px;height:8px">
+      <div style="background:{{ color }};height:8px;border-radius:4px;width:{{ (count / max_val * 100)|int }}%;transition:width 0.5s"></div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- CONVERSION RATE -->
+<div class="m-card" style="display:flex;align-items:center;gap:14px;margin-top:4px">
+  <div style="width:56px;height:56px;border-radius:16px;background:#dcfce7;
+              display:flex;align-items:center;justify-content:center;flex-shrink:0">
+    <i class="bi bi-graph-up-arrow" style="font-size:24px;color:#15803d"></i>
+  </div>
+  <div>
+    <div style="font-size:24px;font-weight:800;color:#15803d">{{ conversion_rate }}%</div>
+    <div style="font-size:12px;color:#9aabc5">Conversion rate (assigned → live)</div>
+  </div>
+</div>
+
+<!-- LANGUAGE SETTINGS -->
+<div class="section-hdr" style="margin-top:20px">
+  <i class="bi bi-translate me-1"></i><span data-i18n="profile_language">Language</span>
+</div>
+<div class="m-card" style="padding:16px">
+  <div style="font-size:13px;color:#9aabc5;margin-bottom:12px" data-i18n="profile_language_sub">
+    Choose your preferred language
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:8px" id="langGrid">
+    <button onclick="chooseLang('en')" data-lang="en"
+            style="border-radius:12px;border:2px solid #E0E6EF;padding:12px 6px;
+                   background:white;cursor:pointer;text-align:center;transition:all 0.2s">
+      <div style="font-size:22px">🇺🇸</div>
+      <div style="font-size:11px;font-weight:700;color:#1F3864;margin-top:4px">English</div>
+    </button>
+    <button onclick="chooseLang('tl')" data-lang="tl"
+            style="border-radius:12px;border:2px solid #E0E6EF;padding:12px 6px;
+                   background:white;cursor:pointer;text-align:center;transition:all 0.2s">
+      <div style="font-size:22px">🇵🇭</div>
+      <div style="font-size:11px;font-weight:700;color:#1F3864;margin-top:4px">Tagalog</div>
+    </button>
+    <button onclick="chooseLang('ceb')" data-lang="ceb"
+            style="border-radius:12px;border:2px solid #E0E6EF;padding:12px 6px;
+                   background:white;cursor:pointer;text-align:center;transition:all 0.2s">
+      <div style="font-size:22px">🌴</div>
+      <div style="font-size:11px;font-weight:700;color:#1F3864;margin-top:4px">Bisaya</div>
+    </button>
+  </div>
+  <div id="langSaved" style="display:none;margin-top:10px;text-align:center;
+       font-size:12px;font-weight:700;color:#15803d">
+    ✅ Language saved!
+  </div>
+</div>
+
+<!-- HELP & GUIDE -->
+<div class="section-hdr" style="margin-top:4px">
+  <i class="bi bi-question-circle me-1"></i><span data-i18n="profile_help">Help &amp; Guide</span>
+</div>
+<div class="m-card" style="padding:0">
+  <button onclick="openHelp('help_home_title','help_home_body')"
+          style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <span style="font-size:22px">🏠</span>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">How to use the Home Screen</div>
+      <div style="font-size:11px;color:#9aabc5">Stats, suggestions, and alerts explained</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+  <button onclick="openHelp('help_checkin_title','help_checkin_body')"
+          style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <span style="font-size:22px">📍</span>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">How to Check In</div>
+      <div style="font-size:11px;color:#9aabc5">GPS, outcomes, and submitting a visit</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+  <button onclick="openHelp('help_leads_title','help_leads_body')"
+          style="width:100%;background:none;border:none;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <span style="font-size:22px">👥</span>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Understanding My Leads</div>
+      <div style="font-size:11px;color:#9aabc5">Status filters, search, and lead details</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+</div>
+
+<!-- INSTALL PWA -->
+<div class="section-hdr" style="margin-top:20px">App</div>
+<div class="m-card" id="installCard" style="display:none">
+  <div style="display:flex;align-items:center;gap:12px">
+    <img src="/static/icons/icon-192.png" style="width:48px;height:48px;border-radius:12px">
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Install LSAMS on your phone</div>
+      <div style="font-size:11px;color:#9aabc5">Works offline, no app store needed</div>
+    </div>
+    <button id="installBtn" class="m-btn-primary" style="padding:8px 16px;font-size:12px;width:auto;border-radius:10px">
+      Install
+    </button>
+  </div>
+</div>
+<div class="m-card" style="text-align:center;padding:16px;color:#9aabc5;font-size:12px" id="installedCard" style="display:none">
+  <i class="bi bi-check-circle-fill" style="color:#15803d;font-size:20px;display:block;margin-bottom:4px"></i>
+  App is installed on your device
+</div>
+
+<!-- LOGOUT -->
+<div style="margin-top:16px">
+  <a href="{{ url_for('logout') }}" style="display:block;text-align:center;padding:14px;
+     background:#fee2e2;color:#b91c1c;border-radius:14px;font-weight:700;font-size:14px;text-decoration:none">
+    <i class="bi bi-box-arrow-right me-2"></i>Log Out
+  </a>
+</div>
+
+<div style="height:10px"></div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+// Language switcher
+function chooseLang(lang) {
+  setLang(lang);
+  document.querySelectorAll('#langGrid button').forEach(btn => {
+    const active = btn.dataset.lang === lang;
+    btn.style.borderColor = active ? '#1F3864' : '#E0E6EF';
+    btn.style.background = active ? '#EFF6FF' : 'white';
+  });
+  const saved = document.getElementById('langSaved');
+  saved.style.display = 'block';
+  setTimeout(() => saved.style.display = 'none', 2000);
+}
+// Highlight current language on load
+(function() {
+  const cur = getLang();
+  const btn = document.querySelector(`#langGrid button[data-lang="${cur}"]`);
+  if (btn) { btn.style.borderColor = '#1F3864'; btn.style.background = '#EFF6FF'; }
+})();
+
+let deferredPrompt;
+window.addEventListener('beforeinstallprompt', e => {
+  e.preventDefault();
+  deferredPrompt = e;
+  document.getElementById('installCard').style.display = 'block';
+});
+window.addEventListener('appinstalled', () => {
+  document.getElementById('installCard').style.display = 'none';
+  document.getElementById('installedCard').style.display = 'block';
+});
+document.getElementById('installBtn').addEventListener('click', async () => {
+  if (!deferredPrompt) return;
+  deferredPrompt.prompt();
+  await deferredPrompt.userChoice;
+  deferredPrompt = null;
+});
+// Check if already installed
+if (window.matchMedia('(display-mode: standalone)').matches) {
+  document.getElementById('installedCard').style.display = 'block';
+}
+</script>
+{% endblock %}

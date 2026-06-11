@@ -1,0 +1,69 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Visit History{% endblock %}
+{% block content %}
+
+<div style="margin-bottom:16px">
+  <div style="font-size:18px;font-weight:800;color:#1F3864">Visit History</div>
+  <div style="font-size:12px;color:#9aabc5">{{ visits|length }} visits logged</div>
+</div>
+
+{% if visits %}
+  {% set ns = namespace(current_date='') %}
+  {% for v in visits %}
+    {% set day = v.visited_at.strftime('%B %d, %Y') %}
+    {% if day != ns.current_date %}
+      {% set ns.current_date = day %}
+      <div class="section-hdr">{{ day }}</div>
+    {% endif %}
+    <div class="m-card" style="padding:14px 16px;margin-bottom:8px">
+      <div style="display:flex;align-items:flex-start;gap:12px">
+        {% set outcome_icons = {
+          'interested':'bi-hand-thumbs-up-fill','callback':'bi-telephone-fill',
+          'not_home':'bi-house-slash','rejected':'bi-x-circle-fill',
+          'registered':'bi-file-earmark-check-fill','follow_up':'bi-calendar-check-fill'
+        } %}
+        {% set outcome_colors = {
+          'interested':'#15803d','callback':'#2E75B6','not_home':'#E07B00',
+          'rejected':'#b91c1c','registered':'#7c3aed','follow_up':'#be185d'
+        } %}
+        {% set oc = outcome_colors.get(v.outcome, '#9aabc5') %}
+        {% set oi = outcome_icons.get(v.outcome, 'bi-geo-alt') %}
+        <div style="width:40px;height:40px;border-radius:12px;background:{{ oc }}22;
+                    display:flex;align-items:center;justify-content:center;flex-shrink:0">
+          <i class="bi {{ oi }}" style="color:{{ oc }};font-size:18px"></i>
+        </div>
+        <div style="flex:1;min-width:0">
+          <div style="font-weight:700;color:#1F3864;font-size:14px">
+            {{ v.lead.seller_name if v.lead else '—' }}
+          </div>
+          <div style="font-size:11px;color:#9aabc5;margin-top:2px">
+            {{ v.visited_at.strftime('%I:%M %p') }}
+            {% if v.gps_address %}· {{ v.gps_address[:40] }}…{% endif %}
+          </div>
+          {% if v.notes %}
+          <div style="font-size:12px;color:#4a5568;margin-top:6px;padding:8px;background:#F8FAFD;border-radius:8px">
+            {{ v.notes[:100] }}{% if v.notes|length > 100 %}…{% endif %}
+          </div>
+          {% endif %}
+          {% if v.follow_up_date %}
+          <div style="font-size:11px;color:#be185d;margin-top:4px;font-weight:600">
+            <i class="bi bi-calendar-check me-1"></i>Follow up: {{ v.follow_up_date.strftime('%b %d') }}
+          </div>
+          {% endif %}
+        </div>
+        <span style="font-size:10px;font-weight:700;padding:3px 8px;border-radius:8px;
+                     background:{{ oc }}22;color:{{ oc }};flex-shrink:0">
+          {{ v.outcome.replace('_',' ').title() if v.outcome else '—' }}
+        </span>
+      </div>
+    </div>
+  {% endfor %}
+{% else %}
+  <div class="empty-state">
+    <i class="bi bi-clock-history"></i>
+    <div style="font-weight:700;color:#1F3864">No visits yet</div>
+    <div style="font-size:12px">Tap Check In to log your first visit.</div>
+  </div>
+{% endif %}
+
+{% endblock %}

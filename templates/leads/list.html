@@ -1,0 +1,153 @@
+{% extends "base.html" %}
+{% block title %}Leads{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-people me-2"></i>Lead Management</div>
+  <div class="d-flex gap-2 flex-wrap">
+    {% if current_user.is_manager %}
+    <a href="{{ url_for('import_leads') }}" class="btn btn-sm" style="background:#1F3864;color:white">
+      <i class="bi bi-upload me-1"></i>Import Leads
+    </a>
+    {% endif %}
+  </div>
+</div>
+
+<!-- FILTER BAR -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
+      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Search seller, business, city..." style="max-width:220px">
+      <select name="status" class="form-select form-select-sm" style="max-width:160px">
+        <option value="">All Statuses</option>
+        {% for s in ['pool','assigned','attempting','negotiation','registration','live','matched','closed'] %}
+        <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
+        {% endfor %}
+      </select>
+      {% if current_user.is_supervisor %}
+      <select name="gabay" class="form-select form-select-sm" style="max-width:180px">
+        <option value="">All Gabay</option>
+        {% for g in gabay_users %}
+        <option value="{{ g.id }}" {% if gabay_filter == g.id|string %}selected{% endif %}>{{ g.full_name }}</option>
+        {% endfor %}
+      </select>
+      {% endif %}
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </form>
+  </div>
+</div>
+
+<!-- BULK ASSIGN (supervisor only) -->
+{% if current_user.is_supervisor %}
+<form method="POST" action="{{ url_for('bulk_assign') }}" id="bulkForm">
+<div class="d-flex align-items-center gap-2 mb-2" id="bulkBar" style="display:none!important">
+  <span id="selectedCount" class="text-muted" style="font-size:12px">0 selected</span>
+  <select name="gabay_id" class="form-select form-select-sm" style="max-width:180px" required>
+    <option value="">Assign to Gabay...</option>
+    {% for g in gabay_users %}
+    <option value="{{ g.id }}">{{ g.full_name }}</option>
+    {% endfor %}
+  </select>
+  <button type="submit" class="btn btn-sm" style="background:#1F3864;color:white">Bulk Assign</button>
+</div>
+{% endif %}
+
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span>Leads <span class="badge bg-secondary ms-1">{{ pagination.total }}</span></span>
+    <span style="font-size:12px;color:#9aabc5">Page {{ pagination.page }} of {{ pagination.pages }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr>
+          {% if current_user.is_supervisor %}<th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>{% endif %}
+          <th>Shop Name</th><th>Project / Cluster</th><th>City</th><th>Status</th>
+          <th>Priority</th><th>Gabay</th><th>Contact</th><th>Actions</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for lead in pagination.items %}
+        <tr>
+          {% if current_user.is_supervisor %}
+          <td><input type="checkbox" name="lead_ids" value="{{ lead.id }}" class="lead-check" onchange="updateBulkBar()"></td>
+          {% endif %}
+          <td>
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="fw-600 text-decoration-none" style="color:#1F3864">
+              {{ lead.seller_name }}
+            </a>
+            {% if lead.lazada_id %}<br><small style="color:#9aabc5">{{ lead.lazada_id }}</small>{% endif %}
+          </td>
+          <td>
+            {% if lead.project %}<span style="font-size:11px;font-weight:700;color:#1F3864">{{ lead.project }}</span><br>{% endif %}
+            {% if lead.cluster %}<span style="font-size:10px;color:#9aabc5">{{ lead.cluster }}</span>{% endif %}
+            {% if not lead.project and not lead.cluster %}—{% endif %}
+          </td>
+          <td>{{ lead.city or '—' }}</td>
+          <td><span class="badge badge-{{ lead.status }} rounded-pill">{{ lead.status_label }}</span></td>
+          <td>
+            {% if lead.status not in ('pool','live','matched','closed') %}
+            {% set pl = lead.priority_label %}
+            <span style="font-size:11px;font-weight:700;color:{{ pl[1] }};white-space:nowrap">
+              <i class="bi {{ pl[2] }}"></i> {{ pl[0] }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td style="font-size:12px">{{ lead.assigned_gabay.full_name if lead.assigned_gabay else '<span class="text-muted">Unassigned</span>'|safe }}</td>
+          <td style="font-size:12px">{{ lead.contact_number or '—' }}</td>
+          <td>
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:11px">View</a>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No leads found. {% if current_user.is_manager %}<a href="{{ url_for('import_leads') }}">Import leads</a> to get started.{% endif %}</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <!-- PAGINATION -->
+  {% if pagination.pages > 1 %}
+  <div class="card-body py-2 d-flex justify-content-center">
+    <nav>
+      <ul class="pagination pagination-sm mb-0">
+        {% if pagination.has_prev %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('leads', page=pagination.prev_num, status=status_filter, gabay=gabay_filter, q=search) }}">‹</a></li>
+        {% endif %}
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+          {% if p %}
+          <li class="page-item {% if p == pagination.page %}active{% endif %}">
+            <a class="page-link" href="{{ url_for('leads', page=p, status=status_filter, gabay=gabay_filter, q=search) }}">{{ p }}</a>
+          </li>
+          {% else %}
+          <li class="page-item disabled"><span class="page-link">…</span></li>
+          {% endif %}
+        {% endfor %}
+        {% if pagination.has_next %}
+        <li class="page-item"><a class="page-link" href="{{ url_for('leads', page=pagination.next_num, status=status_filter, gabay=gabay_filter, q=search) }}">›</a></li>
+        {% endif %}
+      </ul>
+    </nav>
+  </div>
+  {% endif %}
+</div>
+{% if current_user.is_supervisor %}</form>{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+function toggleAll(cb) {
+  document.querySelectorAll('.lead-check').forEach(c => c.checked = cb.checked);
+  updateBulkBar();
+}
+function updateBulkBar() {
+  const checked = document.querySelectorAll('.lead-check:checked').length;
+  const bar = document.getElementById('bulkBar');
+  const cnt = document.getElementById('selectedCount');
+  if (bar) {
+    bar.style.display = checked > 0 ? 'flex' : 'none';
+    if (cnt) cnt.textContent = checked + ' selected';
+  }
+}
+</script>
+{% endblock %}

@@ -1,0 +1,142 @@
+{% extends "base.html" %}
+{% block title %}Daily Digest{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title"><i class="bi bi-newspaper me-2" style="color:#1F3864"></i>Manager Daily Digest</div>
+    <div style="color:#9aabc5;font-size:12px">{{ today }}</div>
+  </div>
+  <button onclick="window.print()" class="btn btn-sm btn-outline-secondary" style="font-size:12px">
+    <i class="bi bi-printer me-1"></i>Print
+  </button>
+</div>
+
+<!-- TODAY SUMMARY STRIP -->
+<div class="row g-3 mb-4">
+  {% set strips = [
+    (visits_today|length, 'Visits Today', 'bi-geo-alt-fill', '#2E75B6'),
+    (regs_submitted, 'Registrations Submitted', 'bi-file-earmark-plus', '#7c3aed'),
+    (regs_approved, 'Registrations Approved', 'bi-check-circle-fill', '#15803d'),
+    (regs_pending, 'Pending Review', 'bi-hourglass-split', '#E07B00'),
+    (stalled_count, 'Stalled Leads', 'bi-exclamation-triangle-fill', '#b91c1c'),
+  ] %}
+  {% for val, lbl, icon, color in strips %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:{{ color }}">
+      <div class="kpi-lbl">{{ lbl }}</div>
+      <div class="kpi-val" style="color:{{ color }}">{{ val }}</div>
+      <i class="bi {{ icon }}" style="color:{{ color }};font-size:20px;margin-top:4px"></i>
+    </div>
+  </div>
+  {% endfor %}
+  <div class="col-6 col-md-4 col-lg-2">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl">Pipeline: Live</div>
+      <div class="kpi-val" style="color:#15803d">{{ pipeline.live }}</div>
+      <i class="bi bi-star-fill" style="color:#15803d;font-size:20px;margin-top:4px"></i>
+    </div>
+  </div>
+</div>
+
+<div class="row g-3">
+  <!-- GABAY ACTIVITY TABLE -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header d-flex justify-content-between">
+        <span><i class="bi bi-person-badge me-2"></i>Gabay Activity Today</span>
+        <span style="font-size:11px;color:#9aabc5">{{ gabay_summary|length }} agents</span>
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-hover mb-0">
+          <thead><tr>
+            <th>Gabay</th><th>Visits Today</th><th>Active Leads</th><th>Live</th><th>Status</th>
+          </tr></thead>
+          <tbody>
+            {% for g in gabay_summary %}
+            <tr>
+              <td>
+                <a href="{{ url_for('gabay_scorecard', gabay_id=g.gabay.id) }}" style="color:#1F3864;font-weight:700;text-decoration:none">
+                  {{ g.gabay.full_name.split()[0] }} {{ g.gabay.full_name.split()[-1] if g.gabay.full_name.split()|length > 1 else '' }}
+                </a>
+              </td>
+              <td>
+                <span style="font-weight:700;{% if g.visits_today == 0 %}color:#b91c1c{% elif g.visits_today >= 3 %}color:#15803d{% else %}color:#E07B00{% endif %}">
+                  {{ g.visits_today }}
+                </span>
+              </td>
+              <td>{{ g.active }}</td>
+              <td style="font-weight:700;color:#15803d">{{ g.live }}</td>
+              <td>
+                {% if g.visits_today == 0 %}
+                  <span class="badge" style="background:#fee2e2;color:#b91c1c">No Activity</span>
+                {% elif g.visits_today >= 3 %}
+                  <span class="badge" style="background:#dcfce7;color:#15803d">Active</span>
+                {% else %}
+                  <span class="badge" style="background:#fef3c7;color:#b45309">Low</span>
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
+    <!-- NO-ACTIVITY ALERT -->
+    {% if inactive %}
+    <div class="alert mt-3" style="background:#FEF2F2;border:1px solid #FECACA;color:#b91c1c;font-size:13px">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      <strong>{{ inactive|length }} Gabay with no visits today:</strong>
+      {{ inactive|map(attribute='gabay')|map(attribute='full_name')|map('truncate', 15, True, '…')|join(', ') }}
+    </div>
+    {% endif %}
+  </div>
+
+  <!-- PIPELINE SNAPSHOT + VISIT LIST -->
+  <div class="col-md-5">
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-funnel me-2"></i>Pipeline Snapshot</div>
+      <div class="card-body">
+        {% set pipeline_items = [
+          ('Pool', pipeline.pool, '#9aabc5'),
+          ('Assigned', pipeline.assigned, '#2E75B6'),
+          ('Attempting', pipeline.attempting, '#E07B00'),
+          ('Negotiation', pipeline.negotiation, '#7c3aed'),
+          ('Registration', pipeline.registration, '#be185d'),
+          ('Live', pipeline.live, '#15803d'),
+          ('Closed', pipeline.closed, '#b91c1c'),
+        ] %}
+        {% set max_p = pipeline.values()|max or 1 %}
+        {% for label, cnt, color in pipeline_items %}
+        <div class="d-flex align-items-center gap-2 mb-2" style="font-size:12px">
+          <span style="width:80px;color:#4a5568;font-weight:600">{{ label }}</span>
+          <div class="progress flex-grow-1" style="height:10px">
+            <div class="progress-bar" style="width:{{ (cnt/max_p*100)|int }}%;background:{{ color }}"></div>
+          </div>
+          <span style="width:30px;text-align:right;font-weight:700;color:{{ color }}">{{ cnt }}</span>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-geo-alt me-2"></i>Today's Visits ({{ visits_today|length }})</div>
+      <div style="max-height:260px;overflow-y:auto">
+        {% if visits_today %}
+        {% for v in visits_today[:15] %}
+        <div style="padding:8px 16px;border-bottom:1px solid #F0F4FA;font-size:12px">
+          <div style="font-weight:700;color:#1F3864">{{ v.lead.seller_name if v.lead else '—' }}</div>
+          <div style="color:#9aabc5">{{ v.gabay.full_name.split()[0] if v.gabay else '—' }} · {{ v.visited_at.strftime('%I:%M %p') }} · <span style="color:#4a5568">{{ (v.outcome or '—').replace('_',' ').title() }}</span></div>
+        </div>
+        {% endfor %}
+        {% if visits_today|length > 15 %}
+        <div style="padding:8px 16px;font-size:11px;color:#9aabc5;text-align:center">+{{ visits_today|length - 15 }} more visits today</div>
+        {% endif %}
+        {% else %}
+        <div style="padding:30px;text-align:center;color:#9aabc5;font-size:12px">No visits recorded today yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
