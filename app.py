@@ -23,6 +23,9 @@ login_manager.login_message_category = 'warning'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('instance', exist_ok=True)
 
+with app.app_context():
+    db.create_all()
+
 
 @login_manager.user_loader
 def load_user(user_id):
