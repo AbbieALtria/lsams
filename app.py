@@ -44,6 +44,20 @@ def inject_globals():
     return dict(pool_nav_count=pool_count, now=dt.utcnow(), unread_notif=unread_notif)
 
 
+# ─── FIRST-TIME SETUP ────────────────────────────────────────────────────────
+
+@app.route('/setup')
+def setup():
+    if User.query.count() > 0:
+        return 'Setup already done. Users exist.', 403
+    from werkzeug.security import generate_password_hash
+    u = User(username='superadmin', full_name='Super Admin', role='superadmin',
+             password_hash=generate_password_hash('Super@2026'), is_active=True)
+    db.session.add(u)
+    db.session.commit()
+    return 'Superadmin created! Username: superadmin  Password: Super@2026 — Go to /login now.'
+
+
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
 @app.route('/', methods=['GET', 'POST'])
