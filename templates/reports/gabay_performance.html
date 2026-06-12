@@ -1,0 +1,84 @@
+{% extends "base.html" %}
+{% block title %}Gabay Performance Report{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-person-lines-fill me-2"></i>Gabay Performance Report</div>
+    <div style="color:#9aabc5;font-size:12px">Monthly conversion rates per agent — {{ month }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<div id="pdf-content">
+
+<div class="card">
+  <div class="card-header">Agent Performance — {{ month }}</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>#</th><th>Agent</th><th>Total Leads</th>
+          <th>Visits (Month)</th><th>Visits (Total)</th>
+          <th>Live</th><th>Matched</th><th>Conv%</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in rows %}
+        {% set conv = r.conv %}
+        <tr>
+          <td style="color:#9aabc5;font-weight:700">{{ loop.index }}</td>
+          <td>
+            <div style="font-weight:700;color:#1F3864">{{ r.gabay.full_name }}</div>
+            <div style="font-size:11px;color:#9aabc5">@{{ r.gabay.username }}</div>
+          </td>
+          <td><strong>{{ r.total }}</strong></td>
+          <td>
+            <span class="badge" style="background:#dbeafe;color:#1d4ed8;font-size:13px">{{ r.visits_month }}</span>
+          </td>
+          <td style="color:#9aabc5">{{ r.visits_total }}</td>
+          <td><span class="badge" style="background:#dcfce7;color:#15803d;font-size:13px">{{ r.live }}</span></td>
+          <td><strong style="font-size:16px">{{ r.matched }}</strong></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:8px;min-width:120px">
+              <div style="flex:1;background:#E0E6EF;border-radius:6px;height:10px;overflow:hidden">
+                <div style="width:{{ [conv, 100]|min }}%;height:10px;border-radius:6px;
+                     background:{% if conv >= 20 %}#15803d{% elif conv >= 10 %}#2E75B6{% elif conv >= 5 %}#E07B00{% else %}#b91c1c{% endif %}"></div>
+              </div>
+              <span style="font-size:12px;font-weight:800;min-width:40px;
+                    color:{% if conv >= 20 %}#15803d{% elif conv >= 10 %}#2E75B6{% elif conv >= 5 %}#E07B00{% else %}#b91c1c{% endif %}">
+                {{ conv }}%
+              </span>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="8" class="text-center text-muted py-4">No agent data found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:right;font-size:10px;color:#9aabc5;margin-top:12px">
+  Generated: {{ now.strftime('%B %d, %Y %I:%M %p') }} UTC
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  html2pdf().set({
+    margin: [10,10,10,10], filename: 'Gabay_Performance_{{ month|replace(" ","_") }}.pdf',
+    html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(document.getElementById('pdf-content')).save();
+}
+</script>
+{% endblock %}

@@ -1,0 +1,101 @@
+{% extends "base.html" %}
+{% block title %}Daily Field Report{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-calendar-check me-2"></i>Daily Field Report</div>
+    <div style="color:#9aabc5;font-size:12px">All visits recorded today — {{ today.strftime('%A, %B %d, %Y') }}</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<div id="pdf-content">
+
+<!-- SUMMARY CARDS -->
+<div class="row g-3 mb-4">
+  {% for gname, s in gabay_summary.items() %}
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-left-color:#1F3864">
+      <div class="kpi-lbl">{{ gname }}</div>
+      <div class="kpi-val">{{ s.visits }} <span style="font-size:14px;color:#9aabc5">visits</span></div>
+      <div class="d-flex gap-2 mt-2 flex-wrap">
+        <span class="badge" style="background:#dcfce7;color:#15803d">{{ s.interested }} Interested</span>
+        <span class="badge" style="background:#dbeafe;color:#1d4ed8">{{ s.registered }} Registered</span>
+        <span class="badge" style="background:#fef3c7;color:#92400e">{{ s.callback }} Callback</span>
+      </div>
+    </div>
+  </div>
+  {% else %}
+  <div class="col-12 text-center text-muted py-4">No visits recorded today.</div>
+  {% endfor %}
+</div>
+
+<!-- VISIT TABLE -->
+{% if visits %}
+<div class="card">
+  <div class="card-header">All Visits — {{ today.strftime('%B %d, %Y') }}</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Time</th><th>Gabay Agent</th><th>Seller</th><th>City</th><th>Outcome</th><th>Notes</th><th>GPS</th></tr>
+      </thead>
+      <tbody>
+        {% for v in visits %}
+        <tr>
+          <td style="font-size:12px;color:#9aabc5;white-space:nowrap">{{ v.visited_at.strftime('%I:%M %p') }}</td>
+          <td><strong style="color:#1F3864">{{ v._gabay.full_name if v._gabay else '—' }}</strong></td>
+          <td>
+            {% if v._lead %}
+            <a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}" style="color:#1F3864;font-weight:600">{{ v._lead.seller_name }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:#9aabc5">{{ v._lead.city if v._lead else '—' }}</td>
+          <td>
+            <span class="badge" style="background:{% if v.outcome=='interested' %}#dcfce7;color:#15803d{% elif v.outcome=='registered' %}#dbeafe;color:#1d4ed8{% elif v.outcome=='callback' %}#fef3c7;color:#92400e{% elif v.outcome=='not_interested' %}#fee2e2;color:#b91c1c{% else %}#F0F4FA;color:#9aabc5{% endif %}">
+              {{ v.outcome|replace('_',' ')|title }}
+            </span>
+          </td>
+          <td style="font-size:12px;max-width:200px">{{ v.notes or '—' }}</td>
+          <td style="font-size:11px;color:#9aabc5">
+            {% if v.gps_lat and v.gps_lng %}
+            <a href="https://maps.google.com/?q={{ v.gps_lat }},{{ v.gps_lng }}" target="_blank" style="color:#2E75B6">
+              <i class="bi bi-geo-alt-fill"></i> Map
+            </a>
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="card"><div class="card-body text-center py-5 text-muted">
+  <i class="bi bi-calendar-x" style="font-size:40px;display:block;margin-bottom:12px;color:#CBD5E1"></i>
+  <div style="font-weight:700">No visits recorded today</div>
+</div></div>
+{% endif %}
+
+<div style="text-align:right;font-size:10px;color:#9aabc5;margin-top:12px">
+  Generated: {{ now.strftime('%B %d, %Y %I:%M %p') }} UTC
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  html2pdf().set({
+    margin: [10,10,10,10], filename: 'Daily_Field_Report_{{ today }}.pdf',
+    html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(document.getElementById('pdf-content')).save();
+}
+</script>
+{% endblock %}

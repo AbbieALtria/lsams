@@ -1080,6 +1080,148 @@ def reports():
     return render_template('reports/index.html')
 
 
+@app.route('/reports/daily-field')
+@login_required
+def report_daily_field():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    today = date.today()
+    visits = Visit.query.filter(func.date(Visit.visited_at) == today)\
+        .order_by(Visit.gabay_id, Visit.visited_at).all()
+    for v in visits:
+        v._gabay = User.query.get(v.gabay_id)
+        v._lead = Lead.query.get(v.lead_id)
+    gabay_summary = {}
+    for v in visits:
+        gname = v._gabay.full_name if v._gabay else '—'
+        gabay_summary.setdefault(gname, {'visits': 0, 'interested': 0, 'registered': 0, 'callback': 0})
+        gabay_summary[gname]['visits'] += 1
+        if v.outcome in ('interested', 'registered', 'callback'):
+            gabay_summary[gname][v.outcome] += 1
+    return render_template('reports/daily_field.html',
+        visits=visits, today=today, gabay_summary=gabay_summary, now=datetime.utcnow())
+
+
+@app.route('/reports/gabay-performance')
+@login_required
+def report_gabay_performance():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    today = date.today()
+    agents = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    rows = []
+    for a in agents:
+        total = Lead.query.filter_by(gabay_id=a.id).count()
+        live = Lead.query.filter_by(gabay_id=a.id, status='live').count()
+        matched = Lead.query.filter_by(gabay_id=a.id, status='matched').count()
+        visits_month = Visit.query.filter(
+            Visit.gabay_id == a.id,
+            extract('year', Visit.visited_at) == today.year,
+            extract('month', Visit.visited_at) == today.month
+        ).count()
+        visits_total = Visit.query.filter_by(gabay_id=a.id).count()
+        conv = round(live / total * 100, 1) if total else 0
+        rows.append({'gabay': a, 'total': total, 'live': live, 'matched': matched,
+                     'visits_month': visits_month, 'visits_total': visits_total, 'conv': conv})
+    rows.sort(key=lambda x: x['live'], reverse=True)
+    return render_template('reports/gabay_performance.html',
+        rows=rows, month=today.strftime('%B %Y'), now=datetime.utcnow())
+
+
+@app.route('/reports/pipeline-detail')
+@login_required
+def report_pipeline_detail():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    statuses = ['pool', 'assigned', 'attempting', 'negotiation', 'registration', 'live', 'matched', 'closed']
+    totals = {s: Lead.query.filter_by(status=s).count() for s in statuses}
+    city_raw = db.session.query(Lead.city, Lead.status, func.count(Lead.id))\
+        .group_by(Lead.city, Lead.status).all()
+    cities = {}
+    for city, status, count in city_raw:
+        c = city or 'Unknown'
+        cities.setdefault(c, {s: 0 for s in statuses})
+        if status in cities[c]:
+            cities[c][status] += count
+    cities = sorted(cities.items(), key=lambda x: sum(x[1].values()), reverse=True)[:20]
+    return render_template('reports/pipeline_detail.html',
+        totals=totals, cities=cities, statuses=statuses, now=datetime.utcnow())
+
+
+@app.route('/reports/stalled')
+@login_required
+def report_stalled():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=7)
+    leads = Lead.query.filter(
+        Lead.status.in_(['assigned', 'attempting']),
+        ~Lead.id.in_(db.session.query(Visit.lead_id).filter(Visit.visited_at >= cutoff))
+    ).order_by(Lead.gabay_id, Lead.assigned_at.asc()).all()
+    for l in leads:
+        l._gabay = User.query.get(l.gabay_id) if l.gabay_id else None
+        l._last_visit = Visit.query.filter_by(lead_id=l.id).order_by(Visit.visited_at.desc()).first()
+    return render_template('reports/stalled.html', leads=leads, now=datetime.utcnow())
+
+
+@app.route('/reports/city-coverage')
+@login_required
+def report_city_coverage():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    visited_ids = {v.lead_id for v in Visit.query.with_entities(Visit.lead_id).all()}
+    city_raw = db.session.query(Lead.city, func.count(Lead.id)).group_by(Lead.city).all()
+    rows = []
+    for city, total in city_raw:
+        city_name = city or 'Unknown'
+        leads_in = Lead.query.filter_by(city=city).with_entities(Lead.id, Lead.status).all()
+        visited = sum(1 for l in leads_in if l.id in visited_ids)
+        live = sum(1 for l in leads_in if l.status == 'live')
+        rows.append({'city': city_name, 'total': total, 'visited': visited,
+                     'unvisited': total - visited, 'live': live,
+                     'coverage': round(visited / total * 100) if total else 0})
+    rows.sort(key=lambda x: x['total'], reverse=True)
+    return render_template('reports/city_coverage.html', cities=rows, now=datetime.utcnow())
+
+
+@app.route('/reports/registrations-status')
+@login_required
+def report_registrations_status():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    regs = Registration.query.order_by(Registration.submitted_at.desc()).all()
+    for r in regs:
+        r._lead = Lead.query.get(r.lead_id) if r.lead_id else None
+        r._gabay = User.query.get(r._lead.gabay_id) if r._lead and r._lead.gabay_id else None
+    return render_template('reports/registrations_status.html',
+        regs=regs, now=datetime.utcnow())
+
+
+@app.route('/reports/campaign-roi')
+@login_required
+def report_campaign_roi():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    batches = db.session.query(
+        Lead.batch_ref,
+        func.count(Lead.id).label('total'),
+        func.min(Lead.imported_at).label('imported_at'),
+        func.sum(func.cast(Lead.status.in_(['live', 'matched']), db.Integer)).label('live'),
+        func.sum(func.cast(Lead.status == 'matched', db.Integer)).label('matched'),
+        func.sum(func.cast(Lead.status == 'closed', db.Integer)).label('closed'),
+    ).filter(Lead.batch_ref.isnot(None)).group_by(Lead.batch_ref)\
+     .order_by(func.min(Lead.imported_at).desc()).all()
+    return render_template('reports/campaign_roi.html', batches=batches, now=datetime.utcnow())
+
+
 @app.route('/api/reports/kpi')
 @login_required
 def api_kpi():

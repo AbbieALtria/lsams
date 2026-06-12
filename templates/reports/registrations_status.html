@@ -1,0 +1,88 @@
+{% extends "base.html" %}
+{% block title %}Registration Status Report{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-clipboard2-check me-2"></i>Registration Status Report</div>
+    <div style="color:#9aabc5;font-size:12px">Registration and activation stages for all sellers</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<div id="pdf-content">
+
+{% set status_colors = {'pending':'#E07B00','submitted':'#2E75B6','approved':'#15803d','rejected':'#b91c1c','live':'#065f46'} %}
+
+<!-- SUMMARY -->
+<div class="row g-3 mb-4">
+  {% for s, color in status_colors.items() %}
+  {% set cnt = regs|selectattr('status','eq',s)|list|length if regs else 0 %}
+  <div class="col-6 col-md-2">
+    <div class="kpi-card" style="border-left-color:{{ color }}">
+      <div class="kpi-lbl">{{ s|title }}</div>
+      <div class="kpi-val">{{ cnt }}</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- TABLE -->
+<div class="card">
+  <div class="card-header">All Registrations</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" style="font-size:13px">
+      <thead>
+        <tr><th>Seller</th><th>City</th><th>Gabay Agent</th><th>Submitted</th><th>Status</th><th>Notes</th></tr>
+      </thead>
+      <tbody>
+        {% for r in regs %}
+        <tr>
+          <td>
+            <strong style="color:#1F3864">
+              {% if r._lead %}<a href="{{ url_for('lead_detail', lead_id=r.lead_id) }}" style="color:#1F3864">{{ r._lead.seller_name }}</a>
+              {% else %}Unknown{% endif %}
+            </strong>
+          </td>
+          <td style="color:#9aabc5">{{ r._lead.city if r._lead else '—' }}</td>
+          <td>{{ r._gabay.full_name if r._gabay else '—' }}</td>
+          <td style="font-size:12px;color:#9aabc5">
+            {{ r.submitted_at.strftime('%b %d, %Y') if r.submitted_at else '—' }}
+          </td>
+          <td>
+            <span class="badge" style="background:{{ status_colors.get(r.status,'#9aabc5') }}22;color:{{ status_colors.get(r.status,'#9aabc5') }};font-weight:700">
+              {{ r.status|title }}
+            </span>
+          </td>
+          <td style="font-size:12px;max-width:200px;color:#9aabc5">{{ r.notes or '—' }}</td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No registrations found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:right;font-size:10px;color:#9aabc5;margin-top:12px">
+  Generated: {{ now.strftime('%B %d, %Y %I:%M %p') }} UTC
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  html2pdf().set({
+    margin: [10,10,10,10], filename: 'Registration_Status_Report.pdf',
+    html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(document.getElementById('pdf-content')).save();
+}
+</script>
+{% endblock %}

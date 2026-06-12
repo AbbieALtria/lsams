@@ -1,0 +1,100 @@
+{% extends "base.html" %}
+{% block title %}City Coverage Report{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-map me-2"></i>City Coverage Report</div>
+    <div style="color:#9aabc5;font-size:12px">Leads per city — visited vs unvisited</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<div id="pdf-content">
+
+<!-- SUMMARY TOTALS -->
+{% set grand_total = cities|sum(attribute='total') %}
+{% set grand_visited = cities|sum(attribute='visited') %}
+{% set grand_live = cities|sum(attribute='live') %}
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-left-color:#1F3864">
+      <div class="kpi-lbl">Total Leads</div>
+      <div class="kpi-val">{{ grand_total }}</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-left-color:#2E75B6">
+      <div class="kpi-lbl">Visited</div>
+      <div class="kpi-val">{{ grand_visited }} <span style="font-size:14px;color:#9aabc5">/ {{ grand_total }}</span></div>
+      <div class="kpi-sub">{{ '%.1f'|format(grand_visited/grand_total*100 if grand_total else 0) }}% coverage</div>
+    </div>
+  </div>
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl">Live Sellers</div>
+      <div class="kpi-val">{{ grand_live }}</div>
+      <div class="kpi-sub">{{ '%.1f'|format(grand_live/grand_total*100 if grand_total else 0) }}% activation</div>
+    </div>
+  </div>
+</div>
+
+<!-- CITY TABLE -->
+<div class="card">
+  <div class="card-header">Coverage by City</div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr><th>City</th><th>Total</th><th>Visited</th><th>Unvisited</th><th>Coverage</th><th>Live</th></tr>
+      </thead>
+      <tbody>
+        {% for c in cities %}
+        <tr>
+          <td><strong style="color:#1F3864">{{ c.city }}</strong></td>
+          <td><strong>{{ c.total }}</strong></td>
+          <td><span class="badge" style="background:#dbeafe;color:#1d4ed8">{{ c.visited }}</span></td>
+          <td><span class="badge" style="background:#fee2e2;color:#b91c1c">{{ c.unvisited }}</span></td>
+          <td style="min-width:160px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;background:#E0E6EF;border-radius:6px;height:10px;overflow:hidden">
+                <div style="width:{{ c.coverage }}%;height:10px;border-radius:6px;
+                     background:{% if c.coverage >= 80 %}#15803d{% elif c.coverage >= 50 %}#2E75B6{% elif c.coverage >= 25 %}#E07B00{% else %}#b91c1c{% endif %}"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;min-width:34px;
+                    color:{% if c.coverage >= 80 %}#15803d{% elif c.coverage >= 50 %}#2E75B6{% else %}#b91c1c{% endif %}">
+                {{ c.coverage }}%
+              </span>
+            </div>
+          </td>
+          <td><span class="badge" style="background:#dcfce7;color:#15803d">{{ c.live }}</span></td>
+        </tr>
+        {% else %}
+        <tr><td colspan="6" class="text-center text-muted py-4">No city data found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div style="text-align:right;font-size:10px;color:#9aabc5;margin-top:12px">
+  Generated: {{ now.strftime('%B %d, %Y %I:%M %p') }} UTC
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  html2pdf().set({
+    margin: [10,10,10,10], filename: 'City_Coverage_Report.pdf',
+    html2canvas: { scale: 2 }, jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' }
+  }).from(document.getElementById('pdf-content')).save();
+}
+</script>
+{% endblock %}
