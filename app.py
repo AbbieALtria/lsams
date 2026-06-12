@@ -1364,12 +1364,22 @@ def export_leads():
     rows = []
     for l in leads:
         rows.append({
-            'ID': l.id, 'Seller Name': l.seller_name, 'Business': l.business_name,
-            'Contact': l.contact_number, 'City': l.city, 'Region': l.region,
+            'ID': l.id,
+            'Seller Name': l.seller_name,
+            'Lazada ID': l.lazada_id or '',
+            'Contact': l.contact_number or '',
+            'Email': l.email or '',
+            'Barangay': l.barangay or '',
+            'City': l.city or '',
+            'Province': l.province or '',
+            'Category': l.category or '',
+            'Priority Tier': l.priority_tier or '',
             'Status': l.status_label,
             'Gabay': l.assigned_gabay.full_name if l.assigned_gabay else '',
             'Assigned At': l.assigned_at.strftime('%Y-%m-%d') if l.assigned_at else '',
             'Imported': l.imported_at.strftime('%Y-%m-%d') if l.imported_at else '',
+            'Batch Ref': l.batch_ref or '',
+            'Notes': l.notes or '',
         })
     df = pd.DataFrame(rows)
     buf = io.BytesIO()
