@@ -298,6 +298,13 @@ if (document.getElementById('leadSelect').value) {
   document.getElementById('leadSelect').dispatchEvent(new Event('change'));
 }
 
+// Auto-capture GPS on page load
+window.addEventListener('DOMContentLoaded', () => {
+  if (navigator.geolocation && !document.getElementById('gps_lat').value) {
+    setTimeout(getLocation, 600);
+  }
+});
+
 function getLocation() {
   const btn = document.getElementById('gpsBtn');
   document.getElementById('gpsEmoji').textContent = '⏳';

@@ -191,6 +191,32 @@
 </script>
 {% endif %}
 
+<!-- FOLLOW-UP REMINDER BANNER -->
+<div id="followupBanner" style="display:none;position:fixed;top:56px;left:0;right:0;z-index:98;
+     background:#be185d;color:white;padding:10px 16px;font-size:13px;font-weight:700;
+     display:none;align-items:center;gap:10px;cursor:pointer"
+     onclick="window.location.href='/gabay/app'">
+  <i class="bi bi-bell-fill" style="font-size:16px;flex-shrink:0"></i>
+  <span id="followupBannerText">You have follow-ups due today</span>
+  <i class="bi bi-chevron-right ms-auto"></i>
+</div>
+
+<!-- NOTIFICATION TOAST -->
+<div id="notifToast" style="display:none;position:fixed;top:64px;left:16px;right:16px;z-index:300;
+     background:#1F3864;color:white;border-radius:14px;padding:14px 16px;
+     box-shadow:0 8px 24px rgba(0,0,0,0.25);transition:opacity 0.4s">
+  <div style="display:flex;align-items:center;gap:10px">
+    <i class="bi bi-bell-fill" style="font-size:18px;color:#FF9900;flex-shrink:0"></i>
+    <div style="flex:1">
+      <div style="font-weight:800;font-size:13px" id="toastTitle"></div>
+      <div style="font-size:11px;opacity:0.8;margin-top:2px" id="toastMsg"></div>
+    </div>
+    <button onclick="document.getElementById('notifToast').style.display='none'"
+            style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;
+                   color:white;width:28px;height:28px;cursor:pointer;font-size:13px">✕</button>
+  </div>
+</div>
+
 <!-- FLASH MESSAGES -->
 {% for cat, msg in get_flashed_messages(with_categories=true) %}
 <div class="m-flash {{ 'success' if cat == 'success' else 'error' }}" id="mflash">
@@ -265,5 +291,86 @@ function closeHelp() {
 })();
 </script>
 {% block scripts %}{% endblock %}
+
+<script>
+// ── Notification polling ────────────────────────────────────────────
+let _lastNotifIds = new Set();
+let _notifInitialized = false;
+
+async function checkNotifications() {
+  try {
+    const res = await fetch('/api/notifications/unread');
+    if (!res.ok) return;
+    const notifs = await res.json();
+
+    // Follow-up banner
+    const followups = notifs.filter(n => n.type === 'followup_due');
+    const banner = document.getElementById('followupBanner');
+    if (followups.length > 0) {
+      document.getElementById('followupBannerText').textContent =
+        followups.length === 1
+          ? `Follow-up due: ${followups[0].title.replace('Follow-up due: ','')}`
+          : `${followups.length} follow-ups due today — tap to view`;
+      banner.style.display = 'flex';
+      document.body.style.paddingTop = '30px';
+    } else {
+      banner.style.display = 'none';
+      document.body.style.paddingTop = '';
+    }
+
+    // Toast for new notifications
+    if (_notifInitialized && notifs.length > 0) {
+      const newOnes = notifs.filter(n => !_lastNotifIds.has(n.id));
+      if (newOnes.length > 0) {
+        const n = newOnes[0];
+        document.getElementById('toastTitle').textContent = n.title;
+        document.getElementById('toastMsg').textContent = n.message;
+        const toast = document.getElementById('notifToast');
+        toast.style.display = 'block';
+        toast.style.opacity = '1';
+        if (n.link) toast.onclick = () => window.location.href = n.link;
+        setTimeout(() => {
+          toast.style.opacity = '0';
+          setTimeout(() => toast.style.display = 'none', 400);
+        }, 5000);
+      }
+    }
+
+    // Update badge count
+    const badge = document.getElementById('notifBadge');
+    if (badge) badge.textContent = notifs.length > 0 ? notifs.length : '';
+
+    _lastNotifIds = new Set(notifs.map(n => n.id));
+    _notifInitialized = true;
+  } catch (_) {}
+}
+
+// Run on load + every 60 seconds
+checkNotifications();
+setInterval(checkNotifications, 60000);
+
+// ── Offline pending visits badge ─────────────────────────────────────
+async function updatePendingBadge() {
+  try {
+    const req = indexedDB.open('lsams', 1);
+    req.onsuccess = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pending_visits')) return;
+      const tx = db.transaction('pending_visits', 'readonly');
+      const store = tx.objectStore('pending_visits');
+      const countReq = store.count();
+      countReq.onsuccess = () => {
+        const count = countReq.result;
+        const el = document.getElementById('pendingBadge');
+        if (el) el.textContent = count > 0 ? `${count} pending` : '';
+        if (count > 0 && navigator.onLine) {
+          navigator.serviceWorker.ready.then(sw => sw.sync.register('sync-visits')).catch(() => {});
+        }
+      };
+    };
+  } catch (_) {}
+}
+updatePendingBadge();
+</script>
 </body>
 </html>

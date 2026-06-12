@@ -184,7 +184,7 @@
 
 <!-- QUICK ACTIONS -->
 <div class="section-hdr" data-i18n="home_quick">Quick Actions</div>
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:16px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px">
   <a href="{{ url_for('gabay_quick_checkin') }}" style="text-decoration:none">
     <div style="background:linear-gradient(135deg,#FF9900,#ffb347);border-radius:18px;
                 padding:18px 12px;text-align:center;box-shadow:0 4px 12px rgba(255,153,0,0.3)">
@@ -202,6 +202,18 @@
     </div>
   </a>
 </div>
+<a href="{{ url_for('gabay_batch_checkin') }}" style="text-decoration:none;display:block;margin-bottom:16px">
+  <div style="background:linear-gradient(135deg,#7c3aed,#a855f7);border-radius:18px;
+              padding:14px 16px;display:flex;align-items:center;gap:14px;
+              box-shadow:0 4px 12px rgba(124,58,237,0.3)">
+    <div style="font-size:30px">📋</div>
+    <div>
+      <div style="font-weight:800;color:white;font-size:14px">Batch Check-In</div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.8);margin-top:2px">Log multiple sellers at once</div>
+    </div>
+    <i class="bi bi-chevron-right ms-auto" style="color:rgba(255,255,255,0.6);font-size:18px"></i>
+  </div>
+</a>
 
 <!-- STALLED LEADS WARNING -->
 {% if stalled_count > 0 %}

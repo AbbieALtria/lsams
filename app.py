@@ -295,6 +295,13 @@ def assign_lead(lead_id):
         lead.status = 'assigned'
     history = LeadAssignmentHistory(lead_id=lead_id, gabay_id=gabay_id, assigned_by=current_user.id)
     db.session.add(history)
+    notif = Notification(
+        user_id=gabay_id, type='new_assignment',
+        title='New lead assigned to you',
+        message=f'{lead.seller_name} ({lead.city or "—"}) has been assigned to you.',
+        link=f'/gabay/app/lead/{lead_id}', related_lead_id=lead_id
+    )
+    db.session.add(notif)
     db.session.commit()
     flash(f'Lead assigned to {gabay.full_name}.', 'success')
     return redirect(request.referrer or url_for('lead_detail', lead_id=lead_id))
@@ -1891,6 +1898,56 @@ def gabay_app_profile():
     stats = _gabay_stats(current_user.id)
     return render_template('gabay_app/profile.html',
         stats=stats, conversion_rate=stats['conversion_rate'])
+
+
+@app.route('/gabay/app/leads-json')
+@login_required
+def gabay_leads_json_offline():
+    gid = current_user.id
+    leads = Lead.query.filter(
+        Lead.gabay_id == gid,
+        Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration'])
+    ).order_by(Lead.seller_name).all()
+    return jsonify([{
+        'id': l.id, 'seller_name': l.seller_name, 'city': l.city or '',
+        'contact_number': l.contact_number or '', 'address': l.address or '',
+        'status': l.status, 'category': l.category or ''
+    } for l in leads])
+
+
+@app.route('/gabay/app/batch-checkin', methods=['GET', 'POST'])
+@login_required
+def gabay_batch_checkin():
+    if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor'):
+        return redirect(url_for('dashboard'))
+    gid = current_user.id
+    my_leads = Lead.query.filter(
+        Lead.gabay_id == gid,
+        Lead.status.in_(['assigned', 'attempting', 'negotiation'])
+    ).order_by(Lead.city, Lead.seller_name).all()
+    if request.method == 'POST':
+        lead_ids = request.form.getlist('lead_ids')
+        outcome = request.form.get('outcome')
+        notes = request.form.get('notes', '')
+        gps_lat = request.form.get('gps_lat')
+        gps_lng = request.form.get('gps_lng')
+        gps_address = request.form.get('gps_address', '')
+        count = 0
+        for lid in lead_ids:
+            lead = Lead.query.get(int(lid))
+            if lead and lead.gabay_id == gid:
+                visit = Visit(
+                    lead_id=int(lid), gabay_id=gid, visited_at=datetime.utcnow(),
+                    gps_lat=float(gps_lat) if gps_lat else None,
+                    gps_lng=float(gps_lng) if gps_lng else None,
+                    gps_address=gps_address, outcome=outcome, notes=notes
+                )
+                db.session.add(visit)
+                count += 1
+        db.session.commit()
+        flash(f'{count} visit{"s" if count != 1 else ""} logged!', 'success')
+        return redirect(url_for('gabay_home'))
+    return render_template('gabay_app/batch_checkin.html', my_leads=my_leads)
 
 
 @app.route('/presentation')
