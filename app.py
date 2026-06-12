@@ -5,7 +5,7 @@ from datetime import datetime, date
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, and_, or_
+from sqlalchemy import func, and_, or_, extract
 import io
 
 from config import Config
@@ -1404,11 +1404,14 @@ def lazada_portal():
     monthly = []
     for i in range(5, -1, -1):
         d = today.replace(day=1) - timedelta(days=30*i)
-        ms = d.strftime('%Y-%m')
-        vc = Visit.query.filter(func.strftime('%Y-%m', Visit.visited_at) == ms).count()
+        vc = Visit.query.filter(
+            extract('year', Visit.visited_at) == d.year,
+            extract('month', Visit.visited_at) == d.month
+        ).count()
         lc = Lead.query.filter(
             Lead.status.in_(['live','matched']),
-            func.strftime('%Y-%m', Lead.assigned_at) == ms
+            extract('year', Lead.assigned_at) == d.year,
+            extract('month', Lead.assigned_at) == d.month
         ).count()
         monthly.append({'label': d.strftime('%b %Y'), 'visits': vc, 'live': lc})
     return render_template('lazada/portal.html',
@@ -1583,15 +1586,16 @@ def gabay_scorecard(gabay_id):
     months = []
     for i in range(5, -1, -1):
         d = today.replace(day=1) - timedelta(days=30*i)
-        month_str = d.strftime('%Y-%m')
         v = Visit.query.filter(
             Visit.gabay_id == gabay_id,
-            func.strftime('%Y-%m', Visit.visited_at) == month_str
+            extract('year', Visit.visited_at) == d.year,
+            extract('month', Visit.visited_at) == d.month
         ).count()
         live = Lead.query.filter(
             Lead.gabay_id == gabay_id,
             Lead.status == 'live',
-            func.strftime('%Y-%m', Lead.assigned_at) == month_str
+            extract('year', Lead.assigned_at) == d.year,
+            extract('month', Lead.assigned_at) == d.month
         ).count()
         months.append({'label': d.strftime('%b %Y'), 'visits': v, 'live': live})
 
@@ -1679,7 +1683,8 @@ def _gabay_stats(gabay_id):
     ).count()
     visits_this_month = Visit.query.filter(
         Visit.gabay_id == gabay_id,
-        func.strftime('%Y-%m', Visit.visited_at) == today.strftime('%Y-%m')
+        extract('year', Visit.visited_at) == today.year,
+        extract('month', Visit.visited_at) == today.month
     ).count()
     live_total = Lead.query.filter_by(gabay_id=gabay_id, status='live').count()
     total_assigned_ever = Lead.query.filter(Lead.gabay_id == gabay_id).count()
