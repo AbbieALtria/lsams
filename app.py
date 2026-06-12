@@ -25,6 +25,28 @@ os.makedirs('instance', exist_ok=True)
 
 with app.app_context():
     db.create_all()
+    # Add new User columns if they don't exist (safe for existing Railway DB)
+    _new_user_cols = [
+        ("mobile",         "VARCHAR(20)"),
+        ("mobile2",        "VARCHAR(20)"),
+        ("viber",          "VARCHAR(20)"),
+        ("facebook",       "VARCHAR(200)"),
+        ("house_number",   "VARCHAR(50)"),
+        ("street",         "VARCHAR(200)"),
+        ("barangay",       "VARCHAR(100)"),
+        ("city_address",   "VARCHAR(100)"),
+        ("profile_photo",  "VARCHAR(200)"),
+        ("deactivated_at", "TIMESTAMP"),
+    ]
+    with db.engine.connect() as _conn:
+        for _col, _type in _new_user_cols:
+            try:
+                _conn.execute(db.text(
+                    f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                ))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
 
 
 @login_manager.user_loader
