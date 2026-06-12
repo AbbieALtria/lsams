@@ -5,7 +5,7 @@ from datetime import datetime, date
 from flask import Flask, render_template, redirect, url_for, request, flash, jsonify, send_file
 from flask_login import LoginManager, login_user, logout_user, login_required, current_user
 from werkzeug.utils import secure_filename
-from sqlalchemy import func, and_, or_, extract
+from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
@@ -41,7 +41,7 @@ with app.app_context():
     with db.engine.connect() as _conn:
         for _col, _type in _new_user_cols:
             try:
-                _conn.execute(db.text(
+                _conn.execute(text(
                     f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {_col} {_type}"
                 ))
                 _conn.commit()
