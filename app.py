@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -128,10 +128,23 @@ def dashboard():
     # Recent activity
     recent_visits = Visit.query.order_by(Visit.visited_at.desc()).limit(10).all()
 
+    # Aging leads — assigned/attempting with no visit in 14+ days
+    from datetime import timedelta
+    aging_cutoff = datetime.utcnow() - timedelta(days=14)
+    aging_leads = Lead.query.filter(
+        Lead.status.in_(['assigned', 'attempting']),
+        ~Lead.id.in_(
+            db.session.query(Visit.lead_id).filter(Visit.visited_at >= aging_cutoff)
+        )
+    ).order_by(Lead.assigned_at.asc()).limit(20).all()
+    for al in aging_leads:
+        al._gabay = User.query.get(al.gabay_id) if al.gabay_id else None
+
     return render_template('dashboard.html',
         total_pool=total_pool, assigned=assigned, attempting=attempting,
         negotiation=negotiation, registration=registration, live=live,
-        matched=matched, gabay_stats=gabay_stats, recent_visits=recent_visits)
+        matched=matched, gabay_stats=gabay_stats, recent_visits=recent_visits,
+        aging_leads=aging_leads)
 
 
 # ─── LEADS ───────────────────────────────────────────────────────────────────
@@ -1948,6 +1961,112 @@ def gabay_batch_checkin():
         flash(f'{count} visit{"s" if count != 1 else ""} logged!', 'success')
         return redirect(url_for('gabay_home'))
     return render_template('gabay_app/batch_checkin.html', my_leads=my_leads)
+
+
+@app.route('/targets', methods=['GET', 'POST'])
+@login_required
+def targets():
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    from datetime import timedelta
+    today = date.today()
+    month_str = today.strftime('%Y-%m')
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    if request.method == 'POST':
+        for g in gabay_users:
+            tv = request.form.get(f'visits_{g.id}', 0, type=int)
+            tl = request.form.get(f'live_{g.id}', 0, type=int)
+            t = GabayTarget.query.filter_by(gabay_id=g.id, month=month_str).first()
+            if t:
+                t.target_visits = tv
+                t.target_live = tl
+            else:
+                db.session.add(GabayTarget(gabay_id=g.id, month=month_str,
+                                           target_visits=tv, target_live=tl,
+                                           set_by=current_user.id))
+        db.session.commit()
+        flash('Targets saved for ' + today.strftime('%B %Y') + '.', 'success')
+        return redirect(url_for('targets'))
+
+    rows = []
+    for g in gabay_users:
+        t = GabayTarget.query.filter_by(gabay_id=g.id, month=month_str).first()
+        actual_visits = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            extract('year', Visit.visited_at) == today.year,
+            extract('month', Visit.visited_at) == today.month
+        ).count()
+        actual_live = Lead.query.filter_by(gabay_id=g.id, status='live').count()
+        rows.append({
+            'gabay': g,
+            'target_visits': t.target_visits if t else 0,
+            'target_live': t.target_live if t else 0,
+            'actual_visits': actual_visits,
+            'actual_live': actual_live,
+        })
+    return render_template('targets.html', rows=rows, month=today.strftime('%B %Y'))
+
+
+@app.route('/activity')
+@login_required
+def activity_log():
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    from datetime import timedelta
+
+    gabay_filter = request.args.get('gabay', '', type=str)
+    days = request.args.get('days', 7, type=int)
+    action_type = request.args.get('type', 'all')
+    cutoff = datetime.utcnow() - timedelta(days=days)
+
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    events = []
+
+    # Visits
+    if action_type in ('all', 'visits'):
+        vq = Visit.query.filter(Visit.visited_at >= cutoff)
+        if gabay_filter:
+            vq = vq.filter(Visit.gabay_id == int(gabay_filter))
+        for v in vq.order_by(Visit.visited_at.desc()).limit(200).all():
+            lead = Lead.query.get(v.lead_id)
+            gabay = User.query.get(v.gabay_id)
+            events.append({
+                'type': 'visit', 'ts': v.visited_at,
+                'gabay': gabay.full_name if gabay else '—',
+                'detail': f'Visited {lead.seller_name if lead else "unknown"} — {v.outcome_label}',
+                'meta': lead.city if lead else '',
+                'link': f'/gabay/app/lead/{v.lead_id}' if lead else None,
+                'color': '#2E75B6',
+            })
+
+    # Assignments
+    if action_type in ('all', 'assignments'):
+        aq = LeadAssignmentHistory.query.filter(LeadAssignmentHistory.assigned_at >= cutoff)
+        if gabay_filter:
+            aq = aq.filter(LeadAssignmentHistory.gabay_id == int(gabay_filter))
+        for h in aq.order_by(LeadAssignmentHistory.assigned_at.desc()).limit(200).all():
+            lead = Lead.query.get(h.lead_id)
+            gabay = User.query.get(h.gabay_id)
+            assigner = User.query.get(h.assigned_by)
+            events.append({
+                'type': 'assignment', 'ts': h.assigned_at,
+                'gabay': gabay.full_name if gabay else '—',
+                'detail': f'Lead assigned: {lead.seller_name if lead else "unknown"}',
+                'meta': f'by {assigner.full_name if assigner else "system"}',
+                'link': f'/leads/{h.lead_id}' if lead else None,
+                'color': '#15803d',
+            })
+
+    events.sort(key=lambda e: e['ts'], reverse=True)
+    events = events[:300]
+
+    return render_template('activity.html',
+        events=events, gabay_users=gabay_users,
+        gabay_filter=gabay_filter, days=days, action_type=action_type)
 
 
 @app.route('/presentation')

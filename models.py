@@ -269,3 +269,15 @@ class LeadAssignmentHistory(db.Model):
     assigned_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
     notes = db.Column(db.Text)
+
+
+class GabayTarget(db.Model):
+    __tablename__ = 'gabay_targets'
+    id = db.Column(db.Integer, primary_key=True)
+    gabay_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    month = db.Column(db.String(7), nullable=False)  # 'YYYY-MM'
+    target_visits = db.Column(db.Integer, default=0)
+    target_live = db.Column(db.Integer, default=0)
+    set_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    __table_args__ = (db.UniqueConstraint('gabay_id', 'month', name='uq_gabay_month'),)

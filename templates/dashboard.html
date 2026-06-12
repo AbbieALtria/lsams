@@ -117,6 +117,44 @@
   </div>
 </div>
 
+<!-- AGING LEADS ALERT -->
+{% if aging_leads %}
+<div class="card mb-4" style="border-left:4px solid #b91c1c">
+  <div class="card-header d-flex align-items-center justify-content-between"
+       style="background:#FFF5F5;border-bottom-color:#fee2e2">
+    <span style="color:#b91c1c;font-weight:800">
+      <i class="bi bi-exclamation-triangle-fill me-2"></i>
+      Aging Leads — No Visit in 14+ Days
+      <span class="badge ms-2" style="background:#b91c1c;color:white">{{ aging_leads|length }}</span>
+    </span>
+    <a href="{{ url_for('leads') }}?status=assigned" class="btn btn-sm"
+       style="background:#b91c1c;color:white;font-size:11px">View All Leads</a>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0">
+      <thead>
+        <tr><th>Seller</th><th>City</th><th>Status</th><th>Gabay</th><th>Assigned</th></tr>
+      </thead>
+      <tbody>
+        {% for al in aging_leads %}
+        <tr>
+          <td><a href="{{ url_for('lead_detail', lead_id=al.id) }}" style="font-weight:700;color:#1F3864">{{ al.seller_name }}</a></td>
+          <td style="color:#9aabc5">{{ al.city or '—' }}</td>
+          <td><span class="badge badge-{{ al.status }}">{{ al.status_label }}</span></td>
+          <td>{{ al._gabay.full_name if al._gabay else '—' }}</td>
+          <td style="color:#b91c1c;font-size:12px;font-weight:600">
+            {% if al.assigned_at %}
+              {{ ((now - al.assigned_at).days) }} days ago
+            {% else %}—{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
 <!-- RECENT ACTIVITY -->
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between">

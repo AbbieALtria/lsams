@@ -417,6 +417,12 @@
   <a href="{{ url_for('daily_digest') }}" class="nav-link {% if request.endpoint == 'daily_digest' %}active{% endif %}">
     <i class="bi bi-newspaper"></i> Daily Digest
   </a>
+  <a href="{{ url_for('targets') }}" class="nav-link {% if request.endpoint == 'targets' %}active{% endif %}">
+    <i class="bi bi-bullseye"></i> Targets
+  </a>
+  <a href="{{ url_for('activity_log') }}" class="nav-link {% if request.endpoint == 'activity_log' %}active{% endif %}">
+    <i class="bi bi-clock-history"></i> Activity Log
+  </a>
   {% endif %}
 
   <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active{% endif %}">

@@ -1,0 +1,140 @@
+{% extends "base.html" %}
+{% block title %}Monthly Targets{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div class="page-title"><i class="bi bi-bullseye me-2"></i>Monthly Targets — {{ month }}</div>
+  <div style="color:#9aabc5;font-size:12px">Set visit and live seller targets per Gabay agent</div>
+</div>
+
+{% if current_user.is_manager %}
+<form method="POST">
+{% endif %}
+
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span>Target vs Actual — {{ month }}</span>
+    {% if current_user.is_manager %}
+    <button type="submit" class="btn btn-sm" style="background:#1F3864;color:white;font-size:11px">
+      <i class="bi bi-floppy me-1"></i>Save Targets
+    </button>
+    {% endif %}
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle">
+      <thead>
+        <tr>
+          <th>Gabay Agent</th>
+          <th>Target Visits</th>
+          <th>Actual Visits</th>
+          <th>Visit Progress</th>
+          <th>Target Live</th>
+          <th>Actual Live</th>
+          <th>Live Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set vpct = [((row.actual_visits / row.target_visits * 100)|int if row.target_visits else 0), 100]|min %}
+        {% set lpct = [((row.actual_live / row.target_live * 100)|int if row.target_live else 0), 100]|min %}
+        <tr>
+          <td>
+            <div style="font-weight:700;color:#1F3864">{{ row.gabay.full_name }}</div>
+            <div style="font-size:11px;color:#9aabc5">@{{ row.gabay.username }}</div>
+          </td>
+          <td>
+            {% if current_user.is_manager %}
+            <input type="number" name="visits_{{ row.gabay.id }}" value="{{ row.target_visits }}"
+                   min="0" max="999" class="form-control form-control-sm"
+                   style="width:80px;font-weight:700;text-align:center">
+            {% else %}
+            <strong>{{ row.target_visits }}</strong>
+            {% endif %}
+          </td>
+          <td>
+            <strong style="font-size:16px;color:#2E75B6">{{ row.actual_visits }}</strong>
+          </td>
+          <td style="min-width:140px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;background:#E0E6EF;border-radius:6px;height:10px;overflow:hidden">
+                <div style="width:{{ vpct }}%;height:10px;border-radius:6px;
+                     background:{% if vpct >= 100 %}#15803d{% elif vpct >= 60 %}#2E75B6{% elif vpct >= 30 %}#E07B00{% else %}#b91c1c{% endif %};
+                     transition:width 0.5s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;min-width:34px;
+                    color:{% if vpct >= 100 %}#15803d{% elif vpct >= 60 %}#2E75B6{% else %}#b91c1c{% endif %}">
+                {{ vpct }}%
+              </span>
+            </div>
+          </td>
+          <td>
+            {% if current_user.is_manager %}
+            <input type="number" name="live_{{ row.gabay.id }}" value="{{ row.target_live }}"
+                   min="0" max="999" class="form-control form-control-sm"
+                   style="width:80px;font-weight:700;text-align:center">
+            {% else %}
+            <strong>{{ row.target_live }}</strong>
+            {% endif %}
+          </td>
+          <td>
+            <strong style="font-size:16px;color:#15803d">{{ row.actual_live }}</strong>
+          </td>
+          <td style="min-width:140px">
+            <div style="display:flex;align-items:center;gap:8px">
+              <div style="flex:1;background:#E0E6EF;border-radius:6px;height:10px;overflow:hidden">
+                <div style="width:{{ lpct }}%;height:10px;border-radius:6px;
+                     background:{% if lpct >= 100 %}#15803d{% elif lpct >= 60 %}#2E75B6{% elif lpct >= 30 %}#E07B00{% else %}#b91c1c{% endif %};
+                     transition:width 0.5s"></div>
+              </div>
+              <span style="font-size:12px;font-weight:700;min-width:34px;
+                    color:{% if lpct >= 100 %}#15803d{% elif lpct >= 60 %}#2E75B6{% else %}#b91c1c{% endif %}">
+                {{ lpct }}%
+              </span>
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="7" class="text-center text-muted py-4">No Gabay agents found.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- TEAM SUMMARY CARDS -->
+<div class="row g-3">
+  {% set total_v_target = rows|sum(attribute='target_visits') %}
+  {% set total_v_actual = rows|sum(attribute='actual_visits') %}
+  {% set total_l_target = rows|sum(attribute='target_live') %}
+  {% set total_l_actual = rows|sum(attribute='actual_live') %}
+  {% set tv_pct = [((total_v_actual / total_v_target * 100)|int if total_v_target else 0), 100]|min %}
+  {% set tl_pct = [((total_l_actual / total_l_target * 100)|int if total_l_target else 0), 100]|min %}
+
+  <div class="col-md-6">
+    <div class="kpi-card" style="border-left-color:#2E75B6">
+      <div class="kpi-lbl">Team Visits — {{ month }}</div>
+      <div class="kpi-val">{{ total_v_actual }} <span style="font-size:16px;color:#9aabc5">/ {{ total_v_target }}</span></div>
+      <div class="progress mt-2">
+        <div class="progress-bar" style="width:{{ tv_pct }}%;background:#2E75B6"></div>
+      </div>
+      <div class="kpi-sub mt-1">{{ tv_pct }}% of monthly target</div>
+    </div>
+  </div>
+  <div class="col-md-6">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl">Team Live Sellers — {{ month }}</div>
+      <div class="kpi-val">{{ total_l_actual }} <span style="font-size:16px;color:#9aabc5">/ {{ total_l_target }}</span></div>
+      <div class="progress mt-2">
+        <div class="progress-bar" style="width:{{ tl_pct }}%;background:#15803d"></div>
+      </div>
+      <div class="kpi-sub mt-1" style="color:#15803d">{{ tl_pct }}% of monthly target</div>
+    </div>
+  </div>
+</div>
+
+{% if current_user.is_manager %}
+</form>
+{% endif %}
+
+{% endblock %}
