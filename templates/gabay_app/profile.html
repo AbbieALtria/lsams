@@ -157,34 +157,98 @@
 <div class="section-hdr" style="margin-top:4px">
   <i class="bi bi-question-circle me-1"></i><span data-i18n="profile_help">Help &amp; Guide</span>
 </div>
-<div class="m-card" style="padding:0">
+
+<!-- Getting Started -->
+<div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;
+            padding:10px 4px 6px">Getting Started</div>
+<div class="m-card" style="padding:0;margin-bottom:12px">
   <button onclick="openHelp('help_home_title','help_home_body')"
           style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
                  padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
-    <span style="font-size:22px">🏠</span>
-    <div style="flex:1">
-      <div style="font-weight:700;color:#1F3864;font-size:13px">How to use the Home Screen</div>
-      <div style="font-size:11px;color:#9aabc5">Stats, suggestions, and alerts explained</div>
+    <div style="width:38px;height:38px;border-radius:12px;background:#EEF2FF;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-house-fill" style="color:#1F3864;font-size:17px"></i>
     </div>
-    <i class="bi bi-chevron-right" style="color:#ccc"></i>
-  </button>
-  <button onclick="openHelp('help_checkin_title','help_checkin_body')"
-          style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
-                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
-    <span style="font-size:22px">📍</span>
     <div style="flex:1">
-      <div style="font-weight:700;color:#1F3864;font-size:13px">How to Check In</div>
-      <div style="font-size:11px;color:#9aabc5">GPS, outcomes, and submitting a visit</div>
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Understanding the Home Screen</div>
+      <div style="font-size:11px;color:#9aabc5">Your stats, priority leads, and alerts</div>
     </div>
     <i class="bi bi-chevron-right" style="color:#ccc"></i>
   </button>
   <button onclick="openHelp('help_leads_title','help_leads_body')"
           style="width:100%;background:none;border:none;
                  padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
-    <span style="font-size:22px">👥</span>
+    <div style="width:38px;height:38px;border-radius:12px;background:#dbeafe;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-people-fill" style="color:#1d4ed8;font-size:17px"></i>
+    </div>
     <div style="flex:1">
-      <div style="font-weight:700;color:#1F3864;font-size:13px">Understanding My Leads</div>
-      <div style="font-size:11px;color:#9aabc5">Status filters, search, and lead details</div>
+      <div style="font-weight:700;color:#1F3864;font-size:13px">My Leads — Status Colors Explained</div>
+      <div style="font-size:11px;color:#9aabc5">What each color badge means</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+</div>
+
+<!-- Daily Workflow -->
+<div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;
+            padding:4px 4px 6px">Daily Workflow</div>
+<div class="m-card" style="padding:0;margin-bottom:12px">
+  <button onclick="openHelp('help_checkin_title','help_checkin_body')"
+          style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <div style="width:38px;height:38px;border-radius:12px;background:#dcfce7;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-geo-alt-fill" style="color:#15803d;font-size:17px"></i>
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">How to Check In (4 Steps)</div>
+      <div style="font-size:11px;color:#9aabc5">GPS, outcomes, notes, and submitting</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+  <button onclick="openHelp('help_outcomes_title','help_outcomes_body')"
+          style="width:100%;background:none;border:none;border-bottom:1px solid #F0F4FA;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <div style="width:38px;height:38px;border-radius:12px;background:#fef3c7;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-check2-square" style="color:#92400e;font-size:17px"></i>
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Visit Outcomes — Which to Choose?</div>
+      <div style="font-size:11px;color:#9aabc5">Interested, Callback, Registered, and more</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+  <button onclick="openHelp('help_batch_title','help_batch_body')"
+          style="width:100%;background:none;border:none;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <div style="width:38px;height:38px;border-radius:12px;background:#ede9fe;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-collection-fill" style="color:#6d28d9;font-size:17px"></i>
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Batch Check-In</div>
+      <div style="font-size:11px;color:#9aabc5">Log multiple sellers at once</div>
+    </div>
+    <i class="bi bi-chevron-right" style="color:#ccc"></i>
+  </button>
+</div>
+
+<!-- Technical -->
+<div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;
+            padding:4px 4px 6px">Technical</div>
+<div class="m-card" style="padding:0;margin-bottom:12px">
+  <button onclick="openHelp('help_offline_title','help_offline_body')"
+          style="width:100%;background:none;border:none;
+                 padding:14px 16px;display:flex;align-items:center;gap:12px;cursor:pointer;text-align:left">
+    <div style="width:38px;height:38px;border-radius:12px;background:#fee2e2;
+                display:flex;align-items:center;justify-content:center;flex-shrink:0">
+      <i class="bi bi-wifi-off" style="color:#b91c1c;font-size:17px"></i>
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:700;color:#1F3864;font-size:13px">Offline Mode &amp; Auto-Sync</div>
+      <div style="font-size:11px;color:#9aabc5">How LSAMS works without internet</div>
     </div>
     <i class="bi bi-chevron-right" style="color:#ccc"></i>
   </button>
