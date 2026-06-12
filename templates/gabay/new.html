@@ -1,47 +1,129 @@
 {% extends "base.html" %}
 {% block title %}Add Agent{% endblock %}
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex align-items-center justify-content-between">
   <div class="page-title"><i class="bi bi-person-plus me-2"></i>Add User / Agent</div>
-  <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-secondary">Back</a>
+  <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
-<div class="row justify-content-center">
+
+<form method="POST">
+<div class="row g-4">
+
+  <!-- LEFT: Account Info -->
   <div class="col-md-6">
     <div class="card">
-      <div class="card-header">New User Account</div>
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>Account Information</div>
       <div class="card-body">
-        <form method="POST">
-          <div class="mb-3">
-            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">FULL NAME *</label>
-            <input type="text" name="full_name" class="form-control" required placeholder="e.g. Abigail Bulasco">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">USERNAME *</label>
-            <input type="text" name="username" class="form-control" required placeholder="e.g. abigail.bulasco">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">EMAIL *</label>
-            <input type="email" name="email" class="form-control" required placeholder="e.g. abigail@lsams.local">
-          </div>
-          <div class="mb-3">
-            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">ROLE *</label>
-            <select name="role" class="form-select" required>
-              <option value="gabay">Gabay (Field Agent)</option>
-              <option value="supervisor">Supervisor</option>
-              <option value="manager">Operations Manager</option>
-              <option value="admin">Administrator</option>
-            </select>
-          </div>
-          <div class="mb-4">
-            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">PASSWORD *</label>
-            <input type="password" name="password" class="form-control" required minlength="6" placeholder="Minimum 6 characters">
-          </div>
-          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
-            <i class="bi bi-person-check me-1"></i>Create User
-          </button>
-        </form>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Full Name *</label>
+          <input type="text" name="full_name" class="form-control" required placeholder="e.g. Abigail Bulasco">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Username *</label>
+          <input type="text" name="username" class="form-control" required placeholder="e.g. abigail.bulasco">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Email *</label>
+          <input type="email" name="email" class="form-control" required placeholder="e.g. abigail@email.com">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Role *</label>
+          <select name="role" class="form-select" required>
+            <option value="gabay">Gabay (Field Agent)</option>
+            <option value="supervisor">Supervisor</option>
+            <option value="manager">Operations Manager</option>
+            <option value="admin">Administrator</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Password *</label>
+          <input type="password" name="password" class="form-control" required minlength="6" placeholder="Minimum 6 characters">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Assigned Cities / Territory</label>
+          <input type="text" name="assigned_city" class="form-control" placeholder="e.g. Cebu City, Mandaue, Lapu-Lapu">
+          <div class="form-text">Comma-separated list of cities this agent covers</div>
+        </div>
+
       </div>
     </div>
   </div>
+
+  <!-- RIGHT: Contact + Address -->
+  <div class="col-md-6">
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-telephone me-2"></i>Contact Information</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Mobile Number (Primary)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+            <input type="text" name="mobile" class="form-control" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Mobile Number (Secondary)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone-fill"></i></span>
+            <input type="text" name="mobile2" class="form-control" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Viber Number</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:#7360f2;border-color:#7360f2">
+              <i class="bi bi-chat-dots-fill text-white"></i>
+            </span>
+            <input type="text" name="viber" class="form-control" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Facebook Account</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:#1877f2;border-color:#1877f2">
+              <i class="bi bi-facebook text-white"></i>
+            </span>
+            <input type="text" name="facebook" class="form-control" placeholder="facebook.com/username or full name">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-geo-alt me-2"></i>Home Address</div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-4">
+            <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">House No.</label>
+            <input type="text" name="house_number" class="form-control" placeholder="e.g. #12">
+          </div>
+          <div class="col-8">
+            <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Street</label>
+            <input type="text" name="street" class="form-control" placeholder="e.g. Rizal St.">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Barangay</label>
+          <input type="text" name="barangay" class="form-control" placeholder="e.g. Brgy. Guadalupe">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">City / Municipality</label>
+          <input type="text" name="city_address" class="form-control" placeholder="e.g. Cebu City">
+        </div>
+      </div>
+    </div>
+
+  </div>
 </div>
+
+<div class="mt-4 d-flex gap-2">
+  <button type="submit" class="btn px-4" style="background:#1F3864;color:white">
+    <i class="bi bi-person-check me-1"></i>Create User
+  </button>
+  <a href="{{ url_for('gabay_list') }}" class="btn btn-outline-secondary">Cancel</a>
+</div>
+</form>
+
 {% endblock %}

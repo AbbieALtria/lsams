@@ -1,7 +1,7 @@
 {% extends "base.html" %}
 {% block title %}Gabay Agents{% endblock %}
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
   <div class="page-title"><i class="bi bi-person-badge me-2"></i>Gabay Agents</div>
   {% if current_user.is_admin %}
   <a href="{{ url_for('new_gabay') }}" class="btn btn-sm" style="background:#1F3864;color:white">
@@ -10,46 +10,202 @@
   {% endif %}
 </div>
 
-<div class="row g-3">
-  {% for a in agents %}
-  <div class="col-md-4 col-lg-3">
-    <div class="card h-100">
-      <div class="card-body text-center">
-        <div style="width:52px;height:52px;border-radius:50%;background:#E8EFF9;display:flex;align-items:center;justify-content:center;margin:0 auto 10px">
-          <i class="bi bi-person" style="font-size:26px;color:#1F3864"></i>
-        </div>
-        <div class="fw-bold" style="color:#1F3864">{{ a.full_name }}</div>
-        <div style="font-size:11px;color:#9aabc5">@{{ a.username }}</div>
-        <span class="badge bg-secondary mt-1" style="font-size:10px">{{ a.role }}</span>
-        <div class="row g-2 mt-2 text-center">
-          <div class="col-6">
-            <div style="font-size:20px;font-weight:800;color:#1F3864">{{ stats[a.id].matched }}</div>
-            <div style="font-size:10px;color:#9aabc5">MATCHED</div>
+{% set active_agents = agents | selectattr('is_active') | list %}
+{% set inactive_agents = agents | rejectattr('is_active') | list %}
+
+<!-- SUMMARY BADGES -->
+<div class="d-flex gap-2 mb-3 flex-wrap">
+  <span class="badge" style="background:#dcfce7;color:#15803d;font-size:12px;padding:6px 12px">
+    <i class="bi bi-person-check me-1"></i>{{ active_agents|length }} Active
+  </span>
+  {% if inactive_agents %}
+  <span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:12px;padding:6px 12px">
+    <i class="bi bi-person-x me-1"></i>{{ inactive_agents|length }} Inactive
+  </span>
+  {% endif %}
+</div>
+
+<!-- TABS -->
+<ul class="nav nav-tabs mb-4" id="agentTabs">
+  <li class="nav-item">
+    <a class="nav-link active" data-bs-toggle="tab" href="#tabActive">
+      <i class="bi bi-person-check me-1"></i>Active <span class="badge ms-1" style="background:#dcfce7;color:#15803d">{{ active_agents|length }}</span>
+    </a>
+  </li>
+  <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabInactive">
+      <i class="bi bi-person-x me-1"></i>Inactive / Alumni
+      {% if inactive_agents %}<span class="badge ms-1" style="background:#fee2e2;color:#b91c1c">{{ inactive_agents|length }}</span>{% endif %}
+    </a>
+  </li>
+</ul>
+
+<div class="tab-content">
+
+  <!-- ACTIVE TAB -->
+  <div class="tab-pane fade show active" id="tabActive">
+    <div class="row g-3">
+      {% for a in active_agents %}
+      <div class="col-md-4 col-lg-3">
+        <div class="card h-100" style="border-top:3px solid #1F3864">
+          <div class="card-body text-center pb-2">
+
+            <!-- Avatar -->
+            {% if a.profile_photo %}
+            <img src="{{ url_for('static', filename='uploads/profiles/' + a.profile_photo) }}"
+                 alt="{{ a.full_name }}"
+                 style="width:64px;height:64px;border-radius:50%;object-fit:cover;
+                        border:3px solid #1F3864;box-shadow:0 2px 10px #1F386430;margin-bottom:10px">
+            {% else %}
+            <div style="width:64px;height:64px;border-radius:50%;
+                        background:linear-gradient(135deg,#1F3864,#2E75B6);
+                        display:flex;align-items:center;justify-content:center;
+                        margin:0 auto 10px;font-size:26px;color:white;font-weight:800;
+                        box-shadow:0 2px 10px #1F386430">
+              {{ a.full_name[0]|upper }}
+            </div>
+            {% endif %}
+
+            <div class="fw-bold" style="color:#1F3864;font-size:14px">{{ a.full_name }}</div>
+            <div style="font-size:11px;color:#9aabc5">@{{ a.username }}</div>
+            <span class="badge mt-1" style="background:#EEF2FF;color:#4338ca;font-size:10px">{{ a.role }}</span>
+
+            <!-- Contact quick-view -->
+            {% if a.mobile or a.facebook or a.assigned_city %}
+            <div style="font-size:11px;color:#9aabc5;margin-top:8px;line-height:1.6;text-align:left;
+                        background:#F8FAFD;border-radius:8px;padding:8px 10px">
+              {% if a.mobile %}
+              <div><i class="bi bi-phone me-1" style="color:#2E75B6"></i>{{ a.mobile }}
+                {% if a.mobile2 %} · {{ a.mobile2 }}{% endif %}
+              </div>
+              {% endif %}
+              {% if a.viber %}
+              <div><i class="bi bi-chat-dots-fill me-1" style="color:#7360f2"></i>{{ a.viber }}</div>
+              {% endif %}
+              {% if a.facebook %}
+              <div><i class="bi bi-facebook me-1" style="color:#1877f2"></i>{{ a.facebook }}</div>
+              {% endif %}
+              {% if a.assigned_city %}
+              <div><i class="bi bi-geo-alt me-1" style="color:#E07B00"></i>{{ a.assigned_city }}</div>
+              {% endif %}
+            </div>
+            {% endif %}
+
+            <!-- Stats -->
+            <div class="row g-1 mt-2 text-center">
+              <div class="col-6">
+                <div style="font-size:18px;font-weight:800;color:#1F3864">{{ stats[a.id].matched }}</div>
+                <div style="font-size:10px;color:#9aabc5">MATCHED</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:18px;font-weight:800;color:#15803d">{{ stats[a.id].live }}</div>
+                <div style="font-size:10px;color:#9aabc5">LIVE</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:14px;font-weight:700;color:#4a5568">{{ stats[a.id].total }}</div>
+                <div style="font-size:10px;color:#9aabc5">LEADS</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:14px;font-weight:700;color:#4a5568">{{ stats[a.id].visits }}</div>
+                <div style="font-size:10px;color:#9aabc5">VISITS</div>
+              </div>
+            </div>
+
           </div>
-          <div class="col-6">
-            <div style="font-size:20px;font-weight:800;color:#15803d">{{ stats[a.id].live }}</div>
-            <div style="font-size:10px;color:#9aabc5">LIVE</div>
+          <div class="card-footer bg-transparent pt-0 pb-3 px-3">
+            <div class="d-flex gap-1">
+              <a href="{{ url_for('leads', gabay=a.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1" style="font-size:11px">Leads</a>
+              <a href="{{ url_for('gabay_scorecard', gabay_id=a.id) }}" class="btn btn-sm flex-grow-1" style="background:#EEF2FF;color:#4338ca;font-size:11px">Score</a>
+              {% if current_user.is_admin %}
+              <a href="{{ url_for('edit_gabay', user_id=a.id) }}" class="btn btn-sm" style="background:#F0F4FA;color:#1F3864;font-size:11px">
+                <i class="bi bi-pencil"></i>
+              </a>
+              {% endif %}
+            </div>
           </div>
-          <div class="col-6">
-            <div style="font-size:16px;font-weight:700;color:#4a5568">{{ stats[a.id].total }}</div>
-            <div style="font-size:10px;color:#9aabc5">TOTAL LEADS</div>
-          </div>
-          <div class="col-6">
-            <div style="font-size:16px;font-weight:700;color:#4a5568">{{ stats[a.id].visits }}</div>
-            <div style="font-size:10px;color:#9aabc5">VISITS</div>
-          </div>
-        </div>
-        <div class="d-flex gap-2 mt-2">
-          <a href="{{ url_for('leads', gabay=a.id) }}" class="btn btn-sm btn-outline-primary flex-grow-1" style="font-size:11px">View Leads</a>
-          <a href="{{ url_for('gabay_scorecard', gabay_id=a.id) }}" class="btn btn-sm" style="background:#EEF2FF;color:#4338ca;font-size:11px">Scorecard</a>
         </div>
       </div>
+      {% else %}
+      <div class="col-12 text-center text-muted py-5">
+        No active Gabay agents. <a href="{{ url_for('new_gabay') }}">Add your first agent.</a>
+      </div>
+      {% endfor %}
     </div>
   </div>
-  {% else %}
-  <div class="col-12 text-center text-muted py-5">
-    No Gabay agents yet. <a href="{{ url_for('new_gabay') }}">Add your first agent.</a>
+
+  <!-- INACTIVE TAB -->
+  <div class="tab-pane fade" id="tabInactive">
+    {% if inactive_agents %}
+    <div class="row g-3">
+      {% for a in inactive_agents %}
+      <div class="col-md-4 col-lg-3">
+        <div class="card h-100" style="border-top:3px solid #CBD5E1;opacity:0.85">
+          <div class="card-body text-center pb-2">
+
+            {% if a.profile_photo %}
+            <img src="{{ url_for('static', filename='uploads/profiles/' + a.profile_photo) }}"
+                 alt="{{ a.full_name }}"
+                 style="width:64px;height:64px;border-radius:50%;object-fit:cover;
+                        border:3px solid #CBD5E1;filter:grayscale(60%);margin-bottom:10px">
+            {% else %}
+            <div style="width:64px;height:64px;border-radius:50%;
+                        background:linear-gradient(135deg,#9aabc5,#CBD5E1);
+                        display:flex;align-items:center;justify-content:center;
+                        margin:0 auto 10px;font-size:26px;color:white;font-weight:800">
+              {{ a.full_name[0]|upper }}
+            </div>
+            {% endif %}
+
+            <div class="fw-bold" style="color:#9aabc5;font-size:14px">{{ a.full_name }}</div>
+            <div style="font-size:11px;color:#CBD5E1">@{{ a.username }}</div>
+            <div class="d-flex justify-content-center gap-1 mt-1 flex-wrap">
+              <span class="badge" style="background:#fee2e2;color:#b91c1c;font-size:10px">Inactive</span>
+              {% if a.deactivated_at %}
+              <span class="badge" style="background:#F0F4FA;color:#9aabc5;font-size:10px">
+                Since {{ a.deactivated_at.strftime('%b %Y') }}
+              </span>
+              {% endif %}
+            </div>
+
+            <div class="row g-1 mt-3 text-center">
+              <div class="col-6">
+                <div style="font-size:16px;font-weight:800;color:#9aabc5">{{ stats[a.id].matched }}</div>
+                <div style="font-size:10px;color:#CBD5E1">MATCHED</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:16px;font-weight:800;color:#9aabc5">{{ stats[a.id].live }}</div>
+                <div style="font-size:10px;color:#CBD5E1">LIVE</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:13px;font-weight:700;color:#CBD5E1">{{ stats[a.id].total }}</div>
+                <div style="font-size:10px;color:#CBD5E1">LEADS</div>
+              </div>
+              <div class="col-6">
+                <div style="font-size:13px;font-weight:700;color:#CBD5E1">{{ stats[a.id].visits }}</div>
+                <div style="font-size:10px;color:#CBD5E1">VISITS</div>
+              </div>
+            </div>
+
+          </div>
+          {% if current_user.is_admin %}
+          <div class="card-footer bg-transparent pt-0 pb-3 px-3">
+            <a href="{{ url_for('edit_gabay', user_id=a.id) }}" class="btn btn-sm w-100" style="background:#F0F4FA;color:#9aabc5;font-size:11px">
+              <i class="bi bi-pencil me-1"></i>Edit / Reactivate
+            </a>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    {% else %}
+    <div class="text-center py-5 text-muted">
+      <i class="bi bi-people" style="font-size:40px;display:block;margin-bottom:12px;color:#CBD5E1"></i>
+      <div style="font-weight:700">No inactive agents</div>
+      <div style="font-size:13px;margin-top:4px">All your agents are currently active.</div>
+    </div>
+    {% endif %}
   </div>
-  {% endfor %}
+
 </div>
 {% endblock %}

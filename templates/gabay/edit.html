@@ -1,0 +1,161 @@
+{% extends "base.html" %}
+{% block title %}Edit {{ u.full_name }}{% endblock %}
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between">
+  <div class="page-title"><i class="bi bi-pencil-square me-2"></i>Edit — {{ u.full_name }}</div>
+  <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+</div>
+
+<form method="POST">
+<div class="row g-4">
+
+  <!-- LEFT: Account Info -->
+  <div class="col-md-6">
+    <div class="card">
+      <div class="card-header"><i class="bi bi-person-badge me-2"></i>Account Information</div>
+      <div class="card-body">
+
+        <!-- Profile photo preview -->
+        <div class="text-center mb-4">
+          {% if u.profile_photo %}
+          <img src="{{ url_for('static', filename='uploads/profiles/' + u.profile_photo) }}"
+               alt="Profile" style="width:90px;height:90px;border-radius:50%;object-fit:cover;
+               border:3px solid #1F3864;box-shadow:0 2px 12px #1F386422">
+          {% else %}
+          <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#1F3864,#2E75B6);
+               display:flex;align-items:center;justify-content:center;margin:0 auto;
+               font-size:32px;color:white;font-weight:800;box-shadow:0 2px 12px #1F386422">
+            {{ u.full_name[0]|upper }}
+          </div>
+          {% endif %}
+          <div style="font-size:11px;color:#9aabc5;margin-top:6px">Photo set by agent from their profile</div>
+        </div>
+
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Username</label>
+          <input type="text" class="form-control" value="{{ u.username }}" disabled>
+          <div class="form-text">Username cannot be changed</div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Full Name *</label>
+          <input type="text" name="full_name" class="form-control" required value="{{ u.full_name }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Email *</label>
+          <input type="email" name="email" class="form-control" required value="{{ u.email }}">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Role *</label>
+          <select name="role" class="form-select" required>
+            <option value="gabay" {% if u.role=='gabay' %}selected{% endif %}>Gabay (Field Agent)</option>
+            <option value="supervisor" {% if u.role=='supervisor' %}selected{% endif %}>Supervisor</option>
+            <option value="manager" {% if u.role=='manager' %}selected{% endif %}>Operations Manager</option>
+            <option value="admin" {% if u.role=='admin' %}selected{% endif %}>Administrator</option>
+          </select>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">New Password</label>
+          <input type="password" name="password" class="form-control" minlength="6" placeholder="Leave blank to keep current">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Assigned Cities / Territory</label>
+          <input type="text" name="assigned_city" class="form-control" value="{{ u.assigned_city or '' }}"
+                 placeholder="e.g. Cebu City, Mandaue, Lapu-Lapu">
+          <div class="form-text">Comma-separated list</div>
+        </div>
+        <div class="mb-2">
+          <div class="form-check form-switch">
+            <input class="form-check-input" type="checkbox" name="is_active" id="isActive"
+                   {% if u.is_active %}checked{% endif %}>
+            <label class="form-check-label fw-bold" for="isActive" style="font-size:12px">
+              Active Account
+              {% if not u.is_active and u.deactivated_at %}
+              <span class="badge ms-2" style="background:#fee2e2;color:#b91c1c;font-size:10px">
+                Deactivated {{ u.deactivated_at.strftime('%b %d, %Y') }}
+              </span>
+              {% endif %}
+            </label>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- RIGHT: Contact + Address -->
+  <div class="col-md-6">
+
+    <div class="card mb-3">
+      <div class="card-header"><i class="bi bi-telephone me-2"></i>Contact Information</div>
+      <div class="card-body">
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Mobile Number (Primary)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone"></i></span>
+            <input type="text" name="mobile" class="form-control" value="{{ u.mobile or '' }}" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Mobile Number (Secondary)</label>
+          <div class="input-group">
+            <span class="input-group-text"><i class="bi bi-phone-fill"></i></span>
+            <input type="text" name="mobile2" class="form-control" value="{{ u.mobile2 or '' }}" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Viber Number</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:#7360f2;border-color:#7360f2">
+              <i class="bi bi-chat-dots-fill text-white"></i>
+            </span>
+            <input type="text" name="viber" class="form-control" value="{{ u.viber or '' }}" placeholder="09XX XXX XXXX">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Facebook Account</label>
+          <div class="input-group">
+            <span class="input-group-text" style="background:#1877f2;border-color:#1877f2">
+              <i class="bi bi-facebook text-white"></i>
+            </span>
+            <input type="text" name="facebook" class="form-control" value="{{ u.facebook or '' }}" placeholder="facebook.com/username">
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><i class="bi bi-geo-alt me-2"></i>Home Address</div>
+      <div class="card-body">
+        <div class="row g-2 mb-3">
+          <div class="col-4">
+            <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">House No.</label>
+            <input type="text" name="house_number" class="form-control" value="{{ u.house_number or '' }}" placeholder="#12">
+          </div>
+          <div class="col-8">
+            <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Street</label>
+            <input type="text" name="street" class="form-control" value="{{ u.street or '' }}" placeholder="Rizal St.">
+          </div>
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Barangay</label>
+          <input type="text" name="barangay" class="form-control" value="{{ u.barangay or '' }}" placeholder="Brgy. Guadalupe">
+        </div>
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">City / Municipality</label>
+          <input type="text" name="city_address" class="form-control" value="{{ u.city_address or '' }}" placeholder="Cebu City">
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div class="mt-4 d-flex gap-2">
+  <button type="submit" class="btn px-4" style="background:#1F3864;color:white">
+    <i class="bi bi-floppy me-1"></i>Save Changes
+  </button>
+  <a href="{{ url_for('gabay_list') }}" class="btn btn-outline-secondary">Cancel</a>
+</div>
+</form>
+
+{% endblock %}

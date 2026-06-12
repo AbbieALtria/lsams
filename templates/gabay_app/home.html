@@ -6,9 +6,27 @@
 <div style="background:linear-gradient(135deg,#1F3864 0%,#2E75B6 100%);border-radius:20px;
             padding:20px;margin-bottom:16px;color:white;position:relative;overflow:hidden">
   <div style="position:absolute;right:-10px;top:-10px;font-size:80px;opacity:0.10">🏪</div>
-  <div style="font-size:12px;opacity:0.75;margin-bottom:4px">{{ today }}</div>
-  <div style="font-size:21px;font-weight:800;margin-bottom:2px">
-    {{ greeting }}, {{ current_user.full_name.split()[0] }}! 👋
+  <div style="font-size:12px;opacity:0.75;margin-bottom:8px">{{ today }}</div>
+  <div style="display:flex;align-items:center;gap:14px;margin-bottom:2px">
+    <!-- Profile photo -->
+    <a href="{{ url_for('gabay_app_profile') }}" style="flex-shrink:0;display:block">
+      {% if current_user.profile_photo %}
+      <img src="{{ url_for('static', filename='uploads/profiles/' + current_user.profile_photo) }}"
+           alt="You" style="width:54px;height:54px;border-radius:50%;object-fit:cover;
+                            border:3px solid rgba(255,255,255,0.7);box-shadow:0 2px 10px rgba(0,0,0,0.25)">
+      {% else %}
+      <div style="width:54px;height:54px;border-radius:50%;background:rgba(255,255,255,0.2);
+                  border:3px solid rgba(255,255,255,0.5);display:flex;align-items:center;
+                  justify-content:center;font-size:22px;font-weight:800;color:white">
+        {{ current_user.full_name[0]|upper }}
+      </div>
+      {% endif %}
+    </a>
+    <div>
+      <div style="font-size:21px;font-weight:800;line-height:1.1">
+        {{ greeting }}, {{ current_user.full_name.split()[0] }}! 👋
+      </div>
+    </div>
   </div>
   <div style="font-size:13px;opacity:0.85" id="heroVisitMsg">
     {% if stats.visited_today == 0 %}

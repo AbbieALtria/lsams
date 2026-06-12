@@ -20,6 +20,22 @@ class User(UserMixin, db.Model):
     # Gabay territory — city or cities this agent covers (comma-separated for multi-city)
     assigned_city = db.Column(db.String(300))
 
+    # Contact info
+    mobile = db.Column(db.String(20))
+    mobile2 = db.Column(db.String(20))
+    viber = db.Column(db.String(20))
+    facebook = db.Column(db.String(200))
+
+    # Full address
+    house_number = db.Column(db.String(50))
+    street = db.Column(db.String(200))
+    barangay = db.Column(db.String(100))
+    city_address = db.Column(db.String(100))
+
+    # Profile
+    profile_photo = db.Column(db.String(200))
+    deactivated_at = db.Column(db.DateTime)
+
     leads_assigned = db.relationship('Lead', backref='assigned_gabay', lazy='dynamic', foreign_keys='Lead.gabay_id')
     visits = db.relationship('Visit', backref='gabay', lazy='dynamic')
 

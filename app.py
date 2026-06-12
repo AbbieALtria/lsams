@@ -531,7 +531,16 @@ def new_gabay():
             username=username,
             full_name=request.form.get('full_name', '').strip(),
             email=request.form.get('email', '').strip(),
-            role=request.form.get('role', 'gabay')
+            role=request.form.get('role', 'gabay'),
+            mobile=request.form.get('mobile', '').strip() or None,
+            mobile2=request.form.get('mobile2', '').strip() or None,
+            viber=request.form.get('viber', '').strip() or None,
+            facebook=request.form.get('facebook', '').strip() or None,
+            house_number=request.form.get('house_number', '').strip() or None,
+            street=request.form.get('street', '').strip() or None,
+            barangay=request.form.get('barangay', '').strip() or None,
+            city_address=request.form.get('city_address', '').strip() or None,
+            assigned_city=request.form.get('assigned_city', '').strip() or None,
         )
         user.set_password(request.form.get('password', ''))
         db.session.add(user)
@@ -539,6 +548,41 @@ def new_gabay():
         flash(f'User {user.full_name} created.', 'success')
         return redirect(url_for('gabay_list'))
     return render_template('gabay/new.html')
+
+
+@app.route('/gabay/<int:user_id>/edit', methods=['GET', 'POST'])
+@login_required
+def edit_gabay(user_id):
+    if not current_user.is_admin:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('gabay_list'))
+    u = User.query.get_or_404(user_id)
+    if request.method == 'POST':
+        u.full_name = request.form.get('full_name', '').strip()
+        u.email = request.form.get('email', '').strip()
+        u.role = request.form.get('role', u.role)
+        u.mobile = request.form.get('mobile', '').strip() or None
+        u.mobile2 = request.form.get('mobile2', '').strip() or None
+        u.viber = request.form.get('viber', '').strip() or None
+        u.facebook = request.form.get('facebook', '').strip() or None
+        u.house_number = request.form.get('house_number', '').strip() or None
+        u.street = request.form.get('street', '').strip() or None
+        u.barangay = request.form.get('barangay', '').strip() or None
+        u.city_address = request.form.get('city_address', '').strip() or None
+        u.assigned_city = request.form.get('assigned_city', '').strip() or None
+        pw = request.form.get('password', '').strip()
+        if pw:
+            u.set_password(pw)
+        was_active = u.is_active
+        u.is_active = 'is_active' in request.form
+        if was_active and not u.is_active:
+            u.deactivated_at = datetime.utcnow()
+        elif not was_active and u.is_active:
+            u.deactivated_at = None
+        db.session.commit()
+        flash(f'{u.full_name} updated.', 'success')
+        return redirect(url_for('gabay_list'))
+    return render_template('gabay/edit.html', u=u)
 
 
 # ─── REPORTS ─────────────────────────────────────────────────────────────────
@@ -2047,9 +2091,29 @@ def gabay_app_visits():
     return render_template('gabay_app/visits.html', visits=visits)
 
 
-@app.route('/gabay/app/profile')
+@app.route('/gabay/app/profile', methods=['GET', 'POST'])
 @login_required
 def gabay_app_profile():
+    if request.method == 'POST':
+        photo = request.files.get('profile_photo')
+        if photo and photo.filename:
+            import os, uuid
+            ext = os.path.splitext(photo.filename)[1].lower()
+            if ext in ('.jpg', '.jpeg', '.png', '.webp', '.gif'):
+                fname = f"profile_{current_user.id}_{uuid.uuid4().hex[:8]}{ext}"
+                upload_dir = os.path.join(app.root_path, 'static', 'uploads', 'profiles')
+                os.makedirs(upload_dir, exist_ok=True)
+                photo.save(os.path.join(upload_dir, fname))
+                if current_user.profile_photo:
+                    old = os.path.join(upload_dir, current_user.profile_photo)
+                    if os.path.exists(old):
+                        os.remove(old)
+                current_user.profile_photo = fname
+                db.session.commit()
+                flash('Profile photo updated!', 'success')
+            else:
+                flash('Only JPG, PNG, WEBP or GIF allowed.', 'danger')
+        return redirect(url_for('gabay_app_profile'))
     stats = _gabay_stats(current_user.id)
     return render_template('gabay_app/profile.html',
         stats=stats, conversion_rate=stats['conversion_rate'])
