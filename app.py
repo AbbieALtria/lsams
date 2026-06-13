@@ -393,6 +393,71 @@ def visits():
     return render_template('visits/list.html', pagination=pagination)
 
 
+@app.route('/visits/backfill', methods=['GET', 'POST'])
+@login_required
+def visits_backfill():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('visits'))
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    if request.method == 'POST':
+        rows_saved = 0
+        rows_skipped = 0
+        entries = zip(
+            request.form.getlist('gabay_id'),
+            request.form.getlist('lead_id'),
+            request.form.getlist('visit_date'),
+            request.form.getlist('visit_time'),
+            request.form.getlist('outcome'),
+            request.form.getlist('notes'),
+            request.form.getlist('new_status'),
+        )
+        for gabay_id, lead_id, visit_date, visit_time, outcome, notes, new_status in entries:
+            if not gabay_id or not lead_id or not outcome or not visit_date:
+                rows_skipped += 1
+                continue
+            try:
+                dt_str = f"{visit_date} {visit_time or '08:00'}"
+                visited_at = datetime.strptime(dt_str, '%Y-%m-%d %H:%M')
+                visit = Visit(
+                    lead_id=int(lead_id),
+                    gabay_id=int(gabay_id),
+                    visited_at=visited_at,
+                    outcome=outcome,
+                    notes=notes or '',
+                    gps_lat=None, gps_lng=None,
+                    gps_address='Manual entry by supervisor',
+                )
+                db.session.add(visit)
+                lead = Lead.query.get(int(lead_id))
+                if lead and new_status and new_status != '__keep__':
+                    lead.status = new_status
+                    if new_status in ('assigned', 'attempting', 'negotiation', 'registration') and not lead.assigned_at:
+                        lead.assigned_at = visited_at
+                rows_saved += 1
+            except Exception:
+                rows_skipped += 1
+        db.session.commit()
+        flash(f'{rows_saved} visit(s) saved successfully.{(" " + str(rows_skipped) + " row(s) skipped.") if rows_skipped else ""}', 'success')
+        return redirect(url_for('visits_backfill'))
+    return render_template('visits/backfill.html', gabay_users=gabay_users)
+
+
+@app.route('/visits/backfill/leads-json')
+@login_required
+def backfill_leads_json():
+    if not current_user.is_supervisor:
+        return jsonify([])
+    gabay_id = request.args.get('gabay_id', type=int)
+    if not gabay_id:
+        return jsonify([])
+    leads = Lead.query.filter(
+        Lead.gabay_id == gabay_id,
+        Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration', 'live'])
+    ).order_by(Lead.seller_name).all()
+    return jsonify([{'id': l.id, 'name': l.seller_name, 'city': l.city or '', 'status': l.status} for l in leads])
+
+
 @app.route('/visits/new/<int:lead_id>', methods=['GET', 'POST'])
 @login_required
 def new_visit(lead_id):

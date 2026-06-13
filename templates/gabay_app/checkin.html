@@ -361,8 +361,7 @@ function selectOutcome(el) {
 }
 
 function validateForm() {
-  const ok = document.getElementById('gps_lat').value &&
-             document.getElementById('outcomeInput').value &&
+  const ok = document.getElementById('outcomeInput').value &&
              document.getElementById('leadSelect').value;
   const btn = document.getElementById('submitBtn');
   const hint = document.getElementById('hintText');

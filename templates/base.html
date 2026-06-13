@@ -386,9 +386,15 @@
     <i class="bi bi-people"></i> Leads
     <span class="badge" style="background:#1F3864;color:white" id="nav-pool-count"></span>
   </a>
-  <a href="{{ url_for('visits') }}" class="nav-link {% if 'visit' in request.endpoint %}active{% endif %}">
+  <a href="{{ url_for('visits') }}" class="nav-link {% if request.endpoint == 'visits' %}active{% endif %}">
     <i class="bi bi-geo-alt"></i> Visits
   </a>
+  {% if current_user.is_supervisor %}
+  <a href="{{ url_for('visits_backfill') }}" class="nav-link {% if request.endpoint == 'visits_backfill' %}active{% endif %}">
+    <i class="bi bi-journal-plus"></i> Data Entry
+    <span class="badge ms-1" style="background:#E07B00;color:white;font-size:9px">BACKFILL</span>
+  </a>
+  {% endif %}
   <a href="{{ url_for('registrations') }}" class="nav-link {% if 'registration' in request.endpoint %}active{% endif %}">
     <i class="bi bi-file-earmark-check"></i> Registrations
   </a>

@@ -1,0 +1,278 @@
+{% extends "base.html" %}
+{% block title %}Supervisor Data Entry{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-journal-plus me-2"></i>Supervisor Data Entry</div>
+    <div style="color:#9aabc5;font-size:12px">
+      Enter manual visits from field notepads — GPS not required for backfill
+    </div>
+  </div>
+  <a href="{{ url_for('visits') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back
+  </a>
+</div>
+
+<!-- INFO BANNER -->
+<div class="alert d-flex align-items-start gap-3 mb-4"
+     style="background:#EFF6FF;border:1px solid #bfdbfe;border-radius:12px;padding:14px 18px">
+  <i class="bi bi-info-circle-fill" style="color:#2E75B6;font-size:20px;flex-shrink:0;margin-top:2px"></i>
+  <div style="font-size:13px;color:#1e40af;line-height:1.7">
+    <strong>How to use this form:</strong><br>
+    1. Select the Gabay agent → their assigned sellers load automatically<br>
+    2. Select the seller they visited, the date &amp; time from the notepad<br>
+    3. Pick the outcome and optionally update the lead status<br>
+    4. Add more rows for each visit · Click <strong>Save All Visits</strong> when done<br>
+    <span style="color:#6b7280">GPS is skipped — visits will be marked as <em>Manual entry by supervisor</em></span>
+  </div>
+</div>
+
+<form method="POST" id="backfillForm">
+
+<div class="card mb-3">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-table me-2"></i>Visit Rows</span>
+    <div class="d-flex gap-2">
+      <button type="button" onclick="addRow()" class="btn btn-sm" style="background:#EEF2FF;color:#4338ca">
+        <i class="bi bi-plus-lg me-1"></i>Add Row
+      </button>
+      <span id="rowCounter" class="badge" style="background:#F0F4FA;color:#9aabc5;font-size:12px;padding:6px 10px;align-self:center">
+        1 row
+      </span>
+    </div>
+  </div>
+
+  <div class="table-responsive">
+    <table class="table mb-0" id="visitTable" style="font-size:13px;min-width:900px">
+      <thead style="background:#F8FAFD">
+        <tr>
+          <th style="width:160px">Gabay Agent *</th>
+          <th style="width:200px">Seller / Lead *</th>
+          <th style="width:110px">Date *</th>
+          <th style="width:90px">Time</th>
+          <th style="width:130px">Outcome *</th>
+          <th style="width:140px">Update Status</th>
+          <th>Notes</th>
+          <th style="width:36px"></th>
+        </tr>
+      </thead>
+      <tbody id="visitRows">
+        <!-- rows injected by JS -->
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<div class="d-flex gap-2 align-items-center">
+  <button type="submit" class="btn px-5" style="background:#1F3864;color:white;font-weight:700">
+    <i class="bi bi-floppy me-2"></i>Save All Visits
+  </button>
+  <button type="button" onclick="addRow()" class="btn btn-outline-primary">
+    <i class="bi bi-plus-lg me-1"></i>Add Another Row
+  </button>
+  <span style="font-size:12px;color:#9aabc5">All rows will be saved together</span>
+</div>
+
+</form>
+
+<!-- GABAY DATA for JS -->
+<script>
+const GABAY_USERS = {{ gabay_users | tojson(default=lambda o: {'id': o.id, 'name': o.full_name}) }};
+</script>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const gabayUsers = [
+  {% for g in gabay_users %}
+  { id: {{ g.id }}, name: {{ g.full_name | tojson }} },
+  {% endfor %}
+];
+
+const OUTCOMES = [
+  ['interested',     'Interested'],
+  ['registered',     'Registered!'],
+  ['callback',       'Call Back'],
+  ['follow_up',      'Follow Up'],
+  ['not_home',       'Not Home'],
+  ['not_interested', 'Rejected'],
+];
+
+const STATUSES = [
+  ['__keep__',      '— Keep current status —'],
+  ['attempting',    'Attempting'],
+  ['negotiation',   'Negotiation'],
+  ['registration',  'Registration'],
+  ['live',          'Live Seller'],
+  ['matched',       'Matched'],
+  ['closed',        'Closed'],
+];
+
+const today = new Date().toISOString().split('T')[0];
+let rowCount = 0;
+const leadsCache = {};  // gabay_id → [{id, name, city, status}]
+
+async function fetchLeads(gabayId) {
+  if (leadsCache[gabayId]) return leadsCache[gabayId];
+  const res = await fetch(`/visits/backfill/leads-json?gabay_id=${gabayId}`);
+  const data = await res.json();
+  leadsCache[gabayId] = data;
+  return data;
+}
+
+function makeGabaySelect(name, rowIdx) {
+  const sel = document.createElement('select');
+  sel.name = name;
+  sel.className = 'form-select form-select-sm';
+  sel.required = true;
+  sel.innerHTML = '<option value="">— Agent —</option>' +
+    gabayUsers.map(g => `<option value="${g.id}">${g.name}</option>`).join('');
+  sel.addEventListener('change', () => onGabayChange(sel, rowIdx));
+  return sel;
+}
+
+function makeLeadSelect(name) {
+  const sel = document.createElement('select');
+  sel.name = name;
+  sel.className = 'form-select form-select-sm';
+  sel.required = true;
+  sel.disabled = true;
+  sel.innerHTML = '<option value="">— Select agent first —</option>';
+  return sel;
+}
+
+function makeOutcomeSelect(name) {
+  const sel = document.createElement('select');
+  sel.name = name;
+  sel.className = 'form-select form-select-sm';
+  sel.required = true;
+  sel.innerHTML = '<option value="">— Outcome —</option>' +
+    OUTCOMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  return sel;
+}
+
+function makeStatusSelect(name) {
+  const sel = document.createElement('select');
+  sel.name = name;
+  sel.className = 'form-select form-select-sm';
+  sel.innerHTML = STATUSES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
+  return sel;
+}
+
+async function onGabayChange(gabaySelect, rowIdx) {
+  const row = document.getElementById(`row-${rowIdx}`);
+  const leadSel = row.querySelector('select[name="lead_id"]');
+  const gabayId = gabaySelect.value;
+  if (!gabayId) {
+    leadSel.innerHTML = '<option value="">— Select agent first —</option>';
+    leadSel.disabled = true;
+    return;
+  }
+  leadSel.innerHTML = '<option value="">Loading…</option>';
+  leadSel.disabled = true;
+  const leads = await fetchLeads(gabayId);
+  if (leads.length === 0) {
+    leadSel.innerHTML = '<option value="">No active leads found</option>';
+  } else {
+    leadSel.innerHTML = '<option value="">— Select seller —</option>' +
+      leads.map(l => `<option value="${l.id}">${l.name}${l.city ? ' · ' + l.city : ''} [${l.status}]</option>`).join('');
+    leadSel.disabled = false;
+  }
+}
+
+function addRow(prefill = {}) {
+  rowCount++;
+  const idx = rowCount;
+  const tbody = document.getElementById('visitRows');
+  const tr = document.createElement('tr');
+  tr.id = `row-${idx}`;
+  tr.style.verticalAlign = 'middle';
+
+  // Gabay
+  const tdGabay = document.createElement('td');
+  tdGabay.appendChild(makeGabaySelect('gabay_id', idx));
+
+  // Lead
+  const tdLead = document.createElement('td');
+  tdLead.appendChild(makeLeadSelect('lead_id'));
+
+  // Date
+  const tdDate = document.createElement('td');
+  const dateInput = document.createElement('input');
+  dateInput.type = 'date'; dateInput.name = 'visit_date';
+  dateInput.className = 'form-control form-control-sm';
+  dateInput.value = today; dateInput.max = today; dateInput.required = true;
+  tdDate.appendChild(dateInput);
+
+  // Time
+  const tdTime = document.createElement('td');
+  const timeInput = document.createElement('input');
+  timeInput.type = 'time'; timeInput.name = 'visit_time';
+  timeInput.className = 'form-control form-control-sm';
+  timeInput.value = '09:00';
+  tdTime.appendChild(timeInput);
+
+  // Outcome
+  const tdOutcome = document.createElement('td');
+  tdOutcome.appendChild(makeOutcomeSelect('outcome'));
+
+  // Status
+  const tdStatus = document.createElement('td');
+  tdStatus.appendChild(makeStatusSelect('new_status'));
+
+  // Notes
+  const tdNotes = document.createElement('td');
+  const notesInput = document.createElement('input');
+  notesInput.type = 'text'; notesInput.name = 'notes';
+  notesInput.className = 'form-control form-control-sm';
+  notesInput.placeholder = 'Optional notes…';
+  tdNotes.appendChild(notesInput);
+
+  // Delete
+  const tdDel = document.createElement('td');
+  const delBtn = document.createElement('button');
+  delBtn.type = 'button'; delBtn.innerHTML = '×';
+  delBtn.className = 'btn btn-sm';
+  delBtn.style.cssText = 'background:#fee2e2;color:#b91c1c;padding:2px 8px;font-weight:800';
+  delBtn.onclick = () => { tr.remove(); updateCounter(); };
+  tdDel.appendChild(delBtn);
+
+  tr.append(tdGabay, tdLead, tdDate, tdTime, tdOutcome, tdStatus, tdNotes, tdDel);
+  tbody.appendChild(tr);
+  updateCounter();
+
+  // Pre-select gabay if only one agent
+  if (gabayUsers.length === 1) {
+    const sel = tr.querySelector('select[name="gabay_id"]');
+    sel.value = gabayUsers[0].id;
+    onGabayChange(sel, idx);
+  }
+}
+
+function updateCounter() {
+  const n = document.getElementById('visitRows').children.length;
+  document.getElementById('rowCounter').textContent = n + (n === 1 ? ' row' : ' rows');
+}
+
+// Start with 3 empty rows
+addRow(); addRow(); addRow();
+
+// Validation before submit
+document.getElementById('backfillForm').addEventListener('submit', function(e) {
+  const rows = document.getElementById('visitRows').children;
+  let valid = 0;
+  for (const row of rows) {
+    const g = row.querySelector('[name="gabay_id"]').value;
+    const l = row.querySelector('[name="lead_id"]').value;
+    const o = row.querySelector('[name="outcome"]').value;
+    const d = row.querySelector('[name="visit_date"]').value;
+    if (g && l && o && d) valid++;
+  }
+  if (valid === 0) {
+    e.preventDefault();
+    alert('Please complete at least one row (Agent, Seller, Date, and Outcome are required).');
+  }
+});
+</script>
+{% endblock %}
