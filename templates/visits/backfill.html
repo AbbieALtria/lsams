@@ -138,14 +138,38 @@ function makeLeadSelect(name) {
   return sel;
 }
 
-function makeOutcomeSelect(name) {
+function makeOutcomeCell() {
+  const wrap = document.createElement('div');
+  wrap.style.display = 'flex';
+  wrap.style.flexDirection = 'column';
+  wrap.style.gap = '4px';
+
   const sel = document.createElement('select');
-  sel.name = name;
+  sel.name = 'outcome';
   sel.className = 'form-select form-select-sm';
   sel.required = true;
   sel.innerHTML = '<option value="">— Outcome —</option>' +
-    OUTCOMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('');
-  return sel;
+    OUTCOMES.map(([v, l]) => `<option value="${v}">${l}</option>`).join('') +
+    '<option value="__other__">Other (specify below)…</option>';
+
+  const customInput = document.createElement('input');
+  customInput.type = 'text';
+  customInput.name = 'outcome_custom';
+  customInput.placeholder = 'Describe the outcome…';
+  customInput.className = 'form-control form-control-sm';
+  customInput.style.display = 'none';
+  customInput.maxLength = 100;
+
+  sel.addEventListener('change', () => {
+    const isOther = sel.value === '__other__';
+    customInput.style.display = isOther ? 'block' : 'none';
+    customInput.required = isOther;
+    if (isOther) customInput.focus();
+  });
+
+  wrap.appendChild(sel);
+  wrap.appendChild(customInput);
+  return wrap;
 }
 
 function makeStatusSelect(name) {
@@ -211,7 +235,7 @@ function addRow(prefill = {}) {
 
   // Outcome
   const tdOutcome = document.createElement('td');
-  tdOutcome.appendChild(makeOutcomeSelect('outcome'));
+  tdOutcome.appendChild(makeOutcomeCell());
 
   // Status
   const tdStatus = document.createElement('td');

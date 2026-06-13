@@ -403,16 +403,20 @@ def visits_backfill():
     if request.method == 'POST':
         rows_saved = 0
         rows_skipped = 0
+        outcome_customs = request.form.getlist('outcome_custom')
         entries = zip(
             request.form.getlist('gabay_id'),
             request.form.getlist('lead_id'),
             request.form.getlist('visit_date'),
             request.form.getlist('visit_time'),
             request.form.getlist('outcome'),
+            outcome_customs + [''] * 200,
             request.form.getlist('notes'),
             request.form.getlist('new_status'),
         )
-        for gabay_id, lead_id, visit_date, visit_time, outcome, notes, new_status in entries:
+        for gabay_id, lead_id, visit_date, visit_time, outcome, outcome_custom, notes, new_status in entries:
+            if outcome == '__other__':
+                outcome = outcome_custom.strip() or 'other'
             if not gabay_id or not lead_id or not outcome or not visit_date:
                 rows_skipped += 1
                 continue
