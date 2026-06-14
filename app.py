@@ -2003,41 +2003,80 @@ def admin_delete_excel_imports():
 
     count = Lead.query.filter(Lead.lazada_id != None).count()
 
+    # Fake gabay usernames created by Excel import (full names)
+    fake_names = [
+        'VILLARAMA, MA. KAREN KRIZE', 'MIRABUENOS, KARL MICHAEL',
+        'LABIAL, KAYCEE JOYCE', 'SUNIO, MARIA JENICA', 'SONIO, JENEROUS',
+        'BULACSO, ABIGAIL', 'NICOLAS, MARIE CRIS', 'REMANDIMAN, ELLEN',
+        'BAGALANDO,ROXAN'
+    ]
+    fake_users = User.query.filter(User.full_name.in_(fake_names)).all()
+    fake_ids = [u.id for u in fake_users]
+    leads_from_fake = Lead.query.filter(Lead.gabay_id.in_(fake_ids)).count() if fake_ids else 0
+    leads_no_lazada_id = Lead.query.filter(Lead.lazada_id == None, Lead.gabay_id.in_(fake_ids) if fake_ids else False).count()
+
     if request.method == 'GET':
-        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
-        <h2 style="color:#1F3864">Confirm Deletion</h2>
-        <p>This will permanently delete <strong style="color:#b91c1c">{count} Excel-imported leads</strong>
-        (all leads that have a lazada_id).</p>
-        <p>Your original <strong>manually-entered leads will NOT be affected</strong>.</p>
-        <form method="POST">
+        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:700px">
+        <h2 style="color:#1F3864">Database Cleanup</h2>
+        <p>Leads with lazada_id (already deleted or remaining): <strong>{count}</strong></p>
+        <p>Fake gabay accounts found: <strong style="color:#b91c1c">{len(fake_ids)}</strong>
+           — {", ".join([u.full_name for u in fake_users])}</p>
+        <p>Leads assigned to fake gabay accounts: <strong style="color:#b91c1c">{leads_from_fake}</strong></p>
+        <hr style="margin:20px 0">
+        <p><strong>Step 1:</strong> Delete leads with lazada_id ({count} leads)</p>
+        <form method="POST" action="?step=lazada">
           <button type="submit" style="background:#b91c1c;color:white;border:none;
-                  padding:12px 28px;border-radius:8px;font-size:15px;
-                  cursor:pointer;font-weight:700;margin-right:12px">
-            Yes, Delete {count} Leads
+                  padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700">
+            Delete {count} leads with lazada_id
           </button>
-          <a href="/admin/db-status" style="color:#4a5568;font-weight:700">Cancel</a>
         </form>
+        <br>
+        <p><strong>Step 2:</strong> Delete leads assigned to fake gabay accounts ({leads_from_fake} leads) + delete fake accounts</p>
+        <form method="POST" action="?step=fake_users">
+          <button type="submit" style="background:#7c3aed;color:white;border:none;
+                  padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700">
+            Delete {leads_from_fake} fake-assigned leads + {len(fake_ids)} fake accounts
+          </button>
+        </form>
+        <br>
+        <a href="/dashboard" style="color:#4a5568;font-weight:700">← Back to Dashboard</a>
         </body></html>'''
 
-    # POST — bulk delete using raw SQL for speed (avoids ORM timeout on 2000+ rows)
+    step = request.args.get('step', 'lazada')
     try:
-        sub = "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
-        db.session.execute(text(f"DELETE FROM notifications WHERE related_lead_id IN {sub}"))
-        db.session.execute(text(f"DELETE FROM visits WHERE lead_id IN {sub}"))
-        db.session.execute(text(f"DELETE FROM registrations WHERE lead_id IN {sub}"))
-        db.session.execute(text(f"DELETE FROM lead_assignment_history WHERE lead_id IN {sub}"))
-        db.session.execute(text("DELETE FROM leads WHERE lazada_id IS NOT NULL"))
-        db.session.commit()
+        if step == 'lazada':
+            sub = "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
+            db.session.execute(text(f"DELETE FROM notifications WHERE related_lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM visits WHERE lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM registrations WHERE lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM lead_assignment_history WHERE lead_id IN {sub}"))
+            db.session.execute(text("DELETE FROM leads WHERE lazada_id IS NOT NULL"))
+            db.session.commit()
+            msg = f"Deleted {count} leads with lazada_id."
+        elif step == 'fake_users' and fake_ids:
+            ids_str = ','.join(str(i) for i in fake_ids)
+            sub = f"(SELECT id FROM leads WHERE gabay_id IN ({ids_str}))"
+            db.session.execute(text(f"DELETE FROM notifications WHERE related_lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM visits WHERE lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM registrations WHERE lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM lead_assignment_history WHERE lead_id IN {sub}"))
+            db.session.execute(text(f"DELETE FROM leads WHERE gabay_id IN ({ids_str})"))
+            # Delete fake user accounts
+            db.session.execute(text(f"DELETE FROM users WHERE id IN ({ids_str})"))
+            db.session.commit()
+            msg = f"Deleted {leads_from_fake} leads and {len(fake_ids)} fake gabay accounts."
+        else:
+            msg = "Nothing to do."
     except Exception as e:
         db.session.rollback()
-        return f'<h2>Error: {e}</h2><a href="/admin/db-status">Back</a>'
+        return f'<h2>Error: {e}</h2><a href="/admin/delete-excel-imports">Back</a>'
 
     remaining = Lead.query.count()
     return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
     <h2 style="color:#15803d">✅ Done!</h2>
-    <p>Deleted <strong>{count}</strong> Excel-imported leads and their visits.</p>
-    <p>Leads remaining in database: <strong style="color:#1F3864">{remaining}</strong></p>
-    <a href="/admin/db-status" style="color:#1F3864;font-weight:700">→ Check DB Status</a>
+    <p>{msg}</p>
+    <p>Leads remaining: <strong style="font-size:20px;color:#1F3864">{remaining}</strong></p>
+    <a href="/admin/delete-excel-imports" style="color:#1F3864;font-weight:700">→ Continue Cleanup</a>
     &nbsp;&nbsp;
     <a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
     </body></html>'''
