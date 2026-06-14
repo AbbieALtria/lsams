@@ -1957,21 +1957,61 @@ def admin_db_status():
         f'<td style="color:#b91c1c;font-weight:700;text-align:center">{cnt}x</td></tr>'
         for name, city, cnt in dup_query
     ) or '<tr><td colspan="3" style="color:#15803d;text-align:center">No duplicates found</td></tr>'
+    with_lazada_id = Lead.query.filter(Lead.lazada_id != None).count()
+    without_lazada_id = Lead.query.filter(Lead.lazada_id == None).count()
     return f'''<html><head><style>
         body{{font-family:sans-serif;padding:32px;max-width:700px}}
         table{{width:100%;border-collapse:collapse;margin-bottom:24px}}
         th{{background:#1F3864;color:white;padding:8px 12px;text-align:left}}
         td{{padding:8px 12px;border-bottom:1px solid #e5e7eb}}
         h2{{color:#1F3864}} h3{{color:#4a5568;margin-top:28px}}
+        .warn{{background:#FEF2F2;border:1px solid #fca5a5;border-radius:8px;padding:14px;margin:16px 0}}
+        .ok{{background:#F0FDF4;border:1px solid #86efac;border-radius:8px;padding:14px;margin:16px 0}}
     </style></head><body>
     <h2>Database Status</h2>
     <p>Total leads in database: <strong style="font-size:20px;color:#1F3864">{total}</strong></p>
+    <div class="ok">
+      ✅ <strong>Leads WITH lazada_id (Excel imports):</strong> {with_lazada_id}<br>
+      ✅ <strong>Leads WITHOUT lazada_id (original/manual):</strong> {without_lazada_id}
+    </div>
     <h3>Leads by Current Status</h3>
     <table><tr><th>Status</th><th style="text-align:right">Count</th></tr>{rows_html}</table>
     <h3>Possible Duplicates (same name + city, top 20)</h3>
     <table><tr><th>Seller Name</th><th>City</th><th style="text-align:center">Copies</th></tr>
     {dup_html}</table>
+    <div class="warn">
+      ⚠️ <strong>If Excel imports are all duplicates</strong>, use the button below to delete them.<br>
+      This will remove all {with_lazada_id} leads that have a lazada_id (came from Excel import).<br>
+      Your original {without_lazada_id} leads will NOT be touched.<br><br>
+      <form method="POST" action="/admin/delete-excel-imports"
+            onsubmit="return confirm('Delete {with_lazada_id} Excel-imported leads? This cannot be undone.')">
+        <button type="submit" style="background:#b91c1c;color:white;border:none;
+                padding:10px 20px;border-radius:8px;font-size:14px;cursor:pointer;font-weight:700">
+          🗑️ Delete All Excel-Imported Leads ({with_lazada_id})
+        </button>
+      </form>
+    </div>
     <a href="/dashboard" style="color:#1F3864;font-weight:700">← Back to Dashboard</a>
+    </body></html>'''
+
+
+@app.route('/admin/delete-excel-imports', methods=['POST'])
+@login_required
+def admin_delete_excel_imports():
+    if not current_user.is_superadmin:
+        return 'Superadmin only', 403
+    leads_to_delete = Lead.query.filter(Lead.lazada_id != None).all()
+    count = len(leads_to_delete)
+    for lead in leads_to_delete:
+        db.session.delete(lead)
+    db.session.commit()
+    return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
+    <h2 style="color:#15803d">✅ Done!</h2>
+    <p>Deleted <strong>{count}</strong> Excel-imported leads (those with lazada_id).</p>
+    <p>Your original leads are untouched.</p>
+    <a href="/admin/db-status" style="color:#1F3864;font-weight:700">→ Check DB Status</a>
+    &nbsp;&nbsp;
+    <a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
     </body></html>'''
 
 
