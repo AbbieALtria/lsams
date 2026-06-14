@@ -462,6 +462,77 @@ def backfill_leads_json():
     return jsonify([{'id': l.id, 'name': l.seller_name, 'city': l.city or '', 'status': l.status} for l in leads])
 
 
+@app.route('/gabay/app/voice-transcribe', methods=['POST'])
+@login_required
+def voice_transcribe():
+    if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor', 'superadmin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    audio_file = request.files.get('audio')
+    if not audio_file:
+        return jsonify({'error': 'No audio file'}), 400
+
+    openai_key = os.environ.get('OPENAI_API_KEY', '')
+    if not openai_key:
+        return jsonify({'error': 'Voice feature not configured. Ask your supervisor to set OPENAI_API_KEY.'}), 503
+
+    try:
+        import openai as _openai
+        client = _openai.OpenAI(api_key=openai_key)
+
+        audio_bytes = audio_file.read()
+        import io
+        audio_io = io.BytesIO(audio_bytes)
+        audio_io.name = 'voice.webm'
+
+        transcript = client.audio.transcriptions.create(
+            model='whisper-1',
+            file=audio_io,
+            language=None,
+            prompt=(
+                'This is a field sales agent in the Philippines reporting a seller visit outcome. '
+                'They may speak in English, Tagalog, or Bisaya/Cebuano. '
+                'Common words: interesado, gusto, nag-register, wala, hindi interesado, babalik, tatawag.'
+            )
+        )
+        text = transcript.text.strip()
+    except Exception as e:
+        return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
+
+    outcome = _parse_outcome(text)
+    return jsonify({'text': text, 'outcome': outcome})
+
+
+def _parse_outcome(text):
+    t = text.lower()
+    registered_kw = ['register', 'nag-register', 'nakapag', 'sign up', 'signed up', 'na-onboard', 'live na']
+    interested_kw = ['interested', 'interesado', 'gusto', 'willing', 'open', 'pwede', 'consider', 'gustong sumali']
+    rejected_kw = ['ayaw', 'hindi interesado', 'not interested', 'rejected', 'basta ayaw', 'no thanks', 'wag na', 'hindi na', 'ayaw na']
+    not_home_kw = ['wala', 'walang tao', 'not home', 'not around', 'hindi nandoon', 'closed', 'nakasirado', 'store close']
+    callback_kw = ['tatawag', 'call back', 'callback', 'tawagan', 'magtatawag', 'call me', 'call later']
+    follow_up_kw = ['follow up', 'babalik', 'bumalik', 'balik na lang', 'susunod na', 'next time', 'revisit', 'mag-iwan']
+
+    for kw in registered_kw:
+        if kw in t:
+            return 'registered'
+    for kw in rejected_kw:
+        if kw in t:
+            return 'rejected'
+    for kw in not_home_kw:
+        if kw in t:
+            return 'not_home'
+    for kw in callback_kw:
+        if kw in t:
+            return 'callback'
+    for kw in interested_kw:
+        if kw in t:
+            return 'interested'
+    for kw in follow_up_kw:
+        if kw in t:
+            return 'follow_up'
+    return ''
+
+
 @app.route('/visits/new/<int:lead_id>', methods=['GET', 'POST'])
 @login_required
 def new_visit(lead_id):
@@ -1355,6 +1426,38 @@ def report_campaign_roi():
     ).filter(Lead.batch_ref.isnot(None)).group_by(Lead.batch_ref)\
      .order_by(func.min(Lead.imported_at).desc()).all()
     return render_template('reports/campaign_roi.html', batches=batches, now=datetime.utcnow())
+
+
+@app.route('/reports/gabay-pipeline')
+@login_required
+def report_gabay_pipeline():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    gabay_users = User.query.filter_by(role='gabay').order_by(User.full_name).all()
+    report_rows = []
+    for g in gabay_users:
+        total   = Lead.query.filter_by(gabay_id=g.id).count()
+        visits  = Visit.query.filter_by(gabay_id=g.id).count()
+        by_status = {}
+        for s in ('assigned','attempting','negotiation','registration','live','matched','closed'):
+            by_status[s] = Lead.query.filter_by(gabay_id=g.id, status=s).count()
+        advanced = by_status['negotiation'] + by_status['registration'] + by_status['live'] + by_status['matched']
+        last_visit = Visit.query.filter_by(gabay_id=g.id).order_by(Visit.visited_at.desc()).first()
+        report_rows.append({
+            'gabay': g,
+            'total': total,
+            'visits': visits,
+            'visit_pct': round(visits / total * 100) if total else 0,
+            'adv_pct': round(advanced / total * 100) if total else 0,
+            'by_status': by_status,
+            'last_visit': last_visit.visited_at if last_visit else None,
+        })
+    report_rows.sort(key=lambda r: r['visits'], reverse=True)
+    return render_template('reports/gabay_pipeline.html',
+        rows=report_rows, now=datetime.utcnow(),
+        total_leads=Lead.query.count(),
+        total_visits=Visit.query.count())
 
 
 @app.route('/api/reports/kpi')
