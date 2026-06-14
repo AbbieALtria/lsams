@@ -1933,6 +1933,48 @@ def import_data():
 
 # ─── SUPERADMIN USER MANAGEMENT ──────────────────────────────────────────────
 
+@app.route('/admin/db-status')
+@login_required
+def admin_db_status():
+    if not current_user.is_superadmin:
+        return 'Superadmin only', 403
+    from sqlalchemy import func
+    total = Lead.query.count()
+    by_status = db.session.query(Lead.status, func.count(Lead.id))\
+        .group_by(Lead.status).order_by(func.count(Lead.id).desc()).all()
+    # Find duplicates by seller_name + city
+    dup_query = db.session.query(
+        Lead.seller_name, Lead.city, func.count(Lead.id).label('cnt')
+    ).group_by(Lead.seller_name, Lead.city)\
+     .having(func.count(Lead.id) > 1)\
+     .order_by(func.count(Lead.id).desc()).limit(20).all()
+    rows_html = ''.join(
+        f'<tr><td>{s}</td><td style="text-align:right;font-weight:700;color:#1F3864">{c}</td></tr>'
+        for s, c in by_status
+    )
+    dup_html = ''.join(
+        f'<tr><td>{name}</td><td>{city or "—"}</td>'
+        f'<td style="color:#b91c1c;font-weight:700;text-align:center">{cnt}x</td></tr>'
+        for name, city, cnt in dup_query
+    ) or '<tr><td colspan="3" style="color:#15803d;text-align:center">No duplicates found</td></tr>'
+    return f'''<html><head><style>
+        body{{font-family:sans-serif;padding:32px;max-width:700px}}
+        table{{width:100%;border-collapse:collapse;margin-bottom:24px}}
+        th{{background:#1F3864;color:white;padding:8px 12px;text-align:left}}
+        td{{padding:8px 12px;border-bottom:1px solid #e5e7eb}}
+        h2{{color:#1F3864}} h3{{color:#4a5568;margin-top:28px}}
+    </style></head><body>
+    <h2>Database Status</h2>
+    <p>Total leads in database: <strong style="font-size:20px;color:#1F3864">{total}</strong></p>
+    <h3>Leads by Current Status</h3>
+    <table><tr><th>Status</th><th style="text-align:right">Count</th></tr>{rows_html}</table>
+    <h3>Possible Duplicates (same name + city, top 20)</h3>
+    <table><tr><th>Seller Name</th><th>City</th><th style="text-align:center">Copies</th></tr>
+    {dup_html}</table>
+    <a href="/dashboard" style="color:#1F3864;font-weight:700">← Back to Dashboard</a>
+    </body></html>'''
+
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
