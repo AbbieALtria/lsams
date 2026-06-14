@@ -123,7 +123,7 @@ def logout():
 def dashboard():
     # KPI totals
     total_pool = Lead.query.count()
-    assigned = Lead.query.filter(Lead.status != 'pool').count()
+    assigned = Lead.query.filter_by(status='assigned').count()
     attempting = Lead.query.filter_by(status='attempting').count()
     negotiation = Lead.query.filter_by(status='negotiation').count()
     registration = Lead.query.filter_by(status='registration').count()
@@ -1694,7 +1694,7 @@ def report_gabay_pipeline():
 def api_kpi():
     data = {
         'total_pool': Lead.query.count(),
-        'assigned': Lead.query.filter(Lead.status != 'pool').count(),
+        'assigned': Lead.query.filter_by(status='assigned').count(),
         'attempting': Lead.query.filter_by(status='attempting').count(),
         'negotiation': Lead.query.filter_by(status='negotiation').count(),
         'registration': Lead.query.filter_by(status='registration').count(),
