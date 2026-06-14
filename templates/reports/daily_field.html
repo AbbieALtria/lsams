@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Daily Field Report{% endblock %}
 {% block content %}
 
@@ -49,7 +49,7 @@
         {% for v in visits %}
         <tr>
           <td style="font-size:12px;color:#9aabc5;white-space:nowrap">{{ v.visited_at.strftime('%I:%M %p') }}</td>
-          <td><strong style="color:#1F3864">{{ v._gabay.full_name if v._gabay else '—' }}</strong></td>
+          <td><strong style="color:#1F3864">{{ v._gabay.display_name if v._gabay else '—' }}</strong></td>
           <td>
             {% if v._lead %}
             <a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}" style="color:#1F3864;font-weight:600">{{ v._lead.seller_name }}</a>
@@ -99,3 +99,4 @@ function downloadPDF() {
 }
 </script>
 {% endblock %}
+

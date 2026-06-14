@@ -1,12 +1,12 @@
-{% extends "base.html" %}
-{% block title %}Scorecard — {{ gabay.full_name }}{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Scorecard — {{ gabay.display_name }}{% endblock %}
 {% block content %}
 <div class="page-header">
   <div>
     <a href="{{ url_for('gabay_list') }}" class="text-muted text-decoration-none" style="font-size:12px">
       <i class="bi bi-arrow-left me-1"></i>Back to Gabay Agents
     </a>
-    <div class="page-title mt-1">{{ gabay.full_name }} — Scorecard</div>
+    <div class="page-title mt-1">{{ gabay.display_name }} — Scorecard</div>
   </div>
   <span class="badge" style="background:#1F3864;color:white;font-size:12px;padding:6px 14px">GABAY</span>
 </div>
@@ -124,3 +124,4 @@ new Chart(document.getElementById('trendChart'), {
 });
 </script>
 {% endblock %}
+

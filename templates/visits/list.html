@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Visits{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -16,7 +16,7 @@
         {% for v in pagination.items %}
         <tr>
           <td style="font-size:12px">{{ v.visited_at.strftime('%b %d, %Y') }}<br><small class="text-muted">{{ v.visited_at.strftime('%I:%M %p') }}</small></td>
-          <td>{{ v.gabay.full_name if v.gabay else '—' }}</td>
+          <td>{{ v.gabay.display_name if v.gabay else '—' }}</td>
           <td><a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}" class="text-decoration-none" style="color:#1F3864">{{ v.lead.seller_name if v.lead else '—' }}</a></td>
           <td>{{ v.lead.city if v.lead else '—' }}</td>
           <td><span class="badge bg-{{ v.outcome_color }}">{{ v.outcome_label }}</span></td>
@@ -43,3 +43,4 @@
   {% endif %}
 </div>
 {% endblock %}
+

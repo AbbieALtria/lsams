@@ -1995,6 +1995,47 @@ def admin_db_status():
     </body></html>'''
 
 
+@app.route('/admin/migrate-gabay-name')
+@login_required
+def migrate_gabay_name():
+    if not current_user.is_superadmin:
+        return 'Superadmin only', 403
+    try:
+        db.session.execute(text(
+            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gabay_name VARCHAR(100)"
+        ))
+        # Set gabay_name for the 9 real agents by full_name
+        mappings = [
+            ('Karen Villarama',   'Karen'),
+            ('Karl Mirabuenos',   'Karl'),
+            ('Kaycee Labial',     'Kaycee'),
+            ('Jenica Sunio',      'Jenica'),
+            ('Jenerous Sonio',    'Jenerous'),
+            ('Abigail Bulacso',   'Abigail'),
+            ('Marie Cris Nicolas','Marie Cris'),
+            ('Ellen Remandiman',  'Ellen'),
+            ('Arvie Bagalando',   'Arvie'),
+        ]
+        for full, gname in mappings:
+            db.session.execute(text(
+                "UPDATE users SET gabay_name = :gname WHERE full_name = :full"
+            ), {'gname': gname, 'full': full})
+        db.session.commit()
+        rows = ''.join(f'<tr><td>{f}</td><td style="color:#15803d;font-weight:700">{g}</td></tr>'
+                       for f, g in mappings)
+        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
+        <h2 style="color:#15803d">✅ Migration done!</h2>
+        <p>gabay_name column added and populated:</p>
+        <table style="width:100%;border-collapse:collapse">
+        <tr style="background:#1F3864;color:white"><th style="padding:8px">Full Name</th>
+        <th style="padding:8px">Gabay Name</th></tr>{rows}</table>
+        <br><a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
+        </body></html>'''
+    except Exception as e:
+        db.session.rollback()
+        return f'<h2 style="color:red">Error: {e}</h2>'
+
+
 @app.route('/admin/full-reset', methods=['GET', 'POST'])
 @login_required
 def admin_full_reset():
@@ -2068,11 +2109,24 @@ def admin_full_reset():
                 "DELETE FROM users WHERE full_name = :fn AND role = 'gabay'"
             ), {'fn': fn})
 
-        # Fix real gabay names
+        # Fix real gabay names and set gabay_name
+        gabay_name_map = {
+            'Karen Villarama':   'Karen',
+            'Karl Mirabuenos':   'Karl',
+            'Kaycee Labial':     'Kaycee',
+            'Jenica Sunio':      'Jenica',
+            'Jenerous Sonio':    'Jenerous',
+            'Abigail Bulacso':   'Abigail',
+            'Marie Cris Nicolas':'Marie Cris',
+            'Ellen Remandiman':  'Ellen',
+            'Arvie Bagalando':   'Arvie',
+        }
         for old_name, new_name in name_fixes.items():
+            gname = gabay_name_map.get(new_name, new_name)
             db.session.execute(text(
-                "UPDATE users SET full_name = :new WHERE full_name = :old AND role = 'gabay'"
-            ), {'new': new_name, 'old': old_name})
+                "UPDATE users SET full_name = :new, gabay_name = :gname "
+                "WHERE full_name = :old AND role = 'gabay'"
+            ), {'new': new_name, 'gname': gname, 'old': old_name})
 
         db.session.commit()
     except Exception as e:

@@ -1,8 +1,8 @@
-{% extends "base.html" %}
-{% block title %}Edit {{ u.full_name }}{% endblock %}
+﻿{% extends "base.html" %}
+{% block title %}Edit {{ u.display_name }}{% endblock %}
 {% block content %}
 <div class="page-header d-flex align-items-center justify-content-between">
-  <div class="page-title"><i class="bi bi-pencil-square me-2"></i>Edit — {{ u.full_name }}</div>
+  <div class="page-title"><i class="bi bi-pencil-square me-2"></i>Edit — {{ u.display_name }}</div>
   <a href="{{ url_for('gabay_list') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
 </div>
 
@@ -25,7 +25,7 @@
           <div style="width:90px;height:90px;border-radius:50%;background:linear-gradient(135deg,#1F3864,#2E75B6);
                display:flex;align-items:center;justify-content:center;margin:0 auto;
                font-size:32px;color:white;font-weight:800;box-shadow:0 2px 12px #1F386422">
-            {{ u.full_name[0]|upper }}
+            {{ u.display_name[0]|upper }}
           </div>
           {% endif %}
           <div style="font-size:11px;color:#9aabc5;margin-top:6px">Photo set by agent from their profile</div>
@@ -38,7 +38,7 @@
         </div>
         <div class="mb-3">
           <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Full Name *</label>
-          <input type="text" name="full_name" class="form-control" required value="{{ u.full_name }}">
+          <input type="text" name="full_name" class="form-control" required value="{{ u.display_name }}">
         </div>
         <div class="mb-3">
           <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">Email *</label>
@@ -159,3 +159,4 @@
 </form>
 
 {% endblock %}
+

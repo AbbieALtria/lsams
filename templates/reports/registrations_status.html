@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Registration Status Report{% endblock %}
 {% block content %}
 
@@ -50,7 +50,7 @@
             </strong>
           </td>
           <td style="color:#9aabc5">{{ r._lead.city if r._lead else '—' }}</td>
-          <td>{{ r._gabay.full_name if r._gabay else '—' }}</td>
+          <td>{{ r._gabay.display_name if r._gabay else '—' }}</td>
           <td style="font-size:12px;color:#9aabc5">
             {{ r.submitted_at.strftime('%b %d, %Y') if r.submitted_at else '—' }}
           </td>
@@ -86,3 +86,4 @@ function downloadPDF() {
 }
 </script>
 {% endblock %}
+

@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Registration — {{ reg.lead.seller_name if reg.lead else '' }}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -95,7 +95,7 @@
           <tr><th style="color:#9aabc5;font-size:11px">Business</th><td>{{ reg.lead.business_name or '—' }}</td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">Contact</th><td>{{ reg.lead.contact_number or '—' }}</td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">City</th><td>{{ reg.lead.city or '—' }}</td></tr>
-          <tr><th style="color:#9aabc5;font-size:11px">Gabay</th><td>{{ reg.lead.assigned_gabay.full_name if reg.lead.assigned_gabay else '—' }}</td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Gabay</th><td>{{ reg.lead.assigned_gabay.display_name if reg.lead.assigned_gabay else '—' }}</td></tr>
         </table>
         {% endif %}
       </div>
@@ -103,3 +103,4 @@
   </div>
 </div>
 {% endblock %}
+

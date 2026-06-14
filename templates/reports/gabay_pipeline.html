@@ -1,0 +1,193 @@
+﻿{% extends "base.html" %}
+{% block title %}Gabay Pipeline Report{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2 no-print">
+  <div>
+    <div class="page-title"><i class="bi bi-people-fill me-2"></i>Gabay Pipeline Report</div>
+    <div style="color:#9aabc5;font-size:12px">Full status breakdown per agent · Live from database</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white;font-weight:700">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<!-- PDF HEADER (only visible in PDF) -->
+<div class="pdf-only" style="display:none;margin-bottom:20px">
+  <div style="display:flex;align-items:center;justify-content:space-between;border-bottom:2px solid #1F3864;padding-bottom:10px;margin-bottom:6px">
+    <div>
+      <div style="font-size:20px;font-weight:800;color:#1F3864">Gabay Pipeline Report</div>
+      <div style="font-size:11px;color:#6b7280">LSAMS — Lazada Seller Activation Management System</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#6b7280">
+      Generated: {{ now.strftime('%B %d, %Y %I:%M %p') }}<br>
+      Confidential — Supervisor use only
+    </div>
+  </div>
+  <!-- Team summary strip -->
+  <div style="display:flex;gap:16px;flex-wrap:wrap;margin-bottom:4px">
+    <div style="background:#F0F4FA;border-radius:8px;padding:8px 16px">
+      <div style="font-size:18px;font-weight:800;color:#1F3864">{{ rows|length }}</div>
+      <div style="font-size:10px;color:#6b7280">Gabay agents</div>
+    </div>
+    <div style="background:#F0F4FA;border-radius:8px;padding:8px 16px">
+      <div style="font-size:18px;font-weight:800;color:#1F3864">{{ total_leads }}</div>
+      <div style="font-size:10px;color:#6b7280">Total leads</div>
+    </div>
+    <div style="background:#F0F4FA;border-radius:8px;padding:8px 16px">
+      <div style="font-size:18px;font-weight:800;color:#1F3864">{{ total_visits }}</div>
+      <div style="font-size:10px;color:#6b7280">Total visits</div>
+    </div>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS (screen only) -->
+<div class="row g-3 mb-4 no-print">
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:800;color:#1F3864">{{ rows|length }}</div>
+      <div style="font-size:11px;color:#9aabc5">Gabay agents</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:800;color:#1F3864">{{ total_leads }}</div>
+      <div style="font-size:11px;color:#9aabc5">Total leads</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:800;color:#2E75B6">{{ total_visits }}</div>
+      <div style="font-size:11px;color:#9aabc5">Total visits</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:800;color:#15803d">
+        {% if total_leads > 0 %}{{ (total_visits / total_leads * 100)|round|int }}%{% else %}0%{% endif %}
+      </div>
+      <div style="font-size:11px;color:#9aabc5">Visit rate</div>
+    </div>
+  </div>
+</div>
+
+<!-- AGENT CARDS -->
+<div id="reportContent">
+{% for r in rows %}
+<div class="card mb-3 agent-block" style="page-break-inside:avoid">
+  <!-- Agent header -->
+  <div class="card-header d-flex align-items-center gap-3" style="background:#1F3864;color:white;border-radius:10px 10px 0 0">
+    <div style="width:38px;height:38px;border-radius:50%;background:rgba(255,255,255,0.15);display:flex;align-items:center;justify-content:center;font-weight:800;font-size:14px;flex-shrink:0">
+      {{ r.gabay.display_name[:2].upper() }}
+    </div>
+    <div style="flex:1">
+      <div style="font-weight:800;font-size:15px">{{ r.gabay.display_name }}</div>
+      <div style="font-size:11px;opacity:.75">
+        {{ r.gabay.assigned_city or '—' }}
+        {% if r.gabay.mobile %}&nbsp;·&nbsp;{{ r.gabay.mobile }}{% endif %}
+      </div>
+    </div>
+    <div style="text-align:right;font-size:11px;opacity:.7">
+      {% if r.last_visit %}Last visit: {{ r.last_visit.strftime('%b %d, %Y') }}{% else %}No visits yet{% endif %}
+    </div>
+  </div>
+
+  <div class="card-body py-3">
+    <!-- KPI row -->
+    <div class="row g-2 mb-3">
+      <div class="col-3">
+        <div style="background:#F0F4FA;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:#1F3864">{{ r.total }}</div>
+          <div style="font-size:10px;color:#9aabc5">Total leads</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div style="background:#F0F4FA;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:#2E75B6">{{ r.visits }}</div>
+          <div style="font-size:10px;color:#9aabc5">Visits made</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div style="background:#F0F4FA;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:{% if r.visit_pct >= 50 %}#15803d{% else %}#d97706{% endif %}">
+            {{ r.visit_pct }}%
+          </div>
+          <div style="font-size:10px;color:#9aabc5">Visit rate</div>
+        </div>
+      </div>
+      <div class="col-3">
+        <div style="background:#F0F4FA;border-radius:8px;padding:8px 10px;text-align:center">
+          <div style="font-size:20px;font-weight:800;color:{% if r.adv_pct >= 30 %}#185FA5{% else %}#6b7280{% endif %}">
+            {{ r.adv_pct }}%
+          </div>
+          <div style="font-size:10px;color:#9aabc5">Advanced</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Status breakdown -->
+    <div style="font-size:11px;font-weight:700;color:#9aabc5;text-transform:uppercase;letter-spacing:.05em;margin-bottom:8px">Status Breakdown</div>
+    <div class="row g-1">
+      {% set status_cfg = [
+        ('assigned',     'Assigned',     '#888780'),
+        ('attempting',   'Attempting',   '#d97706'),
+        ('negotiation',  'Negotiation',  '#185FA5'),
+        ('registration', 'Registration', '#7c3aed'),
+        ('live',         'Live',         '#15803d'),
+        ('matched',      'Matched',      '#0F6E56'),
+        ('closed',       'Closed',       '#b91c1c'),
+      ] %}
+      {% for key, label, color in status_cfg %}
+      {% if r.by_status[key] > 0 %}
+      <div class="col-12">
+        <div class="d-flex align-items-center gap-2" style="font-size:12px">
+          <span style="width:90px;text-align:right;color:#6b7280;flex-shrink:0">{{ label }}</span>
+          <div style="flex:1;background:#f3f4f6;border-radius:4px;height:10px;overflow:hidden">
+            <div style="width:{{ (r.by_status[key] / r.total * 100)|round|int }}%;height:100%;background:{{ color }};border-radius:4px"></div>
+          </div>
+          <span style="width:28px;font-weight:700;color:#1F3864">{{ r.by_status[key] }}</span>
+          <span style="width:34px;color:#9aabc5;font-size:11px">{{ (r.by_status[key] / r.total * 100)|round|int }}%</span>
+        </div>
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+  </div>
+</div>
+{% endfor %}
+</div>
+
+<!-- FOOTER -->
+<div class="mt-3 pt-3" style="border-top:1px solid #e5e7eb;font-size:11px;color:#9aabc5">
+  LSAMS &mdash; Generated {{ now.strftime('%B %d, %Y at %I:%M %p') }} &nbsp;|&nbsp; Confidential
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  // Show PDF header, hide screen-only elements
+  document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.pdf-only').forEach(el => el.style.display = 'block');
+
+  html2pdf().set({
+    margin: [10, 10, 10, 10],
+    filename: 'LSAMS_Gabay_Pipeline_Report.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css'], before: '.agent-block' }
+  }).from(document.getElementById('reportContent')).save().then(() => {
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+    document.querySelectorAll('.pdf-only').forEach(el => el.style.display = 'none');
+  });
+}
+</script>
+{% endblock %}
+

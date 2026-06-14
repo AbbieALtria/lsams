@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Monthly Targets{% endblock %}
 {% block content %}
 
@@ -40,7 +40,7 @@
         {% set lpct = [((row.actual_live / row.target_live * 100)|int if row.target_live else 0), 100]|min %}
         <tr>
           <td>
-            <div style="font-weight:700;color:#1F3864">{{ row.gabay.full_name }}</div>
+            <div style="font-weight:700;color:#1F3864">{{ row.gabay.display_name }}</div>
             <div style="font-size:11px;color:#9aabc5">@{{ row.gabay.username }}</div>
           </td>
           <td>
@@ -138,3 +138,4 @@
 {% endif %}
 
 {% endblock %}
+

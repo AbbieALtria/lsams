@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Activity Log{% endblock %}
 {% block content %}
 
@@ -16,7 +16,7 @@
         <select name="gabay" class="form-select form-select-sm">
           <option value="">All Agents</option>
           {% for g in gabay_users %}
-          <option value="{{ g.id }}" {% if gabay_filter == g.id|string %}selected{% endif %}>{{ g.full_name }}</option>
+          <option value="{{ g.id }}" {% if gabay_filter == g.id|string %}selected{% endif %}>{{ g.display_name }}</option>
           {% endfor %}
         </select>
       </div>
@@ -126,3 +126,4 @@
 {% endif %}
 
 {% endblock %}
+

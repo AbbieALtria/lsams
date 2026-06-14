@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}{{ lead.seller_name }}{% endblock %}
 {% block content %}
 
@@ -68,13 +68,13 @@
       <div class="card-body">
         <div class="mb-2" style="font-size:13px">
           <strong>Current Gabay:</strong>
-          {{ lead.assigned_gabay.full_name if lead.assigned_gabay else '<em class="text-muted">Unassigned</em>'|safe }}
+          {{ lead.assigned_gabay.display_name if lead.assigned_gabay else '<em class="text-muted">Unassigned</em>'|safe }}
         </div>
         <form method="POST" action="{{ url_for('assign_lead', lead_id=lead.id) }}" class="d-flex gap-2">
           <select name="gabay_id" class="form-select form-select-sm" required>
             <option value="">Select Gabay...</option>
             {% for g in gabay_users %}
-            <option value="{{ g.id }}" {% if lead.gabay_id == g.id %}selected{% endif %}>{{ g.full_name }}</option>
+            <option value="{{ g.id }}" {% if lead.gabay_id == g.id %}selected{% endif %}>{{ g.display_name }}</option>
             {% endfor %}
           </select>
           <button type="submit" class="btn btn-sm btn-primary flex-shrink-0">Assign</button>
@@ -121,7 +121,7 @@
               <span class="badge bg-{{ v.outcome_color }} me-2">{{ v.outcome_label }}</span>
               <small style="color:#9aabc5">{{ v.visited_at.strftime('%b %d, %Y %I:%M %p') }}</small>
             </div>
-            <small style="color:#9aabc5">{{ v.gabay.full_name if v.gabay else '' }}</small>
+            <small style="color:#9aabc5">{{ v.gabay.display_name if v.gabay else '' }}</small>
           </div>
           {% if v.gps_lat and v.gps_lng %}
           <div style="font-size:11px;color:#2E75B6;margin-top:4px">
@@ -189,3 +189,4 @@
   </div>
 </div>
 {% endblock %}
+

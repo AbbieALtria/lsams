@@ -32,6 +32,9 @@ class User(UserMixin, db.Model):
     barangay = db.Column(db.String(100))
     city_address = db.Column(db.String(100))
 
+    # Gabay display name (nickname used in leads, reports, Lazada — different from full_name)
+    gabay_name = db.Column(db.String(100))
+
     # Profile
     profile_photo = db.Column(db.String(200))
     deactivated_at = db.Column(db.DateTime)
@@ -44,6 +47,11 @@ class User(UserMixin, db.Model):
 
     def check_password(self, password):
         return check_password_hash(self.password_hash, password)
+
+    @property
+    def display_name(self):
+        """Gabay name for reports/leads/Lazada. Falls back to full_name."""
+        return self.gabay_name or self.full_name
 
     @property
     def city_list(self):

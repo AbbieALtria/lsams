@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Campaign: {{ batch_ref }}{% endblock %}
 {% block content %}
 <div class="page-header">
@@ -27,7 +27,7 @@
           <td style="font-size:12px">{{ lead.city or '—' }}</td>
           <td style="font-size:12px">{{ lead.category or '—' }}</td>
           <td style="font-size:12px">
-            {% if lead.assigned_gabay %}{{ lead.assigned_gabay.full_name.split()[0] }}{% else %}<span style="color:#9aabc5">Unassigned</span>{% endif %}
+            {% if lead.assigned_gabay %}{{ lead.assigned_gabay.display_name.split()[0] }}{% else %}<span style="color:#9aabc5">Unassigned</span>{% endif %}
           </td>
           <td>
             <span class="badge badge-{{ lead.status_color }}">{{ lead.status_label }}</span>
@@ -45,3 +45,4 @@
   </div>
 </div>
 {% endblock %}
+

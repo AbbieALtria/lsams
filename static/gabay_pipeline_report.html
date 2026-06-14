@@ -1,0 +1,152 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gabay Pipeline Report — LSAMS</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: Arial, sans-serif; font-size: 13px; color: #1a1a1a; background: #fff; padding: 24px; }
+  h1 { font-size: 20px; font-weight: 700; color: #1F3864; margin-bottom: 4px; }
+  .subtitle { font-size: 12px; color: #6b7280; margin-bottom: 20px; }
+  .summary-row { display: flex; gap: 12px; margin-bottom: 24px; flex-wrap: wrap; }
+  .summary-box { background: #F0F4FA; border-radius: 8px; padding: 10px 16px; min-width: 120px; }
+  .summary-box .val { font-size: 22px; font-weight: 700; color: #1F3864; }
+  .summary-box .lbl { font-size: 11px; color: #6b7280; margin-top: 2px; }
+  .agent-section { page-break-inside: avoid; margin-bottom: 20px; border: 1px solid #e5e7eb; border-radius: 10px; overflow: hidden; }
+  .agent-header { background: #1F3864; color: #fff; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+  .avatar { width: 34px; height: 34px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 13px; font-weight: 700; flex-shrink: 0; }
+  .agent-name-big { font-size: 15px; font-weight: 700; }
+  .agent-area-sm { font-size: 11px; opacity: .75; }
+  .agent-body { padding: 12px 16px; }
+  .kpi-row { display: flex; gap: 8px; margin-bottom: 12px; }
+  .kpi { background: #F8FAFD; border: 1px solid #e5e7eb; border-radius: 6px; padding: 6px 12px; flex: 1; }
+  .kpi .v { font-size: 18px; font-weight: 700; }
+  .kpi .l { font-size: 10px; color: #6b7280; }
+  .status-table { width: 100%; border-collapse: collapse; }
+  .status-table th { text-align: left; font-size: 10px; color: #6b7280; text-transform: uppercase; padding: 4px 6px; border-bottom: 1px solid #e5e7eb; }
+  .status-table td { padding: 5px 6px; font-size: 12px; border-bottom: 1px solid #f3f4f6; vertical-align: middle; }
+  .bar-wrap { background: #f3f4f6; border-radius: 3px; height: 8px; overflow: hidden; width: 160px; display: inline-block; vertical-align: middle; }
+  .bar-inner { height: 100%; border-radius: 3px; }
+  .badge { display: inline-block; font-size: 10px; padding: 2px 7px; border-radius: 10px; font-weight: 600; }
+  .footer-note { font-size: 11px; color: #9aabc5; margin-top: 24px; border-top: 1px solid #e5e7eb; padding-top: 12px; }
+  .download-btn { display: inline-flex; align-items: center; gap: 6px; background: #1F3864; color: #fff; border: none; border-radius: 8px; padding: 9px 20px; font-size: 13px; font-weight: 700; cursor: pointer; margin-bottom: 20px; }
+  .download-btn:hover { background: #162d52; }
+  @media print { .download-btn { display: none; } }
+</style>
+</head>
+<body>
+
+<button class="download-btn" onclick="downloadPDF()">&#11123; Download PDF</button>
+
+<h1>Gabay Pipeline Report</h1>
+<div class="subtitle">LSAMS &mdash; Generated: <span id="genDate"></span> &nbsp;|&nbsp; Source: pipline_lazada_gabay.xlsx</div>
+
+<div class="summary-row">
+  <div class="summary-box"><div class="val">9</div><div class="lbl">Gabay agents</div></div>
+  <div class="summary-box"><div class="val">889</div><div class="lbl">Total leads</div></div>
+  <div class="summary-box"><div class="val">359</div><div class="lbl">Visits made</div></div>
+  <div class="summary-box"><div class="val">40%</div><div class="lbl">Visit rate</div></div>
+  <div class="summary-box"><div class="val">5</div><div class="lbl">Live sellers</div></div>
+  <div class="summary-box"><div class="val">4</div><div class="lbl">Matched</div></div>
+</div>
+
+<script>
+const agents = [
+  {name:'ARVIE',  area:'Quezon City',                    leads:109, visits:54, last:'2026-06-09',
+   statuses:[['Assigned',53,'#888780'],['Attempting',26,'#BA7517'],['Negotiation',27,'#185FA5'],['Registration',2,'#534AB7'],['Matched',1,'#0F6E56']]},
+  {name:'JENEROUS',area:'Caloocan City',                 leads:102, visits:63, last:'2026-06-09',
+   statuses:[['Assigned',43,'#888780'],['Attempting',7,'#BA7517'],['Negotiation',43,'#185FA5'],['Registration',7,'#534AB7'],['Live',2,'#3B6D11']]},
+  {name:'KAREN', area:'Tondo / Binondo / San Nicolas',   leads:97,  visits:62, last:'2026-06-09',
+   statuses:[['Assigned',42,'#888780'],['Attempting',22,'#BA7517'],['Negotiation',26,'#185FA5'],['Registration',4,'#534AB7'],['Live',3,'#3B6D11']]},
+  {name:'KAYCEE',area:'Bacoor / Gen. Trias / Silang',    leads:101, visits:60, last:'2026-06-09',
+   statuses:[['Assigned',45,'#888780'],['Attempting',30,'#BA7517'],['Negotiation',20,'#185FA5'],['Registration',3,'#534AB7'],['Live',2,'#3B6D11'],['Matched',1,'#0F6E56']]},
+  {name:'JENICA',area:'Taytay / Antipolo / Marikina',    leads:96,  visits:47, last:'2026-06-09',
+   statuses:[['Assigned',48,'#888780'],['Attempting',13,'#BA7517'],['Negotiation',25,'#185FA5'],['Registration',8,'#534AB7'],['Live',1,'#3B6D11'],['Matched',1,'#0F6E56']]},
+  {name:'ABI',   area:'Pasay / Imus',                    leads:84,  visits:49, last:'2026-06-08',
+   statuses:[['Assigned',48,'#888780'],['Attempting',9,'#BA7517'],['Negotiation',24,'#185FA5'],['Registration',2,'#534AB7'],['Matched',1,'#0F6E56']]},
+  {name:'KARL',  area:'Parañaque / Makati / Taguig',     leads:95,  visits:41, last:'2026-06-08',
+   statuses:[['Assigned',58,'#888780'],['Attempting',15,'#BA7517'],['Negotiation',18,'#185FA5'],['Registration',3,'#534AB7'],['Live',1,'#3B6D11']]},
+  {name:'MARIECRIS',area:'Quiapo / Binondo Manila',      leads:99,  visits:27, last:'2026-06-09',
+   statuses:[['Assigned',60,'#888780'],['Attempting',12,'#BA7517'],['Negotiation',23,'#185FA5'],['Registration',3,'#534AB7'],['Live',1,'#3B6D11']]},
+  {name:'ELLEN', area:'Malabon / Tondo / Navotas',       leads:106, visits:24, last:'2026-06-08',
+   statuses:[['Assigned',68,'#888780'],['Attempting',11,'#BA7517'],['Negotiation',20,'#185FA5'],['Registration',6,'#534AB7'],['Matched',1,'#0F6E56']]},
+];
+
+const avatarColors = [
+  ['#E6F1FB','#0C447C'],['#EEEDFE','#3C3489'],['#FBEAF0','#72243E'],
+  ['#FAEEDA','#854F0B'],['#E1F5EE','#085041'],['#FBEAF0','#993556'],
+  ['#F1EFE8','#444441'],['#FAEEDA','#633806'],['#EAF3DE','#27500A']
+];
+
+const container = document.body;
+agents.forEach((a, i) => {
+  const [bgC, txtC] = avatarColors[i % avatarColors.length];
+  const maxN = Math.max(...a.statuses.map(s => s[1]));
+  const advanced = a.statuses.filter(s => ['Negotiation','Registration','Live','Matched'].includes(s[0])).reduce((x,s)=>x+s[1],0);
+  const advPct = Math.round(advanced/a.leads*100);
+  const visitPct = Math.round(a.visits/a.leads*100);
+
+  let rows = a.statuses.map(([label, n, color]) => {
+    const w = Math.round(n/maxN*100);
+    return `<tr>
+      <td><span class="badge" style="background:${color}22;color:${color}">${label}</span></td>
+      <td style="text-align:right;font-weight:700">${n}</td>
+      <td><div class="bar-wrap"><div class="bar-inner" style="width:${w}%;background:${color}"></div></div></td>
+      <td style="text-align:right;color:#6b7280">${Math.round(n/a.leads*100)}%</td>
+    </tr>`;
+  }).join('');
+
+  const section = document.createElement('div');
+  section.className = 'agent-section';
+  section.innerHTML = `
+    <div class="agent-header">
+      <div class="avatar" style="background:${bgC};color:${txtC}">${a.name.substring(0,2)}</div>
+      <div>
+        <div class="agent-name-big">${a.name}</div>
+        <div class="agent-area-sm">${a.area}</div>
+      </div>
+      <div style="margin-left:auto;font-size:11px;opacity:.7">Last updated: ${a.last}</div>
+    </div>
+    <div class="agent-body">
+      <div class="kpi-row">
+        <div class="kpi"><div class="v">${a.leads}</div><div class="l">Total leads</div></div>
+        <div class="kpi"><div class="v">${a.visits}</div><div class="l">Visits made</div></div>
+        <div class="kpi"><div class="v" style="color:${visitPct>=50?'#3B6D11':'#BA7517'}">${visitPct}%</div><div class="l">Visit rate</div></div>
+        <div class="kpi"><div class="v" style="color:${advPct>=30?'#185FA5':'#6b7280'}">${advPct}%</div><div class="l">Advanced</div></div>
+      </div>
+      <table class="status-table">
+        <thead><tr><th>Status</th><th style="text-align:right">Count</th><th>Progress</th><th style="text-align:right">Share</th></tr></thead>
+        <tbody>${rows}</tbody>
+      </table>
+    </div>`;
+  container.appendChild(section);
+});
+
+document.getElementById('genDate').textContent = new Date().toLocaleDateString('en-PH', {year:'numeric',month:'long',day:'numeric'});
+</script>
+
+<div class="footer-note">
+  LSAMS &mdash; Lazada Seller Activation Management System &nbsp;|&nbsp; Data from: pipline_lazada_gabay.xlsx &nbsp;|&nbsp; Confidential
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  const btn = document.querySelector('.download-btn');
+  btn.style.display = 'none';
+  html2pdf().set({
+    margin: [10, 10, 10, 10],
+    filename: 'LSAMS_Gabay_Pipeline_Report.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 2, useCORS: true },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'portrait' },
+    pagebreak: { mode: ['avoid-all', 'css'] }
+  }).from(document.body).save().then(() => {
+    btn.style.display = 'inline-flex';
+  });
+}
+</script>
+
+</body>
+</html>

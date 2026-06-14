@@ -1,4 +1,4 @@
-{% extends "base.html" %}
+﻿{% extends "base.html" %}
 {% block title %}Supervisor Data Entry{% endblock %}
 {% block content %}
 
@@ -82,7 +82,7 @@
 <script>
 const gabayUsers = [
   {% for g in gabay_users %}
-  { id: {{ g.id }}, name: {{ g.full_name | tojson }} },
+  { id: {{ g.id }}, name: {{ g.display_name | tojson }} },
   {% endfor %}
 ];
 
@@ -296,3 +296,4 @@ document.getElementById('backfillForm').addEventListener('submit', function(e) {
 });
 </script>
 {% endblock %}
+
