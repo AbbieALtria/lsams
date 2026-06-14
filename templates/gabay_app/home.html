@@ -168,7 +168,7 @@
 {% endif %}
 
 <!-- QUICK ACTIONS -->
-<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:10px">
   <a href="{{ url_for('gabay_checkin') }}"
      style="background:#1F3864;color:white;border-radius:16px;padding:16px 14px;
             text-decoration:none;display:flex;flex-direction:column;align-items:center;gap:6px">
@@ -184,6 +184,17 @@
     <span style="font-size:10px;opacity:.75">Snap a shop photo</span>
   </a>
 </div>
+<a href="{{ url_for('gabay_plan_route') }}"
+   style="display:flex;align-items:center;gap:14px;background:linear-gradient(135deg,#0f766e,#0d9488);
+          color:white;border-radius:16px;padding:14px 18px;text-decoration:none;margin-bottom:16px;
+          box-shadow:0 4px 12px rgba(15,118,110,0.3)">
+  <span style="font-size:30px;flex-shrink:0">🗺️</span>
+  <div>
+    <div style="font-size:14px;font-weight:800">Plan My Day</div>
+    <div style="font-size:11px;opacity:.8;margin-top:2px">AI-optimized visit route</div>
+  </div>
+  <i class="bi bi-chevron-right ms-auto" style="color:rgba(255,255,255,0.6);font-size:18px"></i>
+</a>
 
 <!-- PRIORITY LEADS -->
 <div class="section-hdr">

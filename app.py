@@ -638,6 +638,92 @@ def _parse_outcome(text):
     return ''
 
 
+@app.route('/gabay/app/plan-route', methods=['GET', 'POST'])
+@login_required
+def gabay_plan_route():
+    if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor', 'superadmin'):
+        return redirect(url_for('gabay_home'))
+
+    gid = current_user.id
+    maps_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+
+    # Fetch today's unvisited / priority leads that have an address
+    from datetime import date as _date
+    active_leads = Lead.query.filter(
+        Lead.gabay_id == gid,
+        Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration']),
+        Lead.address != None,
+        Lead.address != ''
+    ).all()
+
+    if not active_leads:
+        return render_template('gabay_app/route.html',
+            stops=[], maps_url='', optimized=False,
+            error='No leads with addresses found. Add addresses to your leads first.',
+            maps_key=maps_key)
+
+    # Sort locally by conversion_score desc as default order
+    active_leads.sort(key=lambda l: l.conversion_score, reverse=True)
+    # Limit to top 10 for route optimization (Maps API limit)
+    route_leads = active_leads[:10]
+
+    optimized_order = list(range(len(route_leads)))
+    maps_url = ''
+    error = None
+
+    import urllib.parse
+    import urllib.request
+
+    if maps_key and len(route_leads) >= 2:
+        try:
+
+            origin = route_leads[0].address
+            destination = route_leads[-1].address
+            waypoints_raw = [l.address for l in route_leads[1:-1]]
+            waypoints_str = 'optimize:true|' + '|'.join(
+                urllib.parse.quote(w) for w in waypoints_raw
+            ) if waypoints_raw else ''
+
+            url = (
+                'https://maps.googleapis.com/maps/api/directions/json'
+                f'?origin={urllib.parse.quote(origin)}'
+                f'&destination={urllib.parse.quote(destination)}'
+                + (f'&waypoints={waypoints_str}' if waypoints_str else '')
+                + f'&key={maps_key}'
+                + '&region=PH'
+            )
+            with urllib.request.urlopen(url, timeout=8) as resp:
+                data = json.loads(resp.read().decode())
+
+            if data.get('status') == 'OK':
+                route = data['routes'][0]
+                wp_order = route.get('waypoint_order', [])
+                # Rebuild order: origin(0) + optimized waypoints + destination(last)
+                middle = [route_leads[i + 1] for i in wp_order] if wp_order else route_leads[1:-1]
+                route_leads = [route_leads[0]] + middle + [route_leads[-1]]
+                optimized_order = list(range(len(route_leads)))
+            else:
+                error = f"Maps API: {data.get('status', 'unknown error')}"
+        except Exception as e:
+            error = f'Route optimization unavailable: {str(e)}'
+
+    # Build Google Maps navigation deep-link for all stops
+    if route_leads:
+        wps = '/'.join(urllib.parse.quote(l.address) for l in route_leads)
+        maps_url = f'https://www.google.com/maps/dir/{wps}'
+
+    # Build Waze link for first stop only
+    waze_url = ''
+    if route_leads:
+        waze_url = f'https://waze.com/ul?q={urllib.parse.quote(route_leads[0].address)}&navigate=yes'
+
+    return render_template('gabay_app/route.html',
+        stops=route_leads, maps_url=maps_url, waze_url=waze_url,
+        optimized=(maps_key != '' and error is None),
+        error=error, maps_key=maps_key,
+        total_leads=len(active_leads))
+
+
 @app.route('/visits/new/<int:lead_id>', methods=['GET', 'POST'])
 @login_required
 def new_visit(lead_id):

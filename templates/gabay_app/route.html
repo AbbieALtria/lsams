@@ -1,0 +1,187 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Plan My Day{% endblock %}
+{% block content %}
+
+<!-- HEADER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+  <div>
+    <div style="font-size:18px;font-weight:800;color:#1F3864">
+      🗺️ Plan My Day
+    </div>
+    <div style="font-size:12px;color:#9aabc5">
+      {% if optimized %}
+        AI-optimized route · {{ stops|length }} stops
+      {% else %}
+        Ranked by priority score · {{ stops|length }} stops
+      {% endif %}
+      {% if total_leads and total_leads > stops|length %}
+        <span style="color:#b45309"> · showing top {{ stops|length }} of {{ total_leads }}</span>
+      {% endif %}
+    </div>
+  </div>
+  <a href="{{ url_for('gabay_home') }}"
+     style="background:#f1f5f9;color:#4a5568;border:none;border-radius:12px;
+            padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
+    <i class="bi bi-arrow-left me-1"></i>Home
+  </a>
+</div>
+
+<!-- STATUS BANNER -->
+{% if error %}
+<div style="background:#FEF2F2;border-left:4px solid #b91c1c;border-radius:12px;
+            padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;
+            display:flex;gap:10px;align-items:flex-start">
+  <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;flex-shrink:0;margin-top:1px"></i>
+  <div>
+    <strong>Route optimization unavailable</strong> — {{ error }}<br>
+    <span style="opacity:.8">Stops are sorted by conversion score instead.</span>
+  </div>
+</div>
+{% elif optimized %}
+<div style="background:#F0FDF4;border-left:4px solid #15803d;border-radius:12px;
+            padding:12px 14px;margin-bottom:14px;font-size:12px;color:#14532d;
+            display:flex;gap:10px;align-items:center">
+  <i class="bi bi-check-circle-fill" style="color:#15803d;flex-shrink:0"></i>
+  <div>
+    <strong>Route optimized by Google Maps</strong> — shortest travel time order
+  </div>
+</div>
+{% else %}
+<div style="background:#FFFBEB;border-left:4px solid #d97706;border-radius:12px;
+            padding:12px 14px;margin-bottom:14px;font-size:12px;color:#78350f;
+            display:flex;gap:10px;align-items:center">
+  <i class="bi bi-info-circle-fill" style="color:#d97706;flex-shrink:0"></i>
+  <div>
+    Sorted by priority score. Add a <strong>GOOGLE_MAPS_API_KEY</strong> in Railway for AI route optimization.
+  </div>
+</div>
+{% endif %}
+
+{% if not stops %}
+<!-- EMPTY STATE -->
+<div style="text-align:center;padding:48px 24px">
+  <div style="font-size:48px;margin-bottom:12px">📭</div>
+  <div style="font-weight:800;color:#1F3864;font-size:16px">No leads with addresses</div>
+  <div style="font-size:13px;color:#9aabc5;margin-top:6px">
+    Add complete addresses to your leads so the route optimizer can plan your day.
+  </div>
+  <a href="{{ url_for('gabay_app_leads') }}"
+     style="display:inline-block;margin-top:16px;background:#1F3864;color:white;
+            border-radius:14px;padding:10px 22px;font-size:13px;font-weight:800;text-decoration:none">
+    View My Leads
+  </a>
+</div>
+
+{% else %}
+
+<!-- LAUNCH BUTTONS -->
+<div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:16px">
+  {% if maps_url %}
+  <a href="{{ maps_url }}" target="_blank"
+     style="background:#4285F4;color:white;border-radius:14px;padding:13px 10px;
+            text-align:center;text-decoration:none;font-weight:800;font-size:13px;
+            display:flex;align-items:center;justify-content:center;gap:6px">
+    <i class="bi bi-map-fill"></i> Open in Maps
+  </a>
+  {% endif %}
+  {% if waze_url %}
+  <a href="{{ waze_url }}" target="_blank"
+     style="background:#00AAFF;color:white;border-radius:14px;padding:13px 10px;
+            text-align:center;text-decoration:none;font-weight:800;font-size:13px;
+            display:flex;align-items:center;justify-content:center;gap:6px">
+    <i class="bi bi-navigation-fill"></i> Start in Waze
+  </a>
+  {% endif %}
+</div>
+
+<!-- STOP LIST -->
+<div class="m-card" style="padding:0 16px">
+  {% for lead in stops %}
+  {% set score = lead.conversion_score %}
+  {% set tier_label, tier_color, tier_bg, tier_icon = lead.conversion_tier %}
+  {% set status_colors = {'assigned':'#2E75B6','attempting':'#E07B00','negotiation':'#7c3aed','registration':'#be185d','live':'#15803d'} %}
+  {% set sc = status_colors.get(lead.status, '#9aabc5') %}
+
+  <div style="padding:14px 0;border-bottom:1px solid #F0F4FA{% if loop.last %};border-bottom:none{% endif %}">
+
+    <!-- Stop number + seller -->
+    <div style="display:flex;align-items:flex-start;gap:12px">
+      <!-- Circle number -->
+      <div style="width:32px;height:32px;border-radius:50%;background:#1F3864;color:white;
+                  display:flex;align-items:center;justify-content:center;
+                  font-size:14px;font-weight:900;flex-shrink:0;margin-top:2px">
+        {{ loop.index }}
+      </div>
+
+      <div style="flex:1;min-width:0">
+        <!-- Name + score -->
+        <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
+          <div style="font-weight:800;font-size:14px;color:#1F3864">{{ lead.seller_name }}</div>
+          <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;
+                       background:{{ tier_bg }};color:{{ tier_color }}">
+            {{ tier_icon }} {{ score }}
+          </span>
+          <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:10px;
+                       background:{{ sc }}22;color:{{ sc }}">
+            {{ lead.status_label }}
+          </span>
+        </div>
+
+        <!-- Address -->
+        <div style="font-size:12px;color:#6b7280;margin-top:3px;line-height:1.4">
+          <i class="bi bi-geo-alt me-1" style="color:#9aabc5"></i>
+          {{ lead.address }}{% if lead.barangay %}, {{ lead.barangay }}{% endif %}{% if lead.city %}, {{ lead.city }}{% endif %}
+        </div>
+
+        {% if lead.contact_number %}
+        <div style="font-size:11px;color:#9aabc5;margin-top:2px">
+          <i class="bi bi-telephone me-1"></i>{{ lead.contact_number }}
+        </div>
+        {% endif %}
+
+        <!-- Action buttons -->
+        <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
+          <a href="https://waze.com/ul?q={{ lead.address|urlencode }}&navigate=yes" target="_blank"
+             style="background:#00AAFF18;border:1.5px solid #00AAFF;color:#00AAFF;
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                    text-decoration:none">
+            <i class="bi bi-navigation-fill me-1"></i>Waze
+          </a>
+          <a href="https://www.google.com/maps/search/?api=1&query={{ lead.address|urlencode }}" target="_blank"
+             style="background:#4285F418;border:1.5px solid #4285F4;color:#4285F4;
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                    text-decoration:none">
+            <i class="bi bi-map me-1"></i>Maps
+          </a>
+          <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
+             style="background:#1F386418;border:1.5px solid #1F3864;color:#1F3864;
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                    text-decoration:none">
+            <i class="bi bi-person-lines-fill me-1"></i>View Lead
+          </a>
+          <a href="{{ url_for('gabay_checkin') }}?lead_id={{ lead.id }}"
+             style="background:#15803d18;border:1.5px solid #15803d;color:#15803d;
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                    text-decoration:none">
+            <i class="bi bi-check2-circle me-1"></i>Check In
+          </a>
+        </div>
+      </div>
+    </div>
+
+  </div>
+  {% endfor %}
+</div>
+
+<!-- REFRESH BUTTON -->
+<div style="text-align:center;margin-top:16px">
+  <a href="{{ url_for('gabay_plan_route') }}"
+     style="background:#f1f5f9;color:#4a5568;border-radius:12px;padding:10px 22px;
+            font-size:13px;font-weight:700;text-decoration:none;display:inline-block">
+    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Route
+  </a>
+</div>
+
+{% endif %}
+
+{% endblock %}
