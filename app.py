@@ -1533,6 +1533,44 @@ def report_campaign_roi():
     return render_template('reports/campaign_roi.html', batches=batches, now=datetime.utcnow())
 
 
+@app.route('/reports/lead-scoring')
+@login_required
+def report_lead_scoring():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    gabay_filter = request.args.get('gabay', type=int)
+    tier_filter  = request.args.get('tier', '')
+    status_filter = request.args.get('status', '')
+
+    q = Lead.query.filter(Lead.status.notin_(['pool', 'live', 'matched', 'closed']))
+    if gabay_filter:
+        q = q.filter_by(gabay_id=gabay_filter)
+    if status_filter:
+        q = q.filter_by(status=status_filter)
+
+    leads = q.all()
+
+    # Score and sort in Python (scoring uses visit relationship)
+    scored = sorted(leads, key=lambda l: l.conversion_score, reverse=True)
+
+    if tier_filter:
+        scored = [l for l in scored if l.conversion_tier[0].lower() == tier_filter.lower()]
+
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    tier_counts = {'Hot': 0, 'Warm': 0, 'Cool': 0, 'Cold': 0}
+    for l in leads:
+        tier_counts[l.conversion_tier[0]] += 1
+
+    return render_template('reports/lead_scoring.html',
+        leads=scored, gabay_users=gabay_users,
+        gabay_filter=gabay_filter, tier_filter=tier_filter,
+        status_filter=status_filter, tier_counts=tier_counts,
+        now=datetime.utcnow())
+
+
 @app.route('/reports/gabay-pipeline')
 @login_required
 def report_gabay_pipeline():

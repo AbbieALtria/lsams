@@ -58,7 +58,15 @@
           · <span style="color:#b91c1c">No visits yet</span>
           {% endif %}
         </div>
-        <div style="margin-top:3px"><span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span></div>
+        <div style="margin-top:3px;display:flex;align-items:center;gap:6px">
+          <span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span>
+          {% set score = lead.conversion_score %}
+          {% set tier_label, tier_color, tier_bg, tier_icon = lead.conversion_tier %}
+          <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;
+                       background:{{ tier_bg }};color:{{ tier_color }}">
+            {{ tier_icon }} {{ score }}
+          </span>
+        </div>
       </div>
       <i class="bi bi-chevron-right lead-arrow"></i>
     </a>

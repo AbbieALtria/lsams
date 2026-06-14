@@ -1,0 +1,229 @@
+{% extends "base.html" %}
+{% block title %}Lead Priority Scoring{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2 no-print">
+  <div>
+    <div class="page-title"><i class="bi bi-stars me-2" style="color:#d97706"></i>Lead Priority Scoring</div>
+    <div style="color:#9aabc5;font-size:12px">AI-scored — ranked by conversion likelihood · Live from database</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-arrow-left me-1"></i>Back
+    </a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white;font-weight:700">
+      <i class="bi bi-file-pdf me-1"></i>Download PDF
+    </button>
+  </div>
+</div>
+
+<!-- TIER SUMMARY CARDS -->
+<div class="row g-2 mb-3">
+  {% set tiers = [
+    ('Hot',  '🔥', '#fee2e2', '#b91c1c', tier_counts.Hot),
+    ('Warm', '⚡', '#fef3c7', '#d97706', tier_counts.Warm),
+    ('Cool', '📋', '#dbeafe', '#2563eb', tier_counts.Cool),
+    ('Cold', '🧊', '#f3f4f6', '#6b7280', tier_counts.Cold),
+  ] %}
+  {% for label, icon, bg, color, count in tiers %}
+  <div class="col-6 col-md-3">
+    <a href="?tier={{ label.lower() }}{% if gabay_filter %}&gabay={{ gabay_filter }}{% endif %}"
+       class="text-decoration-none">
+      <div class="card text-center py-3 h-100"
+           style="border-left:4px solid {{ color }};
+                  {% if tier_filter == label.lower() %}background:{{ bg }}{% endif %}">
+        <div style="font-size:24px">{{ icon }}</div>
+        <div style="font-size:24px;font-weight:800;color:{{ color }}">{{ count }}</div>
+        <div style="font-size:11px;color:#6b7280;font-weight:700">{{ label }} Leads</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- FILTERS -->
+<div class="card mb-3 no-print">
+  <div class="card-body py-2">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
+      <select name="gabay" class="form-select form-select-sm" style="max-width:180px">
+        <option value="">All Gabay</option>
+        {% for g in gabay_users %}
+        <option value="{{ g.id }}" {% if gabay_filter == g.id %}selected{% endif %}>{{ g.full_name }}</option>
+        {% endfor %}
+      </select>
+      <select name="tier" class="form-select form-select-sm" style="max-width:140px">
+        <option value="">All Tiers</option>
+        <option value="hot"  {% if tier_filter == 'hot'  %}selected{% endif %}>🔥 Hot</option>
+        <option value="warm" {% if tier_filter == 'warm' %}selected{% endif %}>⚡ Warm</option>
+        <option value="cool" {% if tier_filter == 'cool' %}selected{% endif %}>📋 Cool</option>
+        <option value="cold" {% if tier_filter == 'cold' %}selected{% endif %}>🧊 Cold</option>
+      </select>
+      <select name="status" class="form-select form-select-sm" style="max-width:160px">
+        <option value="">All Statuses</option>
+        {% for s in ['assigned','attempting','negotiation','registration'] %}
+        <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
+        {% endfor %}
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
+      <a href="{{ url_for('report_lead_scoring') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+      <span class="ms-auto" style="font-size:12px;color:#9aabc5">{{ leads|length }} leads shown</span>
+    </form>
+  </div>
+</div>
+
+<!-- SCORING EXPLANATION -->
+<div class="alert d-flex gap-3 mb-3 no-print"
+     style="background:#FFFBEB;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;font-size:12px">
+  <i class="bi bi-info-circle-fill" style="color:#d97706;font-size:18px;flex-shrink:0;margin-top:1px"></i>
+  <div style="color:#78350f;line-height:1.7">
+    <strong>How scores work:</strong>
+    Score 0–100 based on: Priority tier (P0–P3) · Status stage · Last 5 visit outcomes (weighted by recency) ·
+    Days since last visit · Follow-up compliance · Contact info completeness.
+    <strong>🔥 Hot ≥70 · ⚡ Warm ≥50 · 📋 Cool ≥30 · 🧊 Cold &lt;30</strong>
+  </div>
+</div>
+
+<!-- PDF HEADER -->
+<div class="pdf-only" style="display:none;margin-bottom:16px">
+  <div style="display:flex;justify-content:space-between;border-bottom:2px solid #1F3864;padding-bottom:8px;margin-bottom:8px">
+    <div>
+      <div style="font-size:18px;font-weight:800;color:#1F3864">Lead Priority Scoring Report</div>
+      <div style="font-size:11px;color:#6b7280">LSAMS · Ranked by AI conversion likelihood score</div>
+    </div>
+    <div style="text-align:right;font-size:11px;color:#6b7280">
+      Generated: {{ now.strftime('%b %d, %Y %I:%M %p') }}<br>
+      Showing {{ leads|length }} active leads
+    </div>
+  </div>
+</div>
+
+<!-- LEAD TABLE -->
+<div id="reportContent">
+<div class="card">
+  <div class="table-responsive">
+    <table class="table mb-0" style="font-size:13px">
+      <thead style="background:#F8FAFD">
+        <tr>
+          <th style="width:40px">#</th>
+          <th style="width:80px">Score</th>
+          <th>Seller / Lead</th>
+          <th style="width:110px">Gabay</th>
+          <th style="width:100px">Status</th>
+          <th style="width:80px">Visits</th>
+          <th style="width:90px">Last Visit</th>
+          <th style="width:100px">Last Outcome</th>
+          <th style="width:70px">Priority</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set status_colors = {
+          'assigned':'#2E75B6','attempting':'#d97706','negotiation':'#7c3aed',
+          'registration':'#be185d','live':'#15803d'
+        } %}
+        {% set outcome_colors = {
+          'interested':'#15803d','registered':'#7c3aed','callback':'#2563eb',
+          'follow_up':'#be185d','not_home':'#d97706','rejected':'#b91c1c',
+          'not_interested':'#b91c1c'
+        } %}
+        {% for lead in leads %}
+        {% set score = lead.conversion_score %}
+        {% set tier_label, tier_color, tier_bg, tier_icon = lead.conversion_tier %}
+        {% set last_v = lead.latest_visit %}
+        <tr style="{% if tier_label == 'Hot' %}background:#fff8f8{% elif tier_label == 'Warm' %}background:#fffdf0{% endif %}">
+          <td style="color:#9aabc5;font-weight:700">{{ loop.index }}</td>
+          <td>
+            <!-- Score ring -->
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="position:relative;width:38px;height:38px;flex-shrink:0">
+                <svg width="38" height="38" viewBox="0 0 38 38">
+                  <circle cx="19" cy="19" r="15" fill="none" stroke="#e5e7eb" stroke-width="4"/>
+                  <circle cx="19" cy="19" r="15" fill="none"
+                    stroke="{{ tier_color }}" stroke-width="4"
+                    stroke-dasharray="{{ (score / 100 * 94)|round }} 94"
+                    stroke-dashoffset="23.5"
+                    stroke-linecap="round"/>
+                </svg>
+                <div style="position:absolute;inset:0;display:flex;align-items:center;justify-content:center;
+                            font-size:10px;font-weight:800;color:{{ tier_color }}">{{ score }}</div>
+              </div>
+              <span style="font-size:14px">{{ tier_icon }}</span>
+            </div>
+          </td>
+          <td>
+            <div style="font-weight:700;color:#1F3864">
+              <a href="{{ url_for('lead_detail', lead_id=lead.id) }}"
+                 style="color:#1F3864;text-decoration:none">{{ lead.seller_name }}</a>
+            </div>
+            <div style="font-size:11px;color:#9aabc5">
+              {{ lead.city or '—' }}{% if lead.priority_tier %} · {{ lead.priority_tier }}{% endif %}
+              {% if lead.category %} · {{ lead.category }}{% endif %}
+            </div>
+          </td>
+          <td style="font-size:12px;color:#4a5568">
+            {{ lead.assigned_gabay.full_name if lead.assigned_gabay else '—' }}
+          </td>
+          <td>
+            <span class="badge" style="background:{{ status_colors.get(lead.status,'#9aabc5') }}22;
+                                       color:{{ status_colors.get(lead.status,'#9aabc5') }};
+                                       font-size:11px;font-weight:700">
+              {{ lead.status_label }}
+            </span>
+          </td>
+          <td style="text-align:center;font-weight:700;color:#1F3864">
+            {{ lead.visits.count() }}
+          </td>
+          <td style="font-size:11px;color:{% if lead.last_visit_days and lead.last_visit_days > 14 %}#b91c1c{% else %}#6b7280{% endif %}">
+            {% if lead.last_visit_days is not none %}
+              {{ lead.last_visit_days }}d ago
+            {% else %}
+              <span style="color:#b91c1c">Never</span>
+            {% endif %}
+          </td>
+          <td>
+            {% if last_v %}
+            <span style="font-size:11px;font-weight:700;
+                         color:{{ outcome_colors.get(last_v.outcome,'#9aabc5') }}">
+              {{ last_v.outcome|replace('_',' ')|title if last_v.outcome else '—' }}
+            </span>
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            <span class="badge" style="background:{{ tier_bg }};color:{{ tier_color }};
+                                       font-size:11px;font-weight:800">
+              {{ tier_icon }} {{ tier_label }}
+            </span>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="9" class="text-center py-4" style="color:#9aabc5">No leads found with current filters</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+</div>
+
+<div class="mt-3" style="font-size:11px;color:#9aabc5;border-top:1px solid #e5e7eb;padding-top:10px">
+  LSAMS · Lead Priority Scoring · Generated {{ now.strftime('%B %d, %Y') }} · Confidential
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  document.querySelectorAll('.no-print').forEach(el => el.style.display = 'none');
+  document.querySelectorAll('.pdf-only').forEach(el => el.style.display = 'block');
+  html2pdf().set({
+    margin: [8, 6, 8, 6],
+    filename: 'LSAMS_Lead_Priority_Scores.pdf',
+    image: { type: 'jpeg', quality: 0.97 },
+    html2canvas: { scale: 1.5, useCORS: true, scrollY: 0 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' },
+  }).from(document.getElementById('reportContent')).save().then(() => {
+    document.querySelectorAll('.no-print').forEach(el => el.style.display = '');
+    document.querySelectorAll('.pdf-only').forEach(el => el.style.display = 'none');
+  });
+}
+</script>
+{% endblock %}

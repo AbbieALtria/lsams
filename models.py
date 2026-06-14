@@ -142,38 +142,119 @@ class Lead(db.Model):
         return (datetime.utcnow() - last.visited_at).days
 
     @property
-    def priority_score(self):
+    def conversion_score(self):
+        """
+        AI-style lead conversion score 0–100.
+        Higher = more likely to register on Lazada soon.
+
+        Factors (max points):
+          Priority tier          : 20
+          Status progression     : 20
+          Visit outcome momentum : 25
+          Recency of last visit  : 15
+          Follow-up compliance   : 10
+          Lead age penalty       : -10 max
+          Rejection signal       : -20
+        """
         score = 0
-        # Age penalty: 1pt per day assigned, capped at 20
-        score += min(self.age_days, 20)
-        # High-value statuses need faster action
-        if self.status == 'negotiation':
-            score += 15
-        elif self.status == 'registration':
-            score += 12
-        elif self.status == 'attempting':
-            score += 5
-        # Stalled penalty: no visit in 7+ days
+
+        # ── 1. Priority tier (20 pts) ────────────────────────────────────
+        tier_pts = {'P0': 20, 'P1': 15, 'P2': 10, 'P3': 5}
+        score += tier_pts.get(self.priority_tier or '', 8)
+
+        # ── 2. Status progression (20 pts) ──────────────────────────────
+        status_pts = {
+            'pool': 0, 'assigned': 4, 'attempting': 8,
+            'negotiation': 16, 'registration': 20,
+            'live': 20, 'matched': 20, 'closed': 0,
+        }
+        score += status_pts.get(self.status, 0)
+
+        # ── 3. Visit outcome momentum (25 pts) ──────────────────────────
+        # Look at last 5 visits, most recent weighted more
+        outcome_pts = {
+            'interested':     10,
+            'callback':        8,
+            'follow_up':       5,
+            'not_home':        2,
+            'rejected':      -15,
+            'not_interested': -15,
+            'registered':     12,
+        }
+        recent_visits = self.visits.order_by(Visit.visited_at.desc()).limit(5).all()
+        visit_score = 0
+        for i, v in enumerate(recent_visits):
+            weight = 1.0 - (i * 0.15)  # most recent = weight 1.0, drops 15% each
+            visit_score += outcome_pts.get(v.outcome or '', 0) * weight
+        score += max(-20, min(25, int(visit_score)))
+
+        # ── 4. Recency of last visit (15 pts) ───────────────────────────
         lvd = self.last_visit_days
-        if lvd is None and self.status in ('assigned', 'attempting', 'negotiation'):
-            score += 10  # never visited
-        elif lvd is not None and lvd >= 7:
-            score += 8   # visited but stalled
-        return score
+        if lvd is None:
+            recency = -5   # never visited = slightly negative
+        elif lvd <= 2:
+            recency = 15
+        elif lvd <= 5:
+            recency = 12
+        elif lvd <= 10:
+            recency = 8
+        elif lvd <= 21:
+            recency = 4
+        elif lvd <= 45:
+            recency = 0
+        else:
+            recency = -8   # very stale
+        score += recency
+
+        # ── 5. Follow-up compliance (10 pts) ────────────────────────────
+        # If last visit set a follow-up and it's due/overdue = urgent
+        last_v = self.latest_visit
+        if last_v and last_v.follow_up_date:
+            days_to_fu = (last_v.follow_up_date - datetime.utcnow().date()).days
+            if -3 <= days_to_fu <= 1:
+                score += 10   # due today ±3 days
+            elif days_to_fu < -3:
+                score += 5    # overdue — still relevant
+            elif days_to_fu <= 7:
+                score += 6    # coming up soon
+
+        # ── 6. Lead age penalty (up to -10) ─────────────────────────────
+        age = self.age_days
+        if age > 60:
+            score -= 10
+        elif age > 30:
+            score -= 5
+
+        # ── 7. Has social media / contact info bonus ─────────────────────
+        if self.link or self.social_media_link:
+            score += 3
+        if self.contact_number:
+            score += 2
+
+        return max(0, min(100, score))
+
+    @property
+    def conversion_tier(self):
+        """Returns (label, color, bg, icon) based on conversion_score."""
+        s = self.conversion_score
+        if s >= 70:
+            return ('Hot',    '#b91c1c', '#fee2e2', '🔥')
+        if s >= 50:
+            return ('Warm',   '#d97706', '#fef3c7', '⚡')
+        if s >= 30:
+            return ('Cool',   '#2563eb', '#dbeafe', '📋')
+        return     ('Cold',   '#6b7280', '#f3f4f6', '🧊')
+
+    @property
+    def priority_score(self):
+        return self.conversion_score
 
     @property
     def priority_label(self):
-        s = self.priority_score
-        lvd = self.last_visit_days
-        no_visit = lvd is None and self.status in ('assigned', 'attempting', 'negotiation')
-        stalled = (lvd is not None and lvd >= 7) or no_visit
-        if stalled:
-            return ('Stalled', '#b91c1c', 'bi-exclamation-triangle-fill')
-        if s >= 25:
-            return ('Hot', '#E07B00', 'bi-fire')
-        if s >= 12:
-            return ('Warm', '#2E75B6', 'bi-arrow-up-circle-fill')
-        return ('Normal', '#15803d', 'bi-check-circle')
+        label, color, bg, icon = self.conversion_tier
+        icon_map = {'Hot': 'bi-fire', 'Warm': 'bi-lightning-charge-fill',
+                    'Cool': 'bi-arrow-up-circle-fill', 'Cold': 'bi-snow'}
+        return (label, color, icon_map.get(label, 'bi-circle'))
 
 
 class Visit(db.Model):
