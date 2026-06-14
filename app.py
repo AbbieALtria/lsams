@@ -2021,20 +2021,12 @@ def admin_delete_excel_imports():
 
     # POST — bulk delete using raw SQL for speed (avoids ORM timeout on 2000+ rows)
     try:
-        # Delete visits linked to Excel leads first (foreign key)
-        db.session.execute(text(
-            "DELETE FROM visits WHERE lead_id IN "
-            "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
-        ))
-        # Delete registrations linked to Excel leads
-        db.session.execute(text(
-            "DELETE FROM registrations WHERE lead_id IN "
-            "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
-        ))
-        # Delete the leads themselves
-        db.session.execute(text(
-            "DELETE FROM leads WHERE lazada_id IS NOT NULL"
-        ))
+        sub = "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
+        db.session.execute(text(f"DELETE FROM notifications WHERE related_lead_id IN {sub}"))
+        db.session.execute(text(f"DELETE FROM visits WHERE lead_id IN {sub}"))
+        db.session.execute(text(f"DELETE FROM registrations WHERE lead_id IN {sub}"))
+        db.session.execute(text(f"DELETE FROM lead_assignment_history WHERE lead_id IN {sub}"))
+        db.session.execute(text("DELETE FROM leads WHERE lazada_id IS NOT NULL"))
         db.session.commit()
     except Exception as e:
         db.session.rollback()
