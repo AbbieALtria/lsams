@@ -51,7 +51,10 @@ class User(UserMixin, db.Model):
     @property
     def display_name(self):
         """Gabay name for reports/leads/Lazada. Falls back to full_name."""
-        return self.gabay_name or self.full_name
+        try:
+            return self.gabay_name or self.full_name
+        except Exception:
+            return self.full_name
 
     @property
     def city_list(self):

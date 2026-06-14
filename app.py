@@ -2001,39 +2001,54 @@ def migrate_gabay_name():
     if not current_user.is_superadmin:
         return 'Superadmin only', 403
     try:
+        # Add column safely
         db.session.execute(text(
             "ALTER TABLE users ADD COLUMN IF NOT EXISTS gabay_name VARCHAR(100)"
         ))
-        # Set gabay_name for the 9 real agents by full_name
-        mappings = [
-            ('Karen Villarama',   'Karen'),
-            ('Karl Mirabuenos',   'Karl'),
-            ('Kaycee Labial',     'Kaycee'),
-            ('Jenica Sunio',      'Jenica'),
-            ('Jenerous Sonio',    'Jenerous'),
-            ('Abigail Bulacso',   'Abigail'),
-            ('Marie Cris Nicolas','Marie Cris'),
-            ('Ellen Remandiman',  'Ellen'),
-            ('Arvie Bagalando',   'Arvie'),
-        ]
-        for full, gname in mappings:
-            db.session.execute(text(
-                "UPDATE users SET gabay_name = :gname WHERE full_name = :full"
-            ), {'gname': gname, 'full': full})
         db.session.commit()
-        rows = ''.join(f'<tr><td>{f}</td><td style="color:#15803d;font-weight:700">{g}</td></tr>'
-                       for f, g in mappings)
-        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
-        <h2 style="color:#15803d">✅ Migration done!</h2>
-        <p>gabay_name column added and populated:</p>
-        <table style="width:100%;border-collapse:collapse">
-        <tr style="background:#1F3864;color:white"><th style="padding:8px">Full Name</th>
-        <th style="padding:8px">Gabay Name</th></tr>{rows}</table>
-        <br><a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
+
+        # Map by username (reliable) → full_name + gabay_name
+        mappings = [
+            # username, full_name,             gabay_name
+            ('karen',     'Karen Villarama',   'Karen'),
+            ('Karl',      'Karl Mirabuenos',   'Karl'),
+            ('Kaycee',    'Kaycee Labial',     'Kaycee'),
+            ('Jenica',    'Jenica Sunio',      'Jenica'),
+            ('Jenerous',  'Jenerous Sonio',    'Jenerous'),
+            ('Abi',       'Abigail Bulacso',   'Abigail'),
+            ('Mariecris', 'Marie Cris Nicolas','Marie Cris'),
+            ('Ellen',     'Ellen Remandiman',  'Ellen'),
+            ('Arvie',     'Arvie Bagalando',   'Arvie'),
+        ]
+        updated = 0
+        for uname, full, gname in mappings:
+            result = db.session.execute(text(
+                "UPDATE users SET full_name = :full, gabay_name = :gname "
+                "WHERE username = :uname"
+            ), {'full': full, 'gname': gname, 'uname': uname})
+            updated += result.rowcount
+        db.session.commit()
+
+        rows = ''.join(
+            f'<tr><td>{uname}</td><td>{full}</td>'
+            f'<td style="color:#15803d;font-weight:700">{gname}</td></tr>'
+            for uname, full, gname in mappings
+        )
+        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:700px">
+        <h2 style="color:#15803d">✅ Migration done! ({updated} users updated)</h2>
+        <table style="width:100%;border-collapse:collapse;font-family:sans-serif">
+        <tr style="background:#1F3864;color:white">
+          <th style="padding:8px">Username</th>
+          <th style="padding:8px">Full Name</th>
+          <th style="padding:8px">Gabay Name (shown in system)</th>
+        </tr>{rows}</table>
+        <br>
+        <p>Next step: <a href="/admin/full-reset" style="color:#b91c1c;font-weight:700">
+        Delete all leads → /admin/full-reset</a></p>
         </body></html>'''
     except Exception as e:
         db.session.rollback()
-        return f'<h2 style="color:red">Error: {e}</h2>'
+        return f'<h2 style="color:red">Error: {e}</h2><pre>{e}</pre>'
 
 
 @app.route('/admin/full-reset', methods=['GET', 'POST'])
