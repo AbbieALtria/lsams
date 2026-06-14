@@ -1995,20 +1995,56 @@ def admin_db_status():
     </body></html>'''
 
 
-@app.route('/admin/delete-excel-imports', methods=['POST'])
+@app.route('/admin/delete-excel-imports', methods=['GET', 'POST'])
 @login_required
 def admin_delete_excel_imports():
     if not current_user.is_superadmin:
         return 'Superadmin only', 403
-    leads_to_delete = Lead.query.filter(Lead.lazada_id != None).all()
-    count = len(leads_to_delete)
-    for lead in leads_to_delete:
-        db.session.delete(lead)
-    db.session.commit()
+
+    count = Lead.query.filter(Lead.lazada_id != None).count()
+
+    if request.method == 'GET':
+        return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
+        <h2 style="color:#1F3864">Confirm Deletion</h2>
+        <p>This will permanently delete <strong style="color:#b91c1c">{count} Excel-imported leads</strong>
+        (all leads that have a lazada_id).</p>
+        <p>Your original <strong>manually-entered leads will NOT be affected</strong>.</p>
+        <form method="POST">
+          <button type="submit" style="background:#b91c1c;color:white;border:none;
+                  padding:12px 28px;border-radius:8px;font-size:15px;
+                  cursor:pointer;font-weight:700;margin-right:12px">
+            Yes, Delete {count} Leads
+          </button>
+          <a href="/admin/db-status" style="color:#4a5568;font-weight:700">Cancel</a>
+        </form>
+        </body></html>'''
+
+    # POST — bulk delete using raw SQL for speed (avoids ORM timeout on 2000+ rows)
+    try:
+        # Delete visits linked to Excel leads first (foreign key)
+        db.session.execute(text(
+            "DELETE FROM visits WHERE lead_id IN "
+            "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
+        ))
+        # Delete registrations linked to Excel leads
+        db.session.execute(text(
+            "DELETE FROM registrations WHERE lead_id IN "
+            "(SELECT id FROM leads WHERE lazada_id IS NOT NULL)"
+        ))
+        # Delete the leads themselves
+        db.session.execute(text(
+            "DELETE FROM leads WHERE lazada_id IS NOT NULL"
+        ))
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return f'<h2>Error: {e}</h2><a href="/admin/db-status">Back</a>'
+
+    remaining = Lead.query.count()
     return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
     <h2 style="color:#15803d">✅ Done!</h2>
-    <p>Deleted <strong>{count}</strong> Excel-imported leads (those with lazada_id).</p>
-    <p>Your original leads are untouched.</p>
+    <p>Deleted <strong>{count}</strong> Excel-imported leads and their visits.</p>
+    <p>Leads remaining in database: <strong style="color:#1F3864">{remaining}</strong></p>
     <a href="/admin/db-status" style="color:#1F3864;font-weight:700">→ Check DB Status</a>
     &nbsp;&nbsp;
     <a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
