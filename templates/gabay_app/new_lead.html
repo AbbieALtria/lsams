@@ -1,0 +1,297 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Add New Lead{% endblock %}
+{% block extra_head %}
+<style>
+  .scan-box {
+    background: linear-gradient(135deg,#EEF2FF,#E0E7FF);
+    border: 2px dashed #a5b4fc; border-radius: 20px;
+    padding: 20px 16px; text-align: center; cursor: pointer;
+    transition: all 0.2s; margin-bottom: 16px;
+  }
+  .scan-box:active { transform: scale(0.97); }
+  .scan-box.scanning { border-color: #4338ca; border-style: solid; background: #EEF2FF; }
+  .scan-btn-circle {
+    width: 72px; height: 72px; border-radius: 50%;
+    background: #4338ca; color: white; border: none;
+    font-size: 32px; cursor: pointer; display: flex;
+    align-items: center; justify-content: center;
+    margin: 0 auto 10px; transition: all 0.2s;
+  }
+  .scan-btn-circle:active { transform: scale(0.92); }
+  .scan-preview {
+    width: 100%; border-radius: 14px; margin-bottom: 12px;
+    max-height: 200px; object-fit: cover;
+    border: 3px solid #4338ca; display: none;
+  }
+  .ai-result-box {
+    background: white; border: 2px solid #c7d2fe; border-radius: 16px;
+    padding: 14px 16px; margin-bottom: 16px; display: none;
+  }
+  .ai-result-header {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 13px; font-weight: 800; color: #4338ca; margin-bottom: 10px;
+  }
+  .ai-field-row {
+    display: flex; align-items: center; gap: 8px;
+    font-size: 12px; color: #6b7280; margin-bottom: 4px;
+  }
+  .ai-field-val { font-weight: 700; color: #1F3864; }
+  .field-label {
+    font-size: 12px; font-weight: 700; color: #6b7280;
+    text-transform: uppercase; letter-spacing: .04em; margin-bottom: 4px; margin-top: 12px;
+  }
+  .spinner { animation: spin 1s linear infinite; display: inline-block; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+{% endblock %}
+{% block content %}
+
+{% with msgs = get_flashed_messages(with_categories=true) %}
+{% for cat, msg in msgs %}
+<div class="alert alert-{{ cat }} mb-3" style="border-radius:12px;font-size:13px">{{ msg }}</div>
+{% endfor %}
+{% endwith %}
+
+<!-- HEADER -->
+<div style="display:flex;align-items:center;gap:12px;margin-bottom:16px">
+  <a href="{{ url_for('gabay_app_leads') }}"
+     style="background:#F0F4FA;border:none;border-radius:12px;padding:8px 12px;
+            font-size:20px;color:#1F3864;text-decoration:none;display:flex;align-items:center">
+    ‹
+  </a>
+  <div>
+    <div style="font-size:18px;font-weight:800;color:#1F3864">Add New Lead</div>
+    <div style="font-size:12px;color:#9aabc5">Snap a photo to auto-fill details</div>
+  </div>
+</div>
+
+<!-- SCAN SECTION -->
+<div class="scan-box" id="scanBox" onclick="document.getElementById('shopPhotoInput').click()">
+  <input type="file" id="shopPhotoInput" accept="image/*" capture="environment"
+         style="display:none" onchange="onPhotoSelected(this)">
+
+  <img id="scanPreview" class="scan-preview" alt="Shop photo">
+
+  <div id="scanIdle">
+    <button type="button" class="scan-btn-circle" onclick="event.stopPropagation();document.getElementById('shopPhotoInput').click()">
+      📷
+    </button>
+    <div style="font-size:14px;font-weight:800;color:#4338ca">Scan Shop / Business Card</div>
+    <div style="font-size:12px;color:#818cf8;margin-top:4px">
+      Take a photo — AI fills the form automatically
+    </div>
+  </div>
+
+  <div id="scanLoading" style="display:none">
+    <div style="font-size:36px;margin-bottom:8px"><span class="spinner">⚙️</span></div>
+    <div style="font-size:14px;font-weight:800;color:#4338ca">Reading shop details…</div>
+    <div style="font-size:12px;color:#818cf8;margin-top:4px">Claude AI is analyzing the photo</div>
+  </div>
+</div>
+
+<!-- AI RESULT PREVIEW -->
+<div class="ai-result-box" id="aiResultBox">
+  <div class="ai-result-header">
+    <span style="font-size:20px">✨</span>
+    AI extracted these details — review and edit below
+  </div>
+  <div id="aiFieldPreview"></div>
+  <button type="button" onclick="applyToForm()"
+          style="width:100%;background:#4338ca;color:white;border:none;border-radius:12px;
+                 padding:10px;font-size:14px;font-weight:800;cursor:pointer;margin-top:10px">
+    ✅ Apply to Form
+  </button>
+  <button type="button" onclick="clearScan()"
+          style="width:100%;background:#F0F4FA;color:#6b7280;border:none;border-radius:12px;
+                 padding:8px;font-size:13px;font-weight:700;cursor:pointer;margin-top:6px">
+    🔄 Retake Photo
+  </button>
+</div>
+
+<!-- LEAD FORM -->
+<form method="POST" id="leadForm">
+
+  <div class="field-label">Shop Name *</div>
+  <input type="text" name="seller_name" id="f_seller_name" class="m-form-control"
+         placeholder="e.g. Chokorean Online" required style="font-size:15px;padding:13px 14px">
+
+  <div class="field-label">Contact Number</div>
+  <input type="tel" name="contact_number" id="f_contact_number" class="m-form-control"
+         placeholder="09XX XXX XXXX" style="font-size:15px;padding:13px 14px">
+
+  <div class="field-label">Email Address</div>
+  <input type="email" name="email" id="f_email" class="m-form-control"
+         placeholder="seller@email.com" style="font-size:15px;padding:13px 14px">
+
+  <div class="field-label">Facebook / TikTok / Link</div>
+  <input type="text" name="social_media" id="f_social_media" class="m-form-control"
+         placeholder="facebook.com/shopname or @tiktokhandle" style="font-size:15px;padding:13px 14px">
+
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+    <div>
+      <div class="field-label">Barangay</div>
+      <input type="text" name="barangay" id="f_barangay" class="m-form-control"
+             placeholder="Barangay" style="font-size:14px;padding:12px 14px">
+    </div>
+    <div>
+      <div class="field-label">City</div>
+      <input type="text" name="city" id="f_city" class="m-form-control"
+             placeholder="City" style="font-size:14px;padding:12px 14px">
+    </div>
+  </div>
+
+  <div class="field-label">Full Address</div>
+  <input type="text" name="address" id="f_address" class="m-form-control"
+         placeholder="Street, Barangay, City" style="font-size:14px;padding:12px 14px">
+
+  <div class="field-label">Product Category</div>
+  <select name="category" id="f_category" class="m-form-control" style="font-size:14px;padding:12px 14px;background:white">
+    <option value="">— Select category —</option>
+    {% for cat in ['Food & Beverage','Fashion','Electronics','Beauty & Health','Home & Living',
+                   'Sports','Toys & Kids','Auto Parts','Books & Stationery','Other'] %}
+    <option value="{{ cat }}">{{ cat }}</option>
+    {% endfor %}
+  </select>
+
+  <div class="field-label">Notes</div>
+  <textarea name="notes" id="f_notes" class="m-form-control" rows="3"
+            placeholder="Observations, seller attitude, opening hours, etc."
+            style="font-size:14px;padding:12px 14px;margin-bottom:4px"></textarea>
+
+  <div style="margin-top:20px;margin-bottom:30px">
+    <button type="submit" class="m-btn-orange"
+            style="padding:16px;font-size:16px;border-radius:16px;
+                   box-shadow:0 4px 16px rgba(255,153,0,0.3)">
+      <i class="bi bi-person-plus-fill me-2"></i>Submit New Lead
+    </button>
+    <div style="text-align:center;font-size:11px;color:#9aabc5;margin-top:8px">
+      Your supervisor will be notified and can assign follow-up
+    </div>
+  </div>
+
+</form>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let aiData = null;
+
+async function onPhotoSelected(input) {
+  const file = input.files[0];
+  if (!file) return;
+
+  // Show preview
+  const preview = document.getElementById('scanPreview');
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+
+  // Switch to loading state
+  document.getElementById('scanIdle').style.display = 'none';
+  document.getElementById('scanLoading').style.display = 'block';
+  document.getElementById('aiResultBox').style.display = 'none';
+  document.getElementById('scanBox').classList.add('scanning');
+
+  // Send to AI
+  const formData = new FormData();
+  formData.append('photo', file);
+
+  try {
+    const res = await fetch('/gabay/app/scan-shop', { method: 'POST', body: formData });
+    const result = await res.json();
+
+    document.getElementById('scanLoading').style.display = 'none';
+
+    if (result.error) {
+      document.getElementById('scanIdle').style.display = 'block';
+      document.getElementById('scanIdle').querySelector('.scan-btn-circle').textContent = '❗';
+      document.getElementById('scanIdle').querySelector('div:nth-child(2)').textContent = result.error;
+      return;
+    }
+
+    aiData = result.data;
+    showAiPreview(aiData);
+
+  } catch (err) {
+    document.getElementById('scanLoading').style.display = 'none';
+    document.getElementById('scanIdle').style.display = 'block';
+    document.getElementById('scanIdle').querySelector('div:nth-child(2)').textContent = 'Connection error — try again';
+  }
+}
+
+function showAiPreview(d) {
+  const fields = [
+    ['🏪', 'Shop name', d.seller_name],
+    ['📞', 'Contact', d.contact_number],
+    ['✉️', 'Email', d.email],
+    ['📍', 'Address', d.address],
+    ['🏘️', 'Barangay', d.barangay],
+    ['🏙️', 'City', d.city],
+    ['🛍️', 'Category', d.category],
+    ['📱', 'Social media', d.social_media],
+  ];
+
+  const html = fields.filter(([,, v]) => v).map(([icon, label, val]) =>
+    `<div class="ai-field-row">
+      <span>${icon}</span>
+      <span style="min-width:70px;color:#9aabc5">${label}:</span>
+      <span class="ai-field-val">${val}</span>
+    </div>`
+  ).join('');
+
+  document.getElementById('aiFieldPreview').innerHTML = html || '<div style="color:#9aabc5;font-size:12px">No text detected — please fill manually</div>';
+  document.getElementById('aiResultBox').style.display = 'block';
+}
+
+function applyToForm() {
+  if (!aiData) return;
+
+  if (aiData.seller_name)    setField('f_seller_name', aiData.seller_name);
+  if (aiData.contact_number) setField('f_contact_number', aiData.contact_number);
+  if (aiData.email)          setField('f_email', aiData.email);
+  if (aiData.social_media)   setField('f_social_media', aiData.social_media);
+  if (aiData.barangay)       setField('f_barangay', aiData.barangay);
+  if (aiData.city)           setField('f_city', aiData.city);
+  if (aiData.address)        setField('f_address', aiData.address);
+  if (aiData.notes)          setField('f_notes', aiData.notes);
+
+  // Match category dropdown
+  if (aiData.category) {
+    const sel = document.getElementById('f_category');
+    const cat = aiData.category.toLowerCase();
+    for (const opt of sel.options) {
+      if (opt.value.toLowerCase().includes(cat) || cat.includes(opt.value.toLowerCase())) {
+        sel.value = opt.value;
+        break;
+      }
+    }
+  }
+
+  // Visual feedback
+  document.getElementById('aiResultBox').style.display = 'none';
+  document.getElementById('scanBox').style.borderColor = '#15803d';
+  document.getElementById('scanBox').style.background = '#f0fdf4';
+
+  // Scroll to form
+  document.getElementById('leadForm').scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
+function setField(id, val) {
+  const el = document.getElementById(id);
+  if (el && val) el.value = val;
+}
+
+function clearScan() {
+  aiData = null;
+  document.getElementById('shopPhotoInput').value = '';
+  document.getElementById('scanPreview').style.display = 'none';
+  document.getElementById('scanIdle').style.display = 'block';
+  document.getElementById('scanIdle').querySelector('.scan-btn-circle').textContent = '📷';
+  document.getElementById('scanIdle').querySelector('div:nth-child(2)').textContent = 'Scan Shop / Business Card';
+  document.getElementById('scanLoading').style.display = 'none';
+  document.getElementById('aiResultBox').style.display = 'none';
+  document.getElementById('scanBox').classList.remove('scanning');
+  document.getElementById('scanBox').style.borderColor = '';
+  document.getElementById('scanBox').style.background = '';
+}
+</script>
+{% endblock %}

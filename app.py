@@ -462,6 +462,111 @@ def backfill_leads_json():
     return jsonify([{'id': l.id, 'name': l.seller_name, 'city': l.city or '', 'status': l.status} for l in leads])
 
 
+@app.route('/gabay/app/scan-shop', methods=['POST'])
+@login_required
+def scan_shop():
+    if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor', 'superadmin'):
+        return jsonify({'error': 'Unauthorized'}), 403
+
+    photo = request.files.get('photo')
+    if not photo:
+        return jsonify({'error': 'No photo uploaded'}), 400
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        return jsonify({'error': 'Shop scanner not configured. Ask your supervisor to set ANTHROPIC_API_KEY.'}), 503
+
+    try:
+        import anthropic, base64
+        img_bytes = photo.read()
+        img_b64   = base64.standard_b64encode(img_bytes).decode('utf-8')
+        mime      = photo.content_type or 'image/jpeg'
+
+        client = anthropic.Anthropic(api_key=api_key)
+        msg = client.messages.create(
+            model='claude-opus-4-8',
+            max_tokens=512,
+            messages=[{
+                'role': 'user',
+                'content': [
+                    {
+                        'type': 'image',
+                        'source': {'type': 'base64', 'media_type': mime, 'data': img_b64},
+                    },
+                    {
+                        'type': 'text',
+                        'text': (
+                            'You are a field sales assistant for Lazada Philippines. '
+                            'Look at this photo of a shop, storefront, or business card. '
+                            'Extract the following details if visible. '
+                            'Return ONLY a JSON object with these exact keys (use null if not found):\n'
+                            '{\n'
+                            '  "seller_name": "business/shop name",\n'
+                            '  "contact_number": "phone number",\n'
+                            '  "email": "email address",\n'
+                            '  "address": "full street address",\n'
+                            '  "barangay": "barangay name",\n'
+                            '  "city": "city name",\n'
+                            '  "category": "product category (e.g. Food, Fashion, Electronics, Beauty, etc.)",\n'
+                            '  "social_media": "Facebook page or TikTok handle if visible",\n'
+                            '  "notes": "any other useful detail about the business"\n'
+                            '}\n'
+                            'Return only the JSON, no other text.'
+                        )
+                    }
+                ]
+            }]
+        )
+
+        import json as _json
+        raw = msg.content[0].text.strip()
+        # Strip markdown code fences if present
+        if raw.startswith('```'):
+            raw = raw.split('```')[1]
+            if raw.startswith('json'):
+                raw = raw[4:]
+        data = _json.loads(raw.strip())
+        return jsonify({'success': True, 'data': data})
+
+    except Exception as e:
+        return jsonify({'error': f'Scan failed: {str(e)}'}), 500
+
+
+@app.route('/gabay/app/new-lead', methods=['GET', 'POST'])
+@login_required
+def gabay_new_lead():
+    if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor', 'superadmin'):
+        return redirect(url_for('gabay_app_leads'))
+
+    if request.method == 'POST':
+        seller_name = request.form.get('seller_name', '').strip()
+        if not seller_name:
+            flash('Shop name is required.', 'danger')
+            return redirect(url_for('gabay_new_lead'))
+
+        lead = Lead(
+            seller_name    = seller_name,
+            contact_number = request.form.get('contact_number') or None,
+            email          = request.form.get('email') or None,
+            address        = request.form.get('address') or None,
+            barangay       = request.form.get('barangay') or None,
+            city           = request.form.get('city') or None,
+            category       = request.form.get('category') or None,
+            notes          = request.form.get('notes') or None,
+            link           = request.form.get('social_media') or None,
+            status         = 'assigned',
+            gabay_id       = current_user.id,
+            assigned_at    = datetime.utcnow(),
+            imported_at    = datetime.utcnow(),
+        )
+        db.session.add(lead)
+        db.session.commit()
+        flash(f'New lead "{seller_name}" added successfully!', 'success')
+        return redirect(url_for('gabay_app_leads'))
+
+    return render_template('gabay_app/new_lead.html')
+
+
 @app.route('/gabay/app/voice-transcribe', methods=['POST'])
 @login_required
 def voice_transcribe():
