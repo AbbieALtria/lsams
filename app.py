@@ -1995,6 +1995,101 @@ def admin_db_status():
     </body></html>'''
 
 
+@app.route('/admin/full-reset', methods=['GET', 'POST'])
+@login_required
+def admin_full_reset():
+    if not current_user.is_superadmin:
+        return 'Superadmin only', 403
+
+    total_leads = Lead.query.count()
+
+    # Correct name mapping: username → proper full_name
+    name_fixes = {
+        'karen':    'Karen Villarama',
+        'Karl':     'Karl Mirabuenos',
+        'Kaycee':   'Kaycee Labial',
+        'Jenica':   'Jenica Sunio',
+        'Jenerous': 'Jenerous Sonio',
+        'Abi':      'Abigail Bulacso',
+        'Mariecris':'Marie Cris Nicolas',
+        'Ellen':    'Ellen Remandiman',
+        'Arvie':    'Arvie Bagalando',
+    }
+
+    if request.method == 'GET':
+        gabay_rows = ''.join(
+            f'<tr><td>{old}</td><td style="color:#15803d;font-weight:700">→ {new}</td></tr>'
+            for old, new in name_fixes.items()
+        )
+        return f'''<html><head><style>
+        body{{font-family:sans-serif;padding:32px;max-width:680px}}
+        table{{width:100%;border-collapse:collapse;margin:12px 0}}
+        th{{background:#1F3864;color:white;padding:8px 12px;text-align:left}}
+        td{{padding:8px 12px;border-bottom:1px solid #e5e7eb}}
+        h2{{color:#1F3864}} .warn{{background:#FEF2F2;border:1px solid #fca5a5;
+        border-radius:8px;padding:14px;margin:16px 0}}
+        </style></head><body>
+        <h2>🗑️ Full Lead Reset + Name Fix</h2>
+        <div class="warn">
+          <strong>This will:</strong><br>
+          1. Delete ALL {total_leads} leads (and their visits, registrations, notifications)<br>
+          2. Fix the 9 gabay agent names to proper full names<br><br>
+          <strong>This cannot be undone. Make sure you have your Excel file ready to re-upload.</strong>
+        </div>
+        <h3>Gabay Name Updates</h3>
+        <table><tr><th>Current Name</th><th>Will be updated to</th></tr>{gabay_rows}</table>
+        <form method="POST" onsubmit="return confirm('Delete ALL {total_leads} leads and fix names? This cannot be undone.')">
+          <button type="submit" style="background:#b91c1c;color:white;border:none;
+                  padding:14px 32px;border-radius:8px;font-size:16px;
+                  cursor:pointer;font-weight:800;margin-top:16px">
+            ✅ Yes — Delete All Leads & Fix Names
+          </button>
+        </form>
+        <br><a href="/dashboard" style="color:#4a5568;font-weight:700">← Cancel, go back</a>
+        </body></html>'''
+
+    # POST — delete everything then fix names
+    try:
+        db.session.execute(text("DELETE FROM notifications"))
+        db.session.execute(text("DELETE FROM lead_assignment_history"))
+        db.session.execute(text("DELETE FROM visits"))
+        db.session.execute(text("DELETE FROM registrations"))
+        db.session.execute(text("DELETE FROM leads"))
+
+        # Delete fake gabay accounts (full Excel names)
+        fake_names = [
+            'VILLARAMA, MA. KAREN KRIZE', 'MIRABUENOS, KARL MICHAEL',
+            'LABIAL, KAYCEE JOYCE', 'SUNIO, MARIA JENICA', 'SONIO, JENEROUS',
+            'BULACSO, ABIGAIL', 'NICOLAS, MARIE CRIS', 'REMANDIMAN, ELLEN',
+            'BAGALANDO,ROXAN'
+        ]
+        for fn in fake_names:
+            db.session.execute(text(
+                "DELETE FROM users WHERE full_name = :fn AND role = 'gabay'"
+            ), {'fn': fn})
+
+        # Fix real gabay names
+        for old_name, new_name in name_fixes.items():
+            db.session.execute(text(
+                "UPDATE users SET full_name = :new WHERE full_name = :old AND role = 'gabay'"
+            ), {'new': new_name, 'old': old_name})
+
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return f'<h2 style="color:red">Error: {e}</h2><a href="/admin/full-reset">Back</a>'
+
+    gabay_count = User.query.filter_by(role='gabay', is_active=True).count()
+    return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:600px">
+    <h2 style="color:#15803d">✅ Done!</h2>
+    <p>All leads deleted. Leads remaining: <strong>0</strong></p>
+    <p>Gabay agents in system: <strong style="color:#1F3864">{gabay_count}</strong></p>
+    <p>Names updated to proper full names.</p>
+    <p style="color:#b45309">Now go to <strong>Data Entry → Import</strong> to upload your Excel file fresh.</p>
+    <a href="/dashboard" style="color:#1F3864;font-weight:700">→ Go to Dashboard</a>
+    </body></html>'''
+
+
 @app.route('/admin/delete-excel-imports', methods=['GET', 'POST'])
 @login_required
 def admin_delete_excel_imports():
