@@ -1,0 +1,433 @@
+{% extends "base.html" %}
+{% block title %}Lead Health Inspection{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-shield-check me-2" style="color:#15803d"></i>Lead Health Inspection</div>
+    <small class="text-muted">All unassigned pool leads — {{ pool_leads|length }} leads scanned</small>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <form method="POST" action="{{ url_for('admin_health_ai_inspect') }}"
+          onsubmit="return confirm('Run AI inspection on {{ ai_pending }} uninspected leads? This may take ~{{ [1, ai_pending//10]|max }} minute(s).')">
+      <button class="btn btn-sm" style="background:#7c3aed;color:white">
+        <i class="bi bi-stars me-1"></i>Run AI Inspection
+        {% if ai_pending > 0 %}<span class="badge ms-1" style="background:rgba(255,255,255,0.3)">{{ ai_pending }} pending</span>{% endif %}
+      </button>
+    </form>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">← Reports</a>
+  </div>
+</div>
+
+<!-- SUMMARY CARDS -->
+<div class="row g-3 mb-4">
+  {% for label, val, color, icon, anchor in [
+    ('Pool Leads', pool_leads|length, '#1F3864', 'bi-people-fill', '#dupes'),
+    ('Duplicate Addresses', duplicate_groups|length, '#d97706', 'bi-geo-alt-fill', '#dupes'),
+    ('Previously Visited', prev_visited|length, '#0891b2', 'bi-clock-history', '#visited'),
+    ('Likely Warehouses', warehouse_leads|length, '#b91c1c', 'bi-building-fill', '#warehouses'),
+    ('Strict Buildings', manual_strict|length, '#7c3aed', 'bi-shield-exclamation', '#strict'),
+    ('AI Inspected', ai_inspected_count, '#15803d', 'bi-stars', '#ai'),
+  ] %}
+  <div class="col-6 col-md-2">
+    <a href="{{ anchor }}" class="text-decoration-none">
+      <div class="card text-center py-3 h-100" style="border-left:4px solid {{ color }};cursor:pointer"
+           onmouseover="this.style.boxShadow='0 4px 12px {{ color }}33'" onmouseout="this.style.boxShadow=''">
+        <i class="bi {{ icon }} mb-1" style="font-size:20px;color:{{ color }}"></i>
+        <div style="font-size:26px;font-weight:900;color:{{ color }}">{{ val }}</div>
+        <div style="font-size:11px;color:#6b7280">{{ label }}</div>
+      </div>
+    </a>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- NAV TABS -->
+<ul class="nav nav-tabs mb-3" id="healthTabs">
+  <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#dupes">🔁 Duplicate Addresses <span class="badge bg-warning text-dark ms-1">{{ duplicate_groups|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#visited">🕐 Previously Visited <span class="badge bg-info ms-1">{{ prev_visited|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#warehouses">🏭 Warehouses <span class="badge bg-danger ms-1">{{ warehouse_leads|length }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ai">🤖 AI Inspection <span class="badge bg-success ms-1">{{ ai_inspected_count }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#strict">🔒 Strict Buildings <span class="badge bg-secondary ms-1">{{ manual_strict|length }}</span></a></li>
+</ul>
+
+<div class="tab-content">
+
+<!-- ══ TAB 1: DUPLICATE ADDRESSES ══ -->
+<div class="tab-pane fade show active" id="dupes">
+  {% if not duplicate_groups %}
+  <div class="text-center py-5 text-muted"><i class="bi bi-check-circle" style="font-size:40px;color:#15803d"></i><p class="mt-2">No duplicate addresses found.</p></div>
+  {% else %}
+  <div class="alert" style="background:#fffbeb;border:1.5px solid #fbbf24;font-size:13px">
+    <i class="bi bi-exclamation-triangle-fill text-warning me-2"></i>
+    <strong>{{ duplicate_groups|length }} address groups</strong> have 2 or more sellers at the same location.
+    These may be <strong>fulfillment centers, shopping malls, or shared offices</strong> — not individual stores.
+    Review before assigning to gabay.
+  </div>
+  {% for group in duplicate_groups %}
+  <div class="card mb-3">
+    <div class="card-header d-flex align-items-center justify-content-between"
+         style="background:#fffbeb;border-left:4px solid #d97706">
+      <div>
+        <i class="bi bi-geo-alt-fill text-warning me-2"></i>
+        <strong>{{ group[0].barangay or '—' }}, {{ group[0].city or '—' }}</strong>
+        <span class="badge ms-2" style="background:#d97706;color:white">{{ group|length }} sellers</span>
+        {% if group|length >= 3 %}
+        <span class="badge ms-1" style="background:#b91c1c;color:white">🏭 Likely Warehouse</span>
+        {% endif %}
+      </div>
+      <small style="color:#9ca3af;font-size:11px">{{ group[0].address or '' }}</small>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm mb-0" style="font-size:12px">
+        <thead style="background:#f8fafc"><tr><th>Seller</th><th>Category</th><th>Contact</th><th>Priority</th><th>Action</th></tr></thead>
+        <tbody>
+          {% for lead in group %}
+          <tr>
+            <td class="fw-bold">
+              <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" style="color:#1F3864">{{ lead.seller_name }}</a>
+              {% if lead.is_warehouse %}<span class="badge ms-1" style="background:#b91c1c;color:white;font-size:10px">🏭 WH</span>{% endif %}
+            </td>
+            <td style="color:#6b7280">{{ lead.category or '—' }}</td>
+            <td style="color:#6b7280">{{ lead.contact_number or '—' }}</td>
+            <td><span class="badge" style="background:#1F3864;color:white">{{ lead.priority_tier or '—' }}</span></td>
+            <td>
+              <button onclick="toggleWarehouse({{ lead.id }}, this)"
+                      class="btn btn-outline-danger btn-sm py-0 px-2"
+                      style="font-size:10px">
+                {% if lead.is_warehouse %}✓ Flagged WH{% else %}Flag as WH{% endif %}
+              </button>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+  {% endfor %}
+  {% endif %}
+</div>
+
+<!-- ══ TAB 2: PREVIOUSLY VISITED ══ -->
+<div class="tab-pane fade" id="visited">
+  {% if not prev_visited %}
+  <div class="text-center py-5 text-muted"><i class="bi bi-check-circle" style="font-size:40px;color:#15803d"></i><p class="mt-2">No pool leads were previously visited in other campaigns.</p></div>
+  {% else %}
+  <div class="alert" style="background:#ecfeff;border:1.5px solid #0891b2;font-size:13px">
+    <i class="bi bi-clock-history me-2" style="color:#0891b2"></i>
+    <strong>{{ prev_visited|length }} pool leads</strong> were already visited in previous campaigns.
+    Check their outcome before assigning — they may already know the process or have rejected Lazada.
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover" style="font-size:12px">
+      <thead style="background:#1F3864;color:white">
+        <tr><th>Pool Lead</th><th>City</th><th>Previous Visits</th><th>Last Outcome</th><th>Current Status</th><th></th></tr>
+      </thead>
+      <tbody>
+        {% for row in prev_visited %}
+        {% set old = row.old_lead %}
+        {% set lv = old.latest_visit %}
+        <tr>
+          <td class="fw-bold" style="color:#1F3864">
+            <a href="{{ url_for('lead_detail', lead_id=row.pool_lead.id) }}" style="color:#1F3864">
+              {{ row.pool_lead.seller_name }}
+            </a>
+          </td>
+          <td style="color:#6b7280">{{ row.pool_lead.city or '—' }}</td>
+          <td class="text-center">
+            <span class="badge" style="background:#0891b2;color:white">{{ row.visit_count }} visits</span>
+          </td>
+          <td>
+            {% if lv %}
+            {% set ol = {'interested':'🔥 Interested','follow_up':'📅 Follow Up','no_answer':'📵 No Answer',
+                          'callback':'📞 Callback','not_interested':'❌ Not Interested','registered':'✅ Registered'} %}
+            <span class="badge" style="background:#f1f5f9;color:#374151">
+              {{ ol.get(lv.outcome, lv.outcome or '—') }}
+            </span>
+            {% if lv.notes %}<div style="font-size:10px;color:#9ca3af;margin-top:2px">{{ lv.notes[:60] }}…</div>{% endif %}
+            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% set sc = {'pool':'#9aabc5','assigned':'#2E75B6','attempting':'#E07B00',
+                          'negotiation':'#7c3aed','registration':'#be185d','live':'#15803d'} %}
+            <span class="badge" style="background:{{ sc.get(old.status,'#9aabc5') }}22;color:{{ sc.get(old.status,'#9aabc5') }};border:1px solid {{ sc.get(old.status,'#9aabc5') }}">
+              {{ old.status_label }}
+            </span>
+          </td>
+          <td>
+            <a href="{{ url_for('lead_detail', lead_id=old.id) }}"
+               class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:10px">Old Record</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ TAB 3: WAREHOUSES / FULFILLMENT CENTERS ══ -->
+<div class="tab-pane fade" id="warehouses">
+  {% if not warehouse_leads %}
+  <div class="text-center py-5 text-muted"><i class="bi bi-check-circle" style="font-size:40px;color:#15803d"></i><p class="mt-2">No warehouse/fulfillment center leads detected.</p></div>
+  {% else %}
+  <div class="alert" style="background:#fff1f2;border:1.5px solid #b91c1c;font-size:13px">
+    <i class="bi bi-building-fill me-2 text-danger"></i>
+    <strong>{{ warehouse_leads|length }} leads</strong> may be warehouses or fulfillment centers (shared address with 3+ sellers,
+    or address contains keywords like "warehouse", "hub", "depot", "logistics").
+    Cross-border sellers often ship from these — the physical store may not exist.
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover" style="font-size:12px">
+      <thead style="background:#1F3864;color:white">
+        <tr><th>Seller</th><th>Address</th><th>City</th><th>Category</th><th>Reason</th><th>Flag</th></tr>
+      </thead>
+      <tbody>
+        {% for lead in warehouse_leads %}
+        <tr {% if lead.is_warehouse %}style="background:#fff1f2"{% endif %}>
+          <td class="fw-bold">
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" style="color:#1F3864">{{ lead.seller_name }}</a>
+          </td>
+          <td style="font-size:11px;color:#6b7280">{{ (lead.address or '')[:60] }}{% if (lead.address or '')|length > 60 %}…{% endif %}</td>
+          <td style="color:#6b7280">{{ lead.city or '—' }}</td>
+          <td style="color:#6b7280">{{ lead.category or '—' }}</td>
+          <td>
+            {% set addr_low = (lead.address or '').lower() %}
+            {% if 'warehouse' in addr_low or 'bodega' in addr_low or 'depot' in addr_low %}
+              <span class="badge" style="background:#fee2e2;color:#b91c1c">Keyword match</span>
+            {% else %}
+              <span class="badge" style="background:#fef3c7;color:#92400e">Shared address (3+)</span>
+            {% endif %}
+          </td>
+          <td>
+            <button onclick="toggleWarehouse({{ lead.id }}, this)"
+                    class="btn btn-sm py-0 px-2"
+                    style="font-size:10px;{% if lead.is_warehouse %}background:#b91c1c;color:white{% else %}background:#f1f5f9;color:#374151{% endif %}">
+              {% if lead.is_warehouse %}✓ Flagged{% else %}Flag WH{% endif %}
+            </button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ TAB 4: AI INSPECTION ══ -->
+<div class="tab-pane fade" id="ai">
+  {% if not ai_results %}
+  <div class="text-center py-5">
+    <i class="bi bi-stars" style="font-size:48px;color:#7c3aed"></i>
+    <p class="mt-3 fw-bold" style="color:#1F3864">No leads have been AI-inspected yet.</p>
+    <p class="text-muted">Click <strong>"Run AI Inspection"</strong> above to let Claude Haiku assess all {{ pool_leads|length }} pool leads.</p>
+    <p style="font-size:12px;color:#9ca3af">Inspects: online presence, contact quality, registration readiness, business type, red flags</p>
+  </div>
+  {% else %}
+  <!-- Summary -->
+  <div class="row g-3 mb-3">
+    {% for label, key, val_filter, color in [
+      ('High Readiness', 'reg_readiness', 'high', '#15803d'),
+      ('Medium Readiness', 'reg_readiness', 'medium', '#d97706'),
+      ('Low Readiness', 'reg_readiness', 'low', '#b91c1c'),
+    ] %}
+    <div class="col-4">
+      <div class="card text-center py-2" style="border-left:4px solid {{ color }}">
+        <div style="font-size:24px;font-weight:900;color:{{ color }}">
+          {{ ai_results | selectattr('data.' ~ key, 'equalto', val_filter) | list | length }}
+        </div>
+        <div style="font-size:11px;color:#6b7280">{{ label }}</div>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+
+  <div class="table-responsive">
+    <table class="table table-sm table-hover" style="font-size:12px">
+      <thead style="background:#1F3864;color:white">
+        <tr>
+          <th>Seller</th><th>City</th>
+          <th style="text-align:center">Online<br>Presence</th>
+          <th style="text-align:center">Contact</th>
+          <th style="text-align:center">Readiness</th>
+          <th style="text-align:center">Type</th>
+          <th>Flags</th>
+          <th>Summary</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set presence_colors = {'strong':'#15803d','moderate':'#d97706','weak':'#b91c1c','none':'#9ca3af'} %}
+        {% set ready_colors = {'high':'#15803d','medium':'#d97706','low':'#b91c1c'} %}
+        {% for row in ai_results %}
+        {% set d = row.data %}
+        <tr>
+          <td class="fw-bold">
+            <a href="{{ url_for('lead_detail', lead_id=row.lead.id) }}" style="color:#1F3864">
+              {{ row.lead.seller_name[:28] }}{% if row.lead.seller_name|length > 28 %}…{% endif %}
+            </a>
+            <div style="font-size:10px;color:#9ca3af">
+              {% if d.has_website %}🌐{% endif %}
+              {% if d.has_phone %}📞{% endif %}
+              {% if d.has_email %}✉️{% endif %}
+              {% if d.has_social %}📱{% endif %}
+            </div>
+          </td>
+          <td style="color:#6b7280">{{ row.lead.city or '—' }}</td>
+          <td style="text-align:center">
+            <span class="badge" style="background:{{ presence_colors.get(d.get('online_presence','none'),'#9ca3af') }}22;
+                                        color:{{ presence_colors.get(d.get('online_presence','none'),'#9ca3af') }};
+                                        border:1px solid {{ presence_colors.get(d.get('online_presence','none'),'#9ca3af') }}">
+              {{ d.get('online_presence', '—') }}
+            </span>
+          </td>
+          <td style="text-align:center">
+            <span class="badge" style="background:#f1f5f9;color:#374151">
+              {{ d.get('contact_quality', '—') }}
+            </span>
+          </td>
+          <td style="text-align:center">
+            <span class="badge" style="background:{{ ready_colors.get(d.get('reg_readiness','low'),'#9ca3af') }};color:white">
+              {{ d.get('reg_readiness', '—') | upper }}
+            </span>
+          </td>
+          <td style="text-align:center;color:#6b7280;font-size:11px">{{ d.get('business_type', '—') | replace('_',' ') }}</td>
+          <td style="font-size:10px">
+            {% for flag in d.get('flags', []) %}
+            <span class="badge me-1 mb-1" style="background:#fee2e2;color:#b91c1c">{{ flag }}</span>
+            {% endfor %}
+          </td>
+          <td style="font-size:11px;color:#6b7280;font-style:italic">
+            {{ d.get('summary', '') }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% endif %}
+</div>
+
+<!-- ══ TAB 5: STRICT BUILDINGS ══ -->
+<div class="tab-pane fade" id="strict">
+  <div class="row g-4">
+    <!-- Auto-detected -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header fw-bold" style="background:#374151;color:white">
+          <i class="bi bi-robot me-2"></i>Auto-detected from Visit Notes
+        </div>
+        {% if not auto_strict %}
+        <div class="card-body text-center text-muted py-4">No strict buildings detected from visit notes yet.</div>
+        {% else %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0" style="font-size:12px">
+            <thead style="background:#f8fafc"><tr><th>Building / Barangay</th><th style="text-align:center">Times Encountered</th><th>Add to List</th></tr></thead>
+            <tbody>
+              {% for name, cnt in auto_strict %}
+              <tr>
+                <td class="fw-bold" style="color:#374151">{{ name }}</td>
+                <td style="text-align:center"><span class="badge bg-danger">{{ cnt }}x</span></td>
+                <td>
+                  <form method="POST" action="{{ url_for('admin_health_strict_add') }}" class="d-inline">
+                    <input type="hidden" name="name" value="{{ name }}">
+                    <input type="hidden" name="reason" value="Auto-detected: strict admin/security mentioned in {{ cnt }} visit note(s)">
+                    <button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:10px">Add to List</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- Manual list -->
+    <div class="col-md-6">
+      <div class="card">
+        <div class="card-header fw-bold" style="background:#7c3aed;color:white">
+          <i class="bi bi-shield-lock-fill me-2"></i>Confirmed Strict Buildings List
+        </div>
+        <!-- Add form -->
+        <div class="card-body pb-0">
+          <form method="POST" action="{{ url_for('admin_health_strict_add') }}" class="row g-2 mb-3">
+            <div class="col-12">
+              <input type="text" name="name" class="form-control form-control-sm"
+                     placeholder="Building / Barangay / Village name *" required>
+            </div>
+            <div class="col-6">
+              <input type="text" name="city" class="form-control form-control-sm" placeholder="City">
+            </div>
+            <div class="col-6">
+              <input type="text" name="reason" class="form-control form-control-sm" placeholder="Reason (optional)">
+            </div>
+            <div class="col-12">
+              <button class="btn btn-sm btn-danger w-100">
+                <i class="bi bi-plus-circle me-1"></i>Add to Strict Buildings
+              </button>
+            </div>
+          </form>
+        </div>
+
+        {% if manual_strict %}
+        <div class="table-responsive">
+          <table class="table table-sm mb-0" style="font-size:12px">
+            <thead style="background:#f8fafc"><tr><th>Name</th><th>City</th><th>Reason</th><th>Source</th><th></th></tr></thead>
+            <tbody>
+              {% for s in manual_strict %}
+              <tr>
+                <td class="fw-bold" style="color:#7c3aed">{{ s.name }}</td>
+                <td style="color:#6b7280">{{ s.city or '—' }}</td>
+                <td style="font-size:11px;color:#6b7280">{{ (s.reason or '—')[:50] }}</td>
+                <td>
+                  <span class="badge" style="background:{% if s.source=='auto' %}#e0f2fe;color:#0369a1{% else %}#f5f3ff;color:#7c3aed{% endif %}">
+                    {{ s.source }}
+                  </span>
+                </td>
+                <td>
+                  <form method="POST" action="{{ url_for('admin_health_strict_remove', sid=s.id) }}" class="d-inline"
+                        onsubmit="return confirm('Remove {{ s.name }}?')">
+                    <button class="btn btn-outline-danger btn-sm py-0 px-2" style="font-size:10px">Remove</button>
+                  </form>
+                </td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="card-body text-center text-muted py-3" style="font-size:12px">No buildings added yet.</div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+</div><!-- /tab-content -->
+
+<script>
+function toggleWarehouse(leadId, btn) {
+  fetch(`/admin/health/flag-warehouse/${leadId}`, {method:'POST',
+    headers:{'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '',
+              'Content-Type':'application/json'}})
+  .then(r => r.json())
+  .then(d => {
+    if (d.is_warehouse) {
+      btn.textContent = '✓ Flagged';
+      btn.style.background = '#b91c1c';
+      btn.style.color = 'white';
+    } else {
+      btn.textContent = 'Flag WH';
+      btn.style.background = '#f1f5f9';
+      btn.style.color = '#374151';
+    }
+  });
+}
+// Jump to anchor tab on load
+if (location.hash) {
+  const tab = document.querySelector(`[href="${location.hash}"]`);
+  if (tab) new bootstrap.Tab(tab).show();
+}
+</script>
+{% endblock %}

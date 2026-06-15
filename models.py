@@ -117,6 +117,11 @@ class Lead(db.Model):
     # ML model output — updated by /admin/ml/train, None = use rule-based score
     ml_score = db.Column(db.Float)
     ml_trained_at = db.Column(db.DateTime)
+    # Health inspection flags
+    ai_readiness = db.Column(db.Text)       # JSON from Haiku inspection
+    ai_inspected_at = db.Column(db.DateTime)
+    is_warehouse = db.Column(db.Boolean, default=False)   # fulfillment center flag
+    is_duplicate_addr = db.Column(db.Boolean, default=False)
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
@@ -427,6 +432,19 @@ class MLModelRun(db.Model):
     model_path = db.Column(db.String(300))  # path to .pkl file
     status = db.Column(db.String(30), default='pending')  # pending, success, failed, insufficient_data
     notes = db.Column(db.Text)
+
+
+class StrictBuilding(db.Model):
+    __tablename__ = 'strict_buildings'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(300), nullable=False)       # building / barangay / village
+    city = db.Column(db.String(100))
+    reason = db.Column(db.Text)                            # e.g. "Strict guard, no entry without appointment"
+    source = db.Column(db.String(20), default='manual')   # 'auto' or 'manual'
+    times_encountered = db.Column(db.Integer, default=1)
+    added_by_id = db.Column(db.Integer, db.ForeignKey('users.id'))
+    added_at = db.Column(db.DateTime, default=datetime.utcnow)
+    added_by = db.relationship('User', foreign_keys=[added_by_id])
 
 
 class GabayTarget(db.Model):

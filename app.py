@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -49,10 +49,14 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
-    # Add ML scoring columns to leads + ml_model_runs table
+    # Add ML scoring + health inspection columns to leads
     _new_lead_cols = [
-        ("ml_score",       "FLOAT"),
-        ("ml_trained_at",  "TIMESTAMP"),
+        ("ml_score",          "FLOAT"),
+        ("ml_trained_at",     "TIMESTAMP"),
+        ("ai_readiness",      "TEXT"),
+        ("ai_inspected_at",   "TIMESTAMP"),
+        ("is_warehouse",      "BOOLEAN DEFAULT FALSE"),
+        ("is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_cols:
@@ -1823,6 +1827,231 @@ def api_visits_trend():
         func.count(Visit.id).label('count')
     ).group_by('day').order_by('day').limit(30).all()
     return jsonify([{'date': str(r.day), 'count': r.count} for r in results])
+
+
+@app.route('/admin/health')
+@login_required
+def admin_health():
+    if not current_user.is_supervisor:
+        abort(403)
+
+    import re, json as _json
+
+    pool_leads = Lead.query.filter_by(status='pool').all()
+
+    # ── 1. DUPLICATE ADDRESS DETECTION ──────────────────────────────────
+    def norm_addr(l):
+        parts = [l.barangay or '', l.city or '', l.address or '']
+        raw = ' '.join(p.strip() for p in parts if p.strip()).lower()
+        return re.sub(r'\s+', ' ', re.sub(r'[^\w\s]', '', raw)).strip()
+
+    addr_map = {}
+    for l in pool_leads:
+        key = norm_addr(l)
+        if key:
+            addr_map.setdefault(key, []).append(l)
+
+    duplicate_groups = sorted(
+        [leads for leads in addr_map.values() if len(leads) >= 2],
+        key=lambda g: -len(g)
+    )
+
+    # ── 2. WAREHOUSE KEYWORDS ────────────────────────────────────────────
+    WH_KEYWORDS = ['warehouse', 'bodega', 'depot', 'hub', 'logistics',
+                   'fulfillment', 'centre', 'center', 'storage', 'distribution']
+    warehouse_leads = [
+        l for l in pool_leads
+        if any(kw in (l.address or '').lower() or kw in (l.barangay or '').lower()
+               for kw in WH_KEYWORDS)
+        or len(addr_map.get(norm_addr(l), [])) >= 3
+    ]
+
+    # ── 3. PREVIOUSLY VISITED (same seller name visited in any old lead) ─
+    visited_lead_ids = {v.lead_id for v in Visit.query.all()}
+    all_leads_with_visits = Lead.query.filter(Lead.id.in_(visited_lead_ids)).all()
+    pool_names = {l.seller_name.strip().lower(): l for l in pool_leads}
+    prev_visited = []
+    for old in all_leads_with_visits:
+        match = pool_names.get(old.seller_name.strip().lower())
+        if match:
+            prev_visited.append({'pool_lead': match, 'old_lead': old,
+                                  'visit_count': old.visits.count()})
+
+    # ── 4. STRICT BUILDINGS (auto-detected from visit notes) ─────────────
+    STRICT_KEYWORDS = ['strict admin', 'strict guard', 'no entry', 'not allowed',
+                       'building admin', 'security guard', 'no visitors', 'admin approval',
+                       'gated', 'no access', 'bayad sa guard', 'bayad sa admin']
+    auto_strict = {}
+    for v in Visit.query.filter(Visit.notes.isnot(None)).all():
+        note_low = (v.notes or '').lower()
+        if any(kw in note_low for kw in STRICT_KEYWORDS):
+            lead = Lead.query.get(v.lead_id)
+            if lead and lead.barangay:
+                key = f"{lead.barangay}, {lead.city or ''}"
+                auto_strict[key] = auto_strict.get(key, 0) + 1
+
+    manual_strict = StrictBuilding.query.order_by(StrictBuilding.added_at.desc()).all()
+    manual_strict_names = {s.name.lower() for s in manual_strict}
+
+    # ── 5. AI INSPECTION RESULTS ─────────────────────────────────────────
+    ai_inspected = [l for l in pool_leads if l.ai_readiness]
+    ai_pending = len(pool_leads) - len(ai_inspected)
+
+    # Parse AI results for display
+    ai_results = []
+    for l in ai_inspected:
+        try:
+            data = _json.loads(l.ai_readiness)
+        except Exception:
+            data = {}
+        ai_results.append({'lead': l, 'data': data})
+
+    # Sort by reg_readiness: high first
+    order = {'high': 0, 'medium': 1, 'low': 2}
+    ai_results.sort(key=lambda x: order.get(x['data'].get('reg_readiness', 'low'), 2))
+
+    return render_template('admin/health.html',
+        pool_leads=pool_leads,
+        duplicate_groups=duplicate_groups,
+        warehouse_leads=warehouse_leads,
+        prev_visited=prev_visited,
+        auto_strict=sorted(auto_strict.items(), key=lambda x: -x[1]),
+        manual_strict=manual_strict,
+        ai_results=ai_results,
+        ai_pending=ai_pending,
+        ai_inspected_count=len(ai_inspected),
+    )
+
+
+@app.route('/admin/health/ai-inspect', methods=['POST'])
+@login_required
+def admin_health_ai_inspect():
+    """Run Haiku AI inspection on all unassigned pool leads that haven't been inspected."""
+    if not current_user.is_supervisor:
+        abort(403)
+
+    import anthropic as _anth, json as _json, threading
+
+    api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if not api_key:
+        flash('ANTHROPIC_API_KEY not set in Railway Variables.', 'danger')
+        return redirect(url_for('admin_health'))
+
+    pool_leads = Lead.query.filter_by(status='pool').filter(
+        Lead.ai_inspected_at.is_(None)
+    ).all()
+
+    if not pool_leads:
+        flash('All pool leads have already been inspected.', 'info')
+        return redirect(url_for('admin_health'))
+
+    def _inspect_batch(lead_ids):
+        with app.app_context():
+            client = _anth.Anthropic(api_key=api_key)
+            for lid in lead_ids:
+                lead = Lead.query.get(lid)
+                if not lead:
+                    continue
+                prompt = f"""Inspect this seller lead for a Lazada onboarding campaign. Return ONLY valid JSON.
+
+Seller: {lead.seller_name}
+Category: {lead.category or 'unknown'}
+Link: {lead.link or 'none'}
+Phone: {lead.contact_number or 'none'}
+Email: {lead.email or 'none'}
+Social: {lead.social_media_link or 'none'}
+Address: {lead.address or 'none'}
+Barangay: {lead.barangay or 'none'}
+City: {lead.city or 'none'}
+Project/Platform: {lead.project or 'none'}
+
+Return JSON with exactly these keys:
+{{
+  "online_presence": "strong|moderate|weak|none",
+  "contact_quality": "complete|partial|missing",
+  "reg_readiness": "high|medium|low",
+  "business_type": "retail_store|online_only|warehouse|home_based|unknown",
+  "has_website": true/false,
+  "has_phone": true/false,
+  "has_email": true/false,
+  "has_social": true/false,
+  "flags": ["max 3 short concerns"],
+  "summary": "one sentence max 20 words"
+}}"""
+                try:
+                    resp = client.messages.create(
+                        model='claude-haiku-4-5-20251001',
+                        max_tokens=300,
+                        messages=[{'role': 'user', 'content': prompt}]
+                    )
+                    raw = resp.content[0].text.strip()
+                    # Extract JSON if wrapped in markdown
+                    if '```' in raw:
+                        raw = raw.split('```')[1].strip()
+                        if raw.startswith('json'):
+                            raw = raw[4:].strip()
+                    _json.loads(raw)  # validate
+                    lead.ai_readiness = raw
+                    lead.ai_inspected_at = datetime.utcnow()
+                    db.session.commit()
+                except Exception as e:
+                    app.logger.warning(f'[Health AI] lead {lid}: {e}')
+                    continue
+
+    lead_ids = [l.id for l in pool_leads]
+    t = threading.Thread(target=_inspect_batch, args=(lead_ids,), daemon=True)
+    t.start()
+
+    flash(f'AI inspection started for {len(lead_ids)} leads. Refresh in ~{max(1, len(lead_ids)//10)} minute(s).', 'info')
+    return redirect(url_for('admin_health'))
+
+
+@app.route('/admin/health/strict/add', methods=['POST'])
+@login_required
+def admin_health_strict_add():
+    if not current_user.is_supervisor:
+        abort(403)
+    name = request.form.get('name', '').strip()
+    city = request.form.get('city', '').strip()
+    reason = request.form.get('reason', '').strip()
+    if name:
+        existing = StrictBuilding.query.filter(
+            db.func.lower(StrictBuilding.name) == name.lower()
+        ).first()
+        if existing:
+            existing.times_encountered += 1
+            existing.reason = reason or existing.reason
+        else:
+            db.session.add(StrictBuilding(
+                name=name, city=city, reason=reason,
+                source='manual', added_by_id=current_user.id
+            ))
+        db.session.commit()
+        flash(f'"{name}" added to strict buildings list.', 'success')
+    return redirect(url_for('admin_health') + '#strict')
+
+
+@app.route('/admin/health/strict/remove/<int:sid>', methods=['POST'])
+@login_required
+def admin_health_strict_remove(sid):
+    if not current_user.is_supervisor:
+        abort(403)
+    s = StrictBuilding.query.get_or_404(sid)
+    db.session.delete(s)
+    db.session.commit()
+    flash('Removed from strict buildings list.', 'success')
+    return redirect(url_for('admin_health') + '#strict')
+
+
+@app.route('/admin/health/flag-warehouse/<int:lead_id>', methods=['POST'])
+@login_required
+def admin_health_flag_warehouse(lead_id):
+    if not current_user.is_supervisor:
+        abort(403)
+    l = Lead.query.get_or_404(lead_id)
+    l.is_warehouse = not l.is_warehouse
+    db.session.commit()
+    return jsonify({'is_warehouse': l.is_warehouse})
 
 
 @app.route('/reports/competitor')
@@ -4497,5 +4726,18 @@ def city_mapping_auto():
 if __name__ == '__main__':
     with app.app_context():
         db.create_all()
+        # Auto-migrate new columns
+        _migrate_cols = [
+            ("leads", "ai_readiness", "TEXT"),
+            ("leads", "ai_inspected_at", "TIMESTAMP"),
+            ("leads", "is_warehouse", "BOOLEAN DEFAULT FALSE"),
+            ("leads", "is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
+        ]
+        for tbl, col, typ in _migrate_cols:
+            try:
+                db.session.execute(db.text(f'ALTER TABLE {tbl} ADD COLUMN {col} {typ}'))
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
         seed_demo_data()
     app.run(host='0.0.0.0', port=5001, debug=True)
