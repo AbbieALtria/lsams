@@ -2226,16 +2226,20 @@ def admin_import_pipeline():
         'pool':                'pool',
     }
 
-    # Pre-load gabay users — index by username AND gabay_name (both uppercase) for flexible matching
+    # Pre-load gabay users — index by every possible name variant (uppercase)
     all_gabays = User.query.filter_by(role='gabay').all()
     gabay_by_key = {}
     for u in all_gabays:
         gabay_by_key[u.username.upper()] = u
         if u.gabay_name:
-            gabay_by_key[u.gabay_name.upper()] = u
+            for word in u.gabay_name.split():
+                gabay_by_key[word.upper()] = u
         if u.full_name:
-            # also index by last word of full name (e.g. "Arvie Bagalando" → "BAGALANDO")
-            gabay_by_key[u.full_name.split()[-1].upper()] = u
+            for word in u.full_name.split():
+                gabay_by_key[word.upper()] = u
+
+    # Debug: show all keys built (only visible in GET response)
+    _debug_keys = sorted(gabay_by_key.keys())
 
     content = f.read().decode('utf-8-sig', errors='replace')
     reader = csv.reader(io.StringIO(content))
@@ -2321,6 +2325,8 @@ def admin_import_pipeline():
                      ''.join(f'<li>{e}</li>' for e in errors[:10]) + '</ul>'
 
     city_html = '<br>'.join(city_updates) if city_updates else 'None'
+    debug_html = f'<details><summary style="cursor:pointer;color:#6b7280;font-size:12px">Debug: DB keys built ({len(_debug_keys)})</summary>' \
+                 f'<pre style="font-size:11px">{", ".join(_debug_keys)}</pre></details>'
 
     return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:640px">
     <h2 style="color:#15803d">✅ Import Complete</h2>
@@ -2337,6 +2343,7 @@ def admin_import_pipeline():
     <h3 style="margin-top:24px">Cities assigned per Gabay:</h3>
     <p style="font-size:13px;color:#374151;line-height:1.8">{city_html}</p>
     {error_html}
+    {debug_html}
     <br><a href="/dashboard" style="color:#1F3864;font-weight:700">→ Go to Dashboard</a>
     &nbsp;&nbsp;<a href="/admin/import-pipeline" style="color:#6b7280">Upload another file</a>
     </body></html>'''
