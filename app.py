@@ -1840,14 +1840,28 @@ def report_forecast():
         attempt_count= status_counts.get('attempting', 0)
         total_assigned = len(assigned_leads)
 
-        # Historical conversion rate: live / total_assigned (min 5% floor)
+        # Actual conversion rate from real data: live / total_assigned
         conv_rate = (live_count / total_assigned) if total_assigned > 0 else 0.0
 
-        # Forecast: leads in hot pipeline likely to convert this month
-        # Registration → very high chance (70%)
-        # Negotiation → moderate (25%)
-        # Attempting → low (8%)
-        hot_forecast = round(reg_count * 0.70 + nego_count * 0.25 + attempt_count * 0.08)
+        # Days remaining factor: if half the month is gone, reduce projections
+        days_factor = days_remaining / days_in_month  # e.g. 15/30 = 0.5
+
+        # Realistic forecast based on actual conv_rate + stage proximity
+        # Registration: closest to live — use actual conv_rate boosted slightly
+        # Negotiation: 2 steps away — conv_rate * 0.3 at most
+        # Attempting: far — conv_rate * 0.1 at most
+        # All scaled by days_factor (less time = fewer conversions possible)
+        reg_prob   = min(conv_rate * 3.0, 0.35) * days_factor
+        nego_prob  = min(conv_rate * 1.0, 0.10) * days_factor
+        att_prob   = min(conv_rate * 0.3, 0.03) * days_factor
+
+        # If no historical data yet, use conservative floor rates
+        if conv_rate == 0:
+            reg_prob  = 0.15 * days_factor
+            nego_prob = 0.05 * days_factor
+            att_prob  = 0.01 * days_factor
+
+        hot_forecast = round(reg_count * reg_prob + nego_count * nego_prob + attempt_count * att_prob)
         projected_live = live_count + hot_forecast
         gap = target_live - projected_live
 
