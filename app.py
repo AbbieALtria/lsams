@@ -2544,14 +2544,16 @@ def admin_backfill_visits():
     all_rows = list(reader)
 
     agents = {u.username.lower(): u for u in User.query.filter_by(role='gabay').all()}
-    leads_by_id = {str(l.id): l for l in Lead.query.all()}
+    # Match by seller_name (lowercase) — CSV UUIDs differ from DB IDs
+    leads_by_name = {l.seller_name.strip().lower(): l for l in Lead.query.all()}
 
     to_insert = []
     skipped = {'no_date': 0, 'bad_date': 0, 'no_agent': 0, 'no_lead': 0, 'duplicate': 0}
+    not_found_names = []
 
     for row in all_rows[2:]:
         if len(row) <= 17: continue
-        lead_id    = row[1].strip()
+        shop_name  = row[0].strip()
         agent_name = row[15].strip().lower()
         date_str   = row[17].strip()
         detail     = row[18].strip() if len(row) > 18 else ''
@@ -2561,14 +2563,15 @@ def admin_backfill_visits():
 
         visit_date = _parse_date(date_str)
         if not visit_date:
-            logs.append(f"Bad date: '{date_str}' for {row[0].strip()}")
+            logs.append(f"Bad date: '{date_str}' for {shop_name}")
             skipped['bad_date'] += 1; continue
 
         if not agent_name or agent_name not in agents:
             skipped['no_agent'] += 1; continue
 
-        lead = leads_by_id.get(lead_id)
+        lead = leads_by_name.get(shop_name.lower())
         if not lead:
+            not_found_names.append(shop_name)
             skipped['no_lead'] += 1; continue
 
         agent = agents[agent_name]
@@ -2604,6 +2607,7 @@ def admin_backfill_visits():
       <tr><td>Skipped (duplicate)</td><td>{skipped['duplicate']}</td></tr>
     </table>
     {'<br>'.join(logs) if logs else ''}
+    {f'<details><summary style="cursor:pointer;color:#b91c1c">▶ {len(not_found_names)} shop names not found in DB (click to expand)</summary><pre style="font-size:11px;background:#fff1f2;padding:8px">' + chr(10).join(not_found_names[:50]) + '</pre></details>' if not_found_names else ''}
     <h5>First 20 visits preview:</h5>
     <table class="table table-sm table-bordered" style="font-size:12px">
       <thead><tr><th>Lead</th><th>Agent</th><th>Date</th><th>Outcome</th></tr></thead>
