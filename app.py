@@ -2226,8 +2226,16 @@ def admin_import_pipeline():
         'pool':                'pool',
     }
 
-    # Pre-load gabay users
-    gabay_users = {u.username: u for u in User.query.filter_by(role='gabay').all()}
+    # Pre-load gabay users — index by username AND gabay_name (both uppercase) for flexible matching
+    all_gabays = User.query.filter_by(role='gabay').all()
+    gabay_by_key = {}
+    for u in all_gabays:
+        gabay_by_key[u.username.upper()] = u
+        if u.gabay_name:
+            gabay_by_key[u.gabay_name.upper()] = u
+        if u.full_name:
+            # also index by last word of full name (e.g. "Arvie Bagalando" → "BAGALANDO")
+            gabay_by_key[u.full_name.split()[-1].upper()] = u
 
     content = f.read().decode('utf-8-sig', errors='replace')
     reader = csv.reader(io.StringIO(content))
@@ -2242,7 +2250,7 @@ def admin_import_pipeline():
     skipped_no_agent = 0
     errors = []
 
-    # Track cities per gabay (username → set of cities)
+    # Track cities per gabay user id → set of cities
     gabay_cities = {}
 
     for row in data_rows:
@@ -2266,28 +2274,25 @@ def admin_import_pipeline():
         # Map status
         db_status = STATUS_MAP.get(status_raw)
         if not db_status:
-            # Default: if agent is set, treat as assigned; else pool
             db_status = 'assigned' if agent_raw else 'pool'
 
-        # Map agent
-        username = AGENT_MAP.get(agent_raw)
-        if username and username in gabay_users:
-            gabay = gabay_users[username]
+        # Find gabay user — try AGENT_MAP first, then direct key lookup
+        username_key = AGENT_MAP.get(agent_raw, agent_raw)
+        gabay = gabay_by_key.get(username_key.upper()) or gabay_by_key.get(agent_raw)
+
+        if gabay:
             lead.gabay_id = gabay.id
             lead.status = db_status
             if not lead.assigned_at:
                 lead.assigned_at = datetime.utcnow()
-            # Track cities
             if city_raw and city_raw not in ('0', ''):
-                gabay_cities.setdefault(username, set()).add(city_raw.title())
+                gabay_cities.setdefault(gabay.id, set()).add(city_raw.title())
             updated += 1
         elif agent_raw:
             skipped_no_agent += 1
             errors.append(f"Unknown agent '{agent_raw}' for lead {lazada_id}")
         else:
-            # No agent — just update status if meaningful
-            if db_status in ('pool', 'assigned'):
-                lead.status = 'pool'
+            lead.status = 'pool'
             updated += 1
 
     # Commit lead updates
@@ -2299,11 +2304,12 @@ def admin_import_pipeline():
 
     # Update assigned_city per gabay
     city_updates = []
-    for username, cities in gabay_cities.items():
-        user = gabay_users.get(username)
+    gabay_by_id = {u.id: u for u in all_gabays}
+    for gid, cities in gabay_cities.items():
+        user = gabay_by_id.get(gid)
         if user:
             user.assigned_city = ', '.join(sorted(cities))
-            city_updates.append(f"{username}: {user.assigned_city}")
+            city_updates.append(f"{user.display_name}: {user.assigned_city}")
     try:
         db.session.commit()
     except Exception as e:
