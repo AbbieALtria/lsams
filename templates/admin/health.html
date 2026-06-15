@@ -21,8 +21,21 @@
 
 <!-- SUMMARY CARDS -->
 <div class="row g-3 mb-4">
+
+  <!-- Pool Leads — links to Assign Center -->
+  <div class="col-6 col-md-2">
+    <a href="{{ url_for('assign_center') }}" class="text-decoration-none">
+      <div class="card text-center py-3 h-100" style="border-left:4px solid #1F3864;cursor:pointer"
+           onmouseover="this.style.boxShadow='0 4px 12px #1F386433'" onmouseout="this.style.boxShadow=''">
+        <i class="bi bi-people-fill mb-1" style="font-size:20px;color:#1F3864"></i>
+        <div style="font-size:26px;font-weight:900;color:#1F3864">{{ pool_leads|length }}</div>
+        <div style="font-size:11px;color:#6b7280">Pool Leads</div>
+        <div style="font-size:10px;color:#9ca3af;margin-top:2px">click to view →</div>
+      </div>
+    </a>
+  </div>
+
   {% for label, val, color, icon, anchor in [
-    ('Pool Leads', pool_leads|length, '#1F3864', 'bi-people-fill', '#dupes'),
     ('Duplicate Addresses', duplicate_groups|length, '#d97706', 'bi-geo-alt-fill', '#dupes'),
     ('Previously Visited', prev_visited|length, '#0891b2', 'bi-clock-history', '#visited'),
     ('Likely Warehouses', warehouse_leads|length, '#b91c1c', 'bi-building-fill', '#warehouses'),
