@@ -6,54 +6,154 @@
   <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Back to Leads</a>
 </div>
 
-<div class="row justify-content-center">
-  <div class="col-md-7">
-    <div class="card">
-      <div class="card-header">Upload Excel / CSV File</div>
+<div class="row g-4">
+
+  <!-- Upload Form -->
+  <div class="col-md-5">
+    <div class="card h-100">
+      <div class="card-header fw-bold"><i class="bi bi-cloud-upload me-2"></i>Upload File</div>
       <div class="card-body">
         <form method="POST" enctype="multipart/form-data">
-          <div class="mb-4 p-3 rounded" style="background:#F0F4FA;border:2px dashed #2E75B6">
-            <div class="text-center mb-3">
-              <i class="bi bi-file-earmark-spreadsheet" style="font-size:40px;color:#2E75B6"></i>
-              <p class="mt-2 mb-1 fw-bold" style="color:#1F3864">Drag & drop or click to upload</p>
-              <small class="text-muted">Supports .xlsx, .xls, .csv — Max 16MB</small>
-            </div>
-            <input type="file" name="file" class="form-control" accept=".xlsx,.xls,.csv" required>
+          <div class="mb-4 p-4 rounded text-center" style="background:#F0F4FA;border:2px dashed #2E75B6">
+            <i class="bi bi-file-earmark-spreadsheet" style="font-size:48px;color:#2E75B6"></i>
+            <p class="mt-2 mb-1 fw-bold" style="color:#1F3864">Click to select your Excel file</p>
+            <small class="text-muted">Supports .xlsx, .xls, .csv — Max 16MB</small>
+            <input type="file" name="file" class="form-control mt-3" accept=".xlsx,.xls,.csv" required>
           </div>
 
-          <div class="mb-3 p-3 rounded" style="background:#fffbeb;border:1px solid #fcd34d">
-            <div class="fw-bold mb-2" style="font-size:12px;color:#92400e">
-              <i class="bi bi-table me-1"></i>Lazada Excel Format — Expected Column Headers
-            </div>
-            <div class="row g-1" style="font-size:11px;color:#78350f">
-              <div class="col-6">• <code>Shop Name</code> <span style="color:#aaa">(required)</span></div>
-              <div class="col-6">• <code>Leads ID</code> <span style="color:#aaa">(UUID, dedup key)</span></div>
-              <div class="col-6">• <code>Priority</code> <span style="color:#aaa">(P0, P1, P2…)</span></div>
-              <div class="col-6">• <code>Project</code> <span style="color:#aaa">(TIKTOK TTS, etc.)</span></div>
-              <div class="col-6">• <code>Cluster</code> <span style="color:#aaa">(FMCG, FA, EL…)</span></div>
-              <div class="col-6">• <code>Category</code></div>
-              <div class="col-6">• <code>Link</code> <span style="color:#aaa">(TikTok/Shopee URL)</span></div>
-              <div class="col-6">• <code>Barangay</code></div>
-              <div class="col-6">• <code>City</code></div>
-              <div class="col-6">• <code>Province</code></div>
-              <div class="col-6">• <code>Complete Address</code></div>
-              <div class="col-6">• <code>Sender Name</code></div>
-              <div class="col-6">• <code>Contact Number</code></div>
-              <div class="col-6">• <code>Email Address</code></div>
-              <div class="col-6">• <code>Social Media Link</code></div>
-            </div>
-            <div class="mt-2" style="font-size:10px;color:#a16207">
-              <i class="bi bi-info-circle me-1"></i>
-              The merged header row (PIC / Seller Details) is auto-skipped. Upload the file exactly as exported from Lazada.
-            </div>
+          <div class="alert alert-info py-2 px-3" style="font-size:13px">
+            <i class="bi bi-info-circle me-1"></i>
+            <strong>No duplicates</strong> — existing leads (matched by Leads ID or phone number) are automatically skipped.
+            New leads are added to the <strong>Pool</strong> for assignment.
           </div>
 
-          <button type="submit" class="btn w-100" style="background:#1F3864;color:white">
-            <i class="bi bi-upload me-2"></i>Import Leads
+          <button type="submit" class="btn w-100 fw-bold py-3" style="background:#1F3864;color:white;font-size:16px">
+            <i class="bi bi-upload me-2"></i>Import Leads Now
           </button>
         </form>
       </div>
     </div>
   </div>
+
+  <!-- Field Guide -->
+  <div class="col-md-7">
+    <div class="card">
+      <div class="card-header fw-bold" style="background:#1F3864;color:white">
+        <i class="bi bi-table me-2"></i>Required Excel Column Headers
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+          <thead style="background:#f0f4fa">
+            <tr>
+              <th style="width:30px;text-align:center">#</th>
+              <th>Column Header</th>
+              <th>Description</th>
+              <th style="width:90px;text-align:center">Required?</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#fff8f0">
+              <td class="text-center fw-bold text-danger">1</td>
+              <td><code>Shop Name</code></td>
+              <td>Seller / store name</td>
+              <td class="text-center"><span class="badge bg-danger">Required</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">2</td>
+              <td><code>Leads ID</code></td>
+              <td>UUID from Lazada — used to prevent duplicates</td>
+              <td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">3</td>
+              <td><code>Priority</code></td>
+              <td>P0, P1, P2, P3</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">4</td>
+              <td><code>Project</code></td>
+              <td>e.g. TIKTOK (TTS), TOP COFFEE (TCS), RRLD</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">5</td>
+              <td><code>Cluster</code></td>
+              <td>FMCG, FA, EL, GM…</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">6</td>
+              <td><code>Category</code></td>
+              <td>Product category (Beauty, Automotive, etc.)</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">7</td>
+              <td><code>Link</code></td>
+              <td>TikTok or Shopee shop URL</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">8</td>
+              <td><code>Barangay</code></td>
+              <td>Barangay of the seller</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">9</td>
+              <td><code>City</code></td>
+              <td>City / municipality</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">10</td>
+              <td><code>Province</code></td>
+              <td>Province or region (e.g. Metro Manila)</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">11</td>
+              <td><code>Complete Address</code></td>
+              <td>Full street address of the seller</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">12</td>
+              <td><code>Sender Name</code></td>
+              <td>Contact person / PIC name</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">13</td>
+              <td><code>Contact Number</code></td>
+              <td>Mobile number — also used for duplicate check</td>
+              <td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td>
+            </tr>
+            <tr>
+              <td class="text-center fw-bold">14</td>
+              <td><code>Email Address</code></td>
+              <td>Seller email</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+            <tr style="background:#f8fafc">
+              <td class="text-center fw-bold">15</td>
+              <td><code>Social Media Link</code></td>
+              <td>Facebook, Instagram, or other social page URL</td>
+              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer" style="background:#fffbeb;border-top:2px solid #fcd34d;font-size:12px;color:#92400e">
+        <i class="bi bi-lightbulb-fill me-1 text-warning"></i>
+        <strong>Tips:</strong>
+        Column names must match exactly (case-insensitive). The merged header row at the top
+        (<em>PIC / Seller Details / Leads Status Update…</em>) is <strong>automatically skipped</strong> —
+        upload the file exactly as exported from Lazada. Rows missing <code>Shop Name</code> are skipped.
+      </div>
+    </div>
+  </div>
+
 </div>
 {% endblock %}
