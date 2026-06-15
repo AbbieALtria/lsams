@@ -2160,6 +2160,182 @@ def admin_full_reset():
     </body></html>'''
 
 
+@app.route('/admin/import-pipeline', methods=['GET', 'POST'])
+@login_required
+def admin_import_pipeline():
+    """Import pipeline CSV: update lead status + gabay assignment + cities. No duplicates."""
+    if not current_user.is_superadmin:
+        return 'Superadmin only', 403
+
+    if request.method == 'GET':
+        return '''<html><body style="font-family:sans-serif;padding:32px;max-width:640px">
+        <h2>📥 Import Pipeline CSV</h2>
+        <p>Upload the <strong>pipeline CSV file</strong>. This will:</p>
+        <ul>
+          <li>Match each lead by <strong>Leads ID (lazada_id)</strong></li>
+          <li>Update <strong>status</strong> and <strong>gabay assignment</strong></li>
+          <li>Set <strong>assigned_city</strong> per gabay based on their leads</li>
+          <li>Skip rows with no valid Leads ID — no duplicates created</li>
+        </ul>
+        <form method="POST" enctype="multipart/form-data">
+          <input type="file" name="csv_file" accept=".csv" required
+                 style="display:block;margin-bottom:16px;font-size:15px">
+          <button type="submit"
+                  style="background:#1F3864;color:white;border:none;padding:12px 28px;
+                         border-radius:8px;font-size:15px;cursor:pointer;font-weight:700">
+            ✅ Upload & Update
+          </button>
+        </form>
+        <br><a href="/dashboard" style="color:#4a5568">← Back to Dashboard</a>
+        </body></html>'''
+
+    # POST — process the CSV
+    import csv, io
+    from datetime import datetime
+
+    f = request.files.get('csv_file')
+    if not f:
+        return 'No file uploaded', 400
+
+    # Agent name (as written in CSV) → DB username
+    AGENT_MAP = {
+        'ARVIE':     'Arvie',
+        'JENEROUS':  'Jenerous',
+        'KAREN':     'karen',
+        'KARL':      'Karl',
+        'KAYCEE':    'Kaycee',
+        'JENICA':    'Jenica',
+        'JENICA SUNIO': 'Jenica',
+        'ABI':       'Abi',
+        'ABIGAIL':   'Abi',
+        'MARIECRIS': 'Mariecris',
+        'MARIE CRIS':'Mariecris',
+        'MARIE':     'Mariecris',
+        'ELLEN':     'Ellen',
+    }
+
+    STATUS_MAP = {
+        'negotiation':         'negotiation',
+        'assigned':            'assigned',
+        'attempting to contact':'attempting',
+        'attempting':          'attempting',
+        'registration':        'registration',
+        'live':                'live',
+        'matched':             'matched',
+        'closed':              'closed',
+        'pool':                'pool',
+    }
+
+    # Pre-load gabay users
+    gabay_users = {u.username: u for u in User.query.filter_by(role='gabay').all()}
+
+    content = f.read().decode('utf-8-sig', errors='replace')
+    reader = csv.reader(io.StringIO(content))
+
+    rows = list(reader)
+    # Skip first 4 rows (3 header rows + possible blank/section rows)
+    data_rows = rows[4:]
+
+    updated = 0
+    skipped_no_id = 0
+    skipped_no_lead = 0
+    skipped_no_agent = 0
+    errors = []
+
+    # Track cities per gabay (username → set of cities)
+    gabay_cities = {}
+
+    for row in data_rows:
+        if len(row) < 19:
+            continue
+        lazada_id = row[1].strip()
+        if not lazada_id or len(lazada_id) < 10:
+            skipped_no_id += 1
+            continue
+
+        agent_raw = row[15].strip().upper()
+        status_raw = row[18].strip().lower()
+        city_raw   = row[8].strip()
+
+        # Find lead
+        lead = Lead.query.filter_by(lazada_id=lazada_id).first()
+        if not lead:
+            skipped_no_lead += 1
+            continue
+
+        # Map status
+        db_status = STATUS_MAP.get(status_raw)
+        if not db_status:
+            # Default: if agent is set, treat as assigned; else pool
+            db_status = 'assigned' if agent_raw else 'pool'
+
+        # Map agent
+        username = AGENT_MAP.get(agent_raw)
+        if username and username in gabay_users:
+            gabay = gabay_users[username]
+            lead.gabay_id = gabay.id
+            lead.status = db_status
+            if not lead.assigned_at:
+                lead.assigned_at = datetime.utcnow()
+            # Track cities
+            if city_raw and city_raw not in ('0', ''):
+                gabay_cities.setdefault(username, set()).add(city_raw.title())
+            updated += 1
+        elif agent_raw:
+            skipped_no_agent += 1
+            errors.append(f"Unknown agent '{agent_raw}' for lead {lazada_id}")
+        else:
+            # No agent — just update status if meaningful
+            if db_status in ('pool', 'assigned'):
+                lead.status = 'pool'
+            updated += 1
+
+    # Commit lead updates
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        return f'<h2 style="color:red">DB Error: {e}</h2>'
+
+    # Update assigned_city per gabay
+    city_updates = []
+    for username, cities in gabay_cities.items():
+        user = gabay_users.get(username)
+        if user:
+            user.assigned_city = ', '.join(sorted(cities))
+            city_updates.append(f"{username}: {user.assigned_city}")
+    try:
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+
+    error_html = ''
+    if errors[:10]:
+        error_html = '<h4 style="color:#b91c1c">Unknown agents (first 10):</h4><ul>' + \
+                     ''.join(f'<li>{e}</li>' for e in errors[:10]) + '</ul>'
+
+    city_html = '<br>'.join(city_updates) if city_updates else 'None'
+
+    return f'''<html><body style="font-family:sans-serif;padding:32px;max-width:640px">
+    <h2 style="color:#15803d">✅ Import Complete</h2>
+    <table style="border-collapse:collapse;width:100%">
+      <tr style="background:#f0fdf4"><td style="padding:8px 12px;border:1px solid #d1fae5"><strong>Leads updated</strong></td>
+          <td style="padding:8px 12px;border:1px solid #d1fae5;color:#15803d;font-weight:800">{updated}</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e2e8f0">No Leads ID (skipped)</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0">{skipped_no_id}</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e2e8f0">Lead not in DB (skipped)</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0">{skipped_no_lead}</td></tr>
+      <tr><td style="padding:8px 12px;border:1px solid #e2e8f0">Unknown agent (skipped)</td>
+          <td style="padding:8px 12px;border:1px solid #e2e8f0">{skipped_no_agent}</td></tr>
+    </table>
+    <h3 style="margin-top:24px">Cities assigned per Gabay:</h3>
+    <p style="font-size:13px;color:#374151;line-height:1.8">{city_html}</p>
+    {error_html}
+    <br><a href="/dashboard" style="color:#1F3864;font-weight:700">→ Go to Dashboard</a>
+    &nbsp;&nbsp;<a href="/admin/import-pipeline" style="color:#6b7280">Upload another file</a>
+    </body></html>'''
+
+
 @app.route('/admin/delete-excel-imports', methods=['GET', 'POST'])
 @login_required
 def admin_delete_excel_imports():
