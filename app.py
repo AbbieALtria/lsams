@@ -2360,19 +2360,31 @@ def report_wow():
         if ws <= prev_end:
             prev_week_ranges.append((w + 1, ws, we))
 
-    from models import Registration
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
 
-    def week_stats(visits_list, regs_list, live_list, ranges):
+    # Registration = visits with outcome 'registered' (lead reached registration/live stage)
+    # Live = leads in status 'live' or 'matched' with a visit in that period
+    # This uses actual visit data since Registration table is populated separately
+
+    # Build set of live/matched lead IDs for fast lookup
+    live_lead_ids = {l.id for l in Lead.query.filter(Lead.status.in_(['live', 'matched'])).all()}
+
+    def week_stats(visits_list, ranges):
         rows = []
         for w_num, ws, we in ranges:
+            pv = [v for v in visits_list if ws <= v.visited_at.date() <= we]
             rows.append({
                 'week': w_num, 'start': ws, 'end': we,
-                'visits': sum(1 for v in visits_list if ws <= v.visited_at.date() <= we),
-                'registrations': sum(1 for r in regs_list if ws <= r.created_at.date() <= we),
-                'live': sum(1 for r in live_list if r.activated_at and ws <= r.activated_at.date() <= we),
+                'visits': len(pv),
+                'registrations': sum(1 for v in pv if v.outcome == 'registered'),
+                'live': sum(1 for v in pv if v.outcome == 'registered' and v.lead_id in live_lead_ids),
             })
         return rows
+
+    def period_totals(visits_list):
+        regs = sum(1 for v in visits_list if v.outcome == 'registered')
+        live = sum(1 for v in visits_list if v.outcome == 'registered' and v.lead_id in live_lead_ids)
+        return {'visits': len(visits_list), 'registrations': regs, 'live': live}
 
     gabay_rows = []
     for g in gabays:
@@ -2381,31 +2393,17 @@ def report_wow():
             func.date(Visit.visited_at) >= month_start,
             func.date(Visit.visited_at) <= month_end,
         ).all()
-        curr_regs = db.session.query(Registration).join(Lead).filter(
-            Lead.gabay_id == g.id,
-            Registration.created_at >= _dt.datetime.combine(month_start, _dt.time.min),
-            Registration.created_at <= _dt.datetime.combine(month_end, _dt.time.max),
-        ).all()
-        curr_live = [r for r in curr_regs if r.activated_at and month_start <= r.activated_at.date() <= month_end]
-
         prev_vis = Visit.query.filter(
             Visit.gabay_id == g.id,
             func.date(Visit.visited_at) >= prev_start,
             func.date(Visit.visited_at) <= prev_end,
         ).all()
-        prev_regs = db.session.query(Registration).join(Lead).filter(
-            Lead.gabay_id == g.id,
-            Registration.created_at >= _dt.datetime.combine(prev_start, _dt.time.min),
-            Registration.created_at <= _dt.datetime.combine(prev_end, _dt.time.max),
-        ).all()
-        prev_live = [r for r in prev_regs if r.activated_at and prev_start <= r.activated_at.date() <= prev_end]
-
         gabay_rows.append({
             'gabay': g,
-            'curr_weekly': week_stats(curr_vis, curr_regs, curr_live, week_ranges),
-            'prev_weekly': week_stats(prev_vis, prev_regs, prev_live, prev_week_ranges),
-            'curr_total': {'visits': len(curr_vis), 'registrations': len(curr_regs), 'live': len(curr_live)},
-            'prev_total': {'visits': len(prev_vis), 'registrations': len(prev_regs), 'live': len(prev_live)},
+            'curr_weekly': week_stats(curr_vis, week_ranges),
+            'prev_weekly': week_stats(prev_vis, prev_week_ranges),
+            'curr_total': period_totals(curr_vis),
+            'prev_total': period_totals(prev_vis),
         })
 
     # Overall team totals across all gabays
@@ -2441,39 +2439,24 @@ def report_wow():
     for proj in projects_set:
         p_leads = [l for l in project_leads if l.project == proj]
         lead_ids = [l.id for l in p_leads]
-        gabay_ids_proj = list(set(l.gabay_id for l in p_leads if l.gabay_id))
 
         curr_vis = Visit.query.filter(
             Visit.lead_id.in_(lead_ids),
             func.date(Visit.visited_at) >= month_start,
             func.date(Visit.visited_at) <= month_end,
         ).all()
-        curr_regs = db.session.query(Registration).filter(
-            Registration.lead_id.in_(lead_ids),
-            Registration.created_at >= _dt.datetime.combine(month_start, _dt.time.min),
-            Registration.created_at <= _dt.datetime.combine(month_end, _dt.time.max),
-        ).all()
-        curr_live = [r for r in curr_regs if r.activated_at and month_start <= r.activated_at.date() <= month_end]
-
         prev_vis = Visit.query.filter(
             Visit.lead_id.in_(lead_ids),
             func.date(Visit.visited_at) >= prev_start,
             func.date(Visit.visited_at) <= prev_end,
         ).all()
-        prev_regs = db.session.query(Registration).filter(
-            Registration.lead_id.in_(lead_ids),
-            Registration.created_at >= _dt.datetime.combine(prev_start, _dt.time.min),
-            Registration.created_at <= _dt.datetime.combine(prev_end, _dt.time.max),
-        ).all()
-        prev_live = [r for r in prev_regs if r.activated_at and prev_start <= r.activated_at.date() <= prev_end]
-
         project_rows.append({
             'name': proj,
             'total_leads': len(p_leads),
-            'curr_weekly': week_stats(curr_vis, curr_regs, curr_live, week_ranges),
-            'prev_weekly': week_stats(prev_vis, prev_regs, prev_live, prev_week_ranges),
-            'curr_total': {'visits': len(curr_vis), 'registrations': len(curr_regs), 'live': len(curr_live)},
-            'prev_total': {'visits': len(prev_vis), 'registrations': len(prev_regs), 'live': len(prev_live)},
+            'curr_weekly': week_stats(curr_vis, week_ranges),
+            'prev_weekly': week_stats(prev_vis, prev_week_ranges),
+            'curr_total': period_totals(curr_vis),
+            'prev_total': period_totals(prev_vis),
         })
 
     return render_template('reports/wow.html',

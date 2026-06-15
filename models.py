@@ -307,6 +307,7 @@ class Visit(db.Model):
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), nullable=False)
     gabay_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     visited_at = db.Column(db.DateTime, default=datetime.utcnow)
+    lead = db.relationship('Lead', backref=db.backref('visits', lazy='dynamic'), foreign_keys=[lead_id])
     gps_lat = db.Column(db.Float)
     gps_lng = db.Column(db.Float)
     gps_address = db.Column(db.String(300))
