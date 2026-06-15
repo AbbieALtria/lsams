@@ -5,13 +5,18 @@
 <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
   <div>
     <div class="page-title"><i class="bi bi-graph-up-arrow me-2"></i>Monthly Forecast & Productivity</div>
-    <small class="text-muted">AI-powered projection based on actual visit pace and pipeline</small>
+    <small class="text-muted">Realistic projection using actual conversion rate × pipeline stage × working days remaining</small>
   </div>
-  <div class="d-flex align-items-center gap-2">
-    <form method="GET" class="d-flex align-items-center gap-2">
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
+      <input type="hidden" name="suspended" value="{{ suspended_raw }}">
       <input type="month" name="month" value="{{ month_str }}" class="form-control form-control-sm" style="width:160px">
       <button class="btn btn-sm btn-outline-primary">View</button>
     </form>
+    <button data-bs-toggle="modal" data-bs-target="#suspendModal"
+            class="btn btn-sm btn-outline-warning">
+      <i class="bi bi-cloud-lightning-rain me-1"></i>Mark Suspension Days
+    </button>
     <button onclick="window.print()" class="btn btn-sm" style="background:#1F3864;color:white">
       <i class="bi bi-printer me-1"></i>Print / PDF
     </button>
@@ -19,35 +24,104 @@
   </div>
 </div>
 
-<!-- Month Summary Bar -->
+<!-- ══ HOW THIS FORECAST WORKS ══ -->
+<div class="card mb-4" style="border:1.5px solid #c7d2fe;background:#f5f3ff">
+  <div class="card-header fw-bold" style="background:#ede9fe;color:#4c1d95;border-bottom:1px solid #c4b5fd">
+    <i class="bi bi-calculator me-2"></i>How This Forecast Is Calculated
+  </div>
+  <div class="card-body">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <div class="fw-bold mb-2" style="color:#5b21b6;font-size:13px">📐 Formula</div>
+        <div style="font-size:12px;line-height:1.9;font-family:monospace;background:#f0fdf4;padding:10px;border-radius:8px">
+          conv_rate = live ÷ total_assigned<br>
+          reg_prob  = conv_rate × 3.0 (max 35%)<br>
+          nego_prob = conv_rate × 1.0 (max 10%)<br>
+          att_prob  = conv_rate × 0.3 (max 3%)<br>
+          <br>
+          All × <strong>working_days_factor</strong><br>
+          <br>
+          forecast = (Reg × reg_prob)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ (Nego × nego_prob)<br>
+          &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;+ (Attempt × att_prob)<br>
+          <br>
+          projected_live = live_now + forecast
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="fw-bold mb-2" style="color:#5b21b6;font-size:13px">📅 Working Days This Month</div>
+        <table class="table table-sm table-bordered mb-0" style="font-size:12px">
+          <tr><td>Days elapsed (working)</td><td class="fw-bold text-end">{{ working_elapsed }}</td></tr>
+          <tr><td>Days remaining (working)</td><td class="fw-bold text-end text-warning">{{ working_remaining }}</td></tr>
+          <tr style="background:#f0fdf4"><td>Working days factor</td>
+            <td class="fw-bold text-end text-success">
+              {{ working_remaining }}/{{ working_elapsed + working_remaining }}
+              = {{ "%.0f"|format(working_remaining/(working_elapsed+working_remaining)*100 if (working_elapsed+working_remaining)>0 else 0) }}%
+            </td></tr>
+        </table>
+        <div class="mt-2" style="font-size:11px;color:#6b7280">
+          <i class="bi bi-info-circle me-1"></i>
+          Working days = Mon–Sat only, excluding PH public holidays and any marked suspension days.
+          Sunday is a non-field day for gabay agents.
+        </div>
+      </div>
+      <div class="col-md-4">
+        <div class="fw-bold mb-2" style="color:#5b21b6;font-size:13px">🗓️ Non-Working Days Remaining</div>
+        {% if remaining_holiday_list %}
+        <div style="max-height:140px;overflow-y:auto">
+          {% for d, label in remaining_holiday_list %}
+          <div class="d-flex justify-content-between" style="font-size:11px;padding:3px 0;border-bottom:1px solid #e5e7eb">
+            <span style="color:{% if 'Sunday' in label %}#9ca3af{% elif 'Suspended' in label or 'Force' in label %}#b91c1c{% else %}#d97706{% endif %}">
+              {% if 'Sunday' in label %}📅{% elif 'Suspended' in label or 'Force' in label %}⛈️{% else %}🇵🇭{% endif %}
+              {{ d.strftime('%b %d, %A') }}
+            </span>
+            <span style="color:#6b7280;font-size:10px">{{ label }}</span>
+          </div>
+          {% endfor %}
+        </div>
+        {% else %}
+        <div style="font-size:12px;color:#9ca3af">No holidays or suspensions in remaining days.</div>
+        {% endif %}
+        {% if suspended_labels %}
+        <div class="mt-2 p-2 rounded" style="background:#fee2e2;font-size:11px;color:#b91c1c">
+          <i class="bi bi-cloud-lightning-rain me-1"></i>
+          <strong>Suspension/Force Majeure marked:</strong> {{ suspended_labels|join(', ') }}
+        </div>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ SUMMARY CARDS ══ -->
 <div class="row g-3 mb-4">
   <div class="col-6 col-md-3">
     <div class="card text-center py-3" style="border-left:4px solid #1F3864">
-      <div style="font-size:28px;font-weight:800;color:#1F3864">{{ days_elapsed }}</div>
-      <div style="font-size:12px;color:#6b7280">Days Elapsed</div>
+      <div style="font-size:28px;font-weight:800;color:#1F3864">{{ working_elapsed }}</div>
+      <div style="font-size:12px;color:#6b7280">Working Days Done</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card text-center py-3" style="border-left:4px solid #d97706">
-      <div style="font-size:28px;font-weight:800;color:#d97706">{{ days_remaining }}</div>
-      <div style="font-size:12px;color:#6b7280">Days Remaining</div>
+      <div style="font-size:28px;font-weight:800;color:#d97706">{{ working_remaining }}</div>
+      <div style="font-size:12px;color:#6b7280">Working Days Left</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card text-center py-3" style="border-left:4px solid #15803d">
       <div style="font-size:28px;font-weight:800;color:#15803d">{{ results|sum(attribute='live_count') }}</div>
-      <div style="font-size:12px;color:#6b7280">Live Sellers (Total)</div>
+      <div style="font-size:12px;color:#6b7280">Live Sellers Now</div>
     </div>
   </div>
   <div class="col-6 col-md-3">
     <div class="card text-center py-3" style="border-left:4px solid #7c3aed">
       <div style="font-size:28px;font-weight:800;color:#7c3aed">{{ results|sum(attribute='projected_live') }}</div>
-      <div style="font-size:12px;color:#6b7280">Projected Live (Month End)</div>
+      <div style="font-size:12px;color:#6b7280">Projected Month-End</div>
     </div>
   </div>
 </div>
 
-<!-- Per-Gabay Forecast Cards -->
+<!-- ══ PER-GABAY CARDS ══ -->
 {% for r in results %}
 <div class="card mb-4" style="border-left:5px solid {% if r.gap > 2 %}#b91c1c{% elif r.gap > 0 %}#d97706{% elif r.gap == 0 %}#2563eb{% else %}#15803d{% endif %}">
   <div class="card-header d-flex align-items-center justify-content-between py-2"
@@ -62,19 +136,13 @@
         <small class="text-muted">{{ r.gabay.assigned_city or 'No city assigned' }}</small>
       </div>
     </div>
-    <div class="d-flex gap-3 align-items-center">
+    <div>
       {% if r.gap > 0 %}
-        <span class="badge" style="background:#b91c1c;font-size:13px;padding:6px 12px">
-          ⚠️ {{ r.gap }} short of target
-        </span>
+        <span class="badge" style="background:#b91c1c;font-size:13px;padding:6px 12px">⚠️ {{ r.gap }} short of target</span>
       {% elif r.gap == 0 %}
-        <span class="badge" style="background:#2563eb;font-size:13px;padding:6px 12px">
-          🎯 On target
-        </span>
+        <span class="badge" style="background:#2563eb;font-size:13px;padding:6px 12px">🎯 On target</span>
       {% else %}
-        <span class="badge" style="background:#15803d;font-size:13px;padding:6px 12px">
-          ✅ +{{ r.gap|abs }} above target
-        </span>
+        <span class="badge" style="background:#15803d;font-size:13px;padding:6px 12px">✅ +{{ r.gap|abs }} above target</span>
       {% endif %}
     </div>
   </div>
@@ -82,84 +150,42 @@
   <div class="card-body">
     <div class="row g-3">
 
-      <!-- LEFT: KPI Grid -->
-      <div class="col-md-5">
+      <!-- KPI Grid -->
+      <div class="col-md-4">
         <div class="row g-2 text-center">
+          {% for label, val, color in [
+            ('Live Now', r.live_count, '#15803d'),
+            ('Projected', r.projected_live, '#7c3aed'),
+            ('Target', r.target_live, '#1F3864'),
+            ('Visits Done', r.total_visits, '#0891b2'),
+            ('Proj. Visits', r.projected_visits, '#0891b2'),
+            ('Visit Target', r.target_visits, '#1F3864'),
+          ] %}
           <div class="col-4">
             <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#15803d">{{ r.live_count }}</div>
-              <div style="font-size:11px;color:#6b7280">Live Now</div>
+              <div style="font-size:22px;font-weight:800;color:{{ color }}">{{ val }}</div>
+              <div style="font-size:10px;color:#6b7280">{{ label }}</div>
             </div>
           </div>
-          <div class="col-4">
-            <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#7c3aed">{{ r.projected_live }}</div>
-              <div style="font-size:11px;color:#6b7280">Projected</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#1F3864">{{ r.target_live }}</div>
-              <div style="font-size:11px;color:#6b7280">Target</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#0891b2">{{ r.total_visits }}</div>
-              <div style="font-size:11px;color:#6b7280">Visits Done</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#0891b2">{{ r.projected_visits }}</div>
-              <div style="font-size:11px;color:#6b7280">Proj. Visits</div>
-            </div>
-          </div>
-          <div class="col-4">
-            <div class="p-2 rounded" style="background:#f8fafc;border:1px solid #e2e8f0">
-              <div style="font-size:22px;font-weight:800;color:#1F3864">{{ r.target_visits }}</div>
-              <div style="font-size:11px;color:#6b7280">Visit Target</div>
-            </div>
-          </div>
+          {% endfor %}
         </div>
 
-        <!-- Visit rate + formula explanation -->
-        <div class="mt-3 p-2 rounded" style="background:#f0f4fa;font-size:12px">
-          <div class="d-flex justify-content-between mb-1">
-            <span><i class="bi bi-walking me-1"></i>Daily visit rate</span>
-            <strong>{{ r.daily_visit_rate }} visits/day</strong>
-          </div>
-          <div class="d-flex justify-content-between mb-1">
-            <span><i class="bi bi-arrow-up-circle me-1"></i>Pipeline → forecast</span>
-            <strong>Reg:{{ r.reg_count }} + Nego:{{ r.nego_count }} → +{{ r.hot_forecast }} live</strong>
-          </div>
-          <div class="d-flex justify-content-between mb-1">
-            <span><i class="bi bi-percent me-1"></i>Actual conversion rate</span>
-            <strong>{{ r.conv_rate }}% ({{ r.live_count }} live / {{ r.live_count + r.reg_count + r.nego_count + r.attempt_count }} active)</strong>
-          </div>
-          <div class="d-flex justify-content-between">
-            <span><i class="bi bi-calendar2-week me-1"></i>Days remaining factor</span>
-            <strong>{{ days_remaining }}/{{ days_in_month }} days = {{ "%.0f"|format(days_remaining/days_in_month*100) }}% of month left</strong>
-          </div>
-        </div>
-        <div class="mt-2 p-2 rounded" style="background:#fffbeb;border:1px solid #fde68a;font-size:10px;color:#92400e">
-          <i class="bi bi-info-circle me-1"></i>
-          <strong>How forecast is calculated:</strong>
-          Based on your <em>actual</em> conversion rate × pipeline stage probability × days remaining.
-          Registration leads have ~3× higher chance than Negotiation leads.
-        </div>
-
-        <!-- Pipeline mini bar -->
-        <div class="mt-2" style="font-size:11px;color:#6b7280">Pipeline breakdown:</div>
-        <div class="d-flex gap-1 mt-1 flex-wrap">
-          {% if r.nego_count %}<span class="badge" style="background:#0891b2">Nego: {{ r.nego_count }}</span>{% endif %}
-          {% if r.reg_count %}<span class="badge" style="background:#7c3aed">Reg: {{ r.reg_count }}</span>{% endif %}
-          {% if r.attempt_count %}<span class="badge" style="background:#d97706">Attempt: {{ r.attempt_count }}</span>{% endif %}
-          {% if r.live_count %}<span class="badge" style="background:#15803d">Live: {{ r.live_count }}</span>{% endif %}
+        <!-- Formula breakdown for this gabay -->
+        <div class="mt-3 p-2 rounded" style="background:#f5f3ff;border:1px solid #c4b5fd;font-size:11px">
+          <div class="fw-bold mb-1" style="color:#5b21b6">📐 Forecast breakdown</div>
+          <div class="d-flex justify-content-between"><span>Actual conv. rate</span><strong>{{ r.conv_rate }}%</strong></div>
+          <div class="d-flex justify-content-between"><span>Working days factor</span><strong>{{ working_remaining }}/{{ working_elapsed + working_remaining }} = {{ "%.0f"|format(working_remaining/(working_elapsed+working_remaining)*100 if (working_elapsed+working_remaining)>0 else 0) }}%</strong></div>
+          <hr class="my-1">
+          <div class="d-flex justify-content-between"><span>Reg ({{ r.reg_count }} × {{ r.reg_prob }}%)</span><strong>+{{ (r.reg_count * r.reg_prob / 100)|round(1) }}</strong></div>
+          <div class="d-flex justify-content-between"><span>Nego ({{ r.nego_count }} × {{ r.nego_prob }}%)</span><strong>+{{ (r.nego_count * r.nego_prob / 100)|round(1) }}</strong></div>
+          <div class="d-flex justify-content-between"><span>Attempt ({{ r.attempt_count }} × {{ r.att_prob }}%)</span><strong>+{{ (r.attempt_count * r.att_prob / 100)|round(1) }}</strong></div>
+          <hr class="my-1">
+          <div class="d-flex justify-content-between fw-bold"><span>= Additional forecast</span><span style="color:#7c3aed">+{{ r.hot_forecast }}</span></div>
+          <div class="d-flex justify-content-between fw-bold"><span>= Projected total</span><span style="color:#15803d">{{ r.projected_live }}</span></div>
         </div>
       </div>
 
-      <!-- MIDDLE: Weekly Visits Trend -->
+      <!-- Weekly visits -->
       <div class="col-md-3">
         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">
           <i class="bi bi-bar-chart me-1"></i>Weekly Visits
@@ -176,36 +202,31 @@
           </div>
         </div>
         {% endfor %}
-
-        <!-- Progress to visit target -->
-        <div class="mt-3 p-2 rounded" style="background:#f0f4fa;font-size:11px">
-          <div class="d-flex justify-content-between mb-1">
-            <span>Visit progress</span>
-            <span><strong>{{ r.total_visits }}</strong> / {{ r.target_visits }}</span>
+        <div class="mt-2" style="font-size:11px;color:#6b7280">
+          <i class="bi bi-walking me-1"></i>{{ r.daily_visit_rate }} visits/working day avg
+        </div>
+        <div class="mt-2" style="font-size:11px;background:#f0f4fa;padding:6px 8px;border-radius:6px">
+          Visit progress: <strong>{{ r.total_visits }}</strong> / {{ r.target_visits }}
+          {% if r.target_visits > 0 %}
+          <div style="height:5px;background:#e5e7eb;border-radius:3px;margin-top:4px">
+            <div style="height:5px;width:{{ [r.total_visits/r.target_visits*100|int,100]|min }}%;background:#2563eb;border-radius:3px"></div>
           </div>
-          <div style="height:6px;background:#e5e7eb;border-radius:3px">
-            {% if r.target_visits > 0 %}
-            {% set vpct = [(r.total_visits / r.target_visits * 100)|int, 100]|min %}
-            <div style="height:6px;width:{{ vpct }}%;background:#2563eb;border-radius:3px"></div>
-            {% endif %}
-          </div>
+          {% endif %}
         </div>
       </div>
 
-      <!-- RIGHT: Suggestions + Stalled -->
-      <div class="col-md-4">
+      <!-- Suggestions + Stalled -->
+      <div class="col-md-5">
         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">
           <i class="bi bi-lightbulb me-1 text-warning"></i>Coaching Suggestions
         </div>
         {% for s in r.suggestions %}
-        <div class="mb-2 p-2 rounded" style="background:#fffbeb;border-left:3px solid #d97706;font-size:12px;line-height:1.5">
-          {{ s }}
-        </div>
+        <div class="mb-2 p-2 rounded" style="background:#fffbeb;border-left:3px solid #d97706;font-size:12px;line-height:1.5">{{ s }}</div>
         {% endfor %}
 
         {% if r.stalled %}
-        <div style="font-size:12px;font-weight:700;color:#374151;margin-top:12px;margin-bottom:6px">
-          <i class="bi bi-clock-history me-1 text-danger"></i>Stalled Leads (No visit 7+ days)
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-top:10px;margin-bottom:6px">
+          <i class="bi bi-clock-history me-1 text-danger"></i>Stalled (No visit 7+ days)
         </div>
         {% for lead in r.stalled %}
         <div class="d-flex align-items-center justify-content-between mb-1"
@@ -219,9 +240,9 @@
         {% endif %}
       </div>
 
-    </div><!-- /row -->
-  </div><!-- /card-body -->
-</div><!-- /card -->
+    </div>
+  </div>
+</div>
 {% else %}
 <div class="text-center py-5 text-muted">
   <i class="bi bi-people" style="font-size:48px"></i>
@@ -229,11 +250,47 @@
 </div>
 {% endfor %}
 
+<!-- ══ SUSPENSION MODAL ══ -->
+<div class="modal fade" id="suspendModal" tabindex="-1">
+  <div class="modal-dialog">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#fef3c7">
+        <h5 class="modal-title"><i class="bi bi-cloud-lightning-rain me-2 text-warning"></i>Mark Suspension / Force Majeure Days</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
+      </div>
+      <form method="GET">
+        <input type="hidden" name="month" value="{{ month_str }}">
+        <div class="modal-body">
+          <p style="font-size:13px;color:#6b7280">
+            Enter dates when field work was suspended due to <strong>typhoon, flooding, holiday suspension, or other force majeure</strong>.
+            These days will be excluded from the working days calculation.
+          </p>
+          <label class="form-label fw-bold">Suspended Dates <span style="font-weight:400;color:#9ca3af">(comma-separated, YYYY-MM-DD)</span></label>
+          <input type="text" name="suspended" class="form-control"
+                 value="{{ suspended_raw }}"
+                 placeholder="e.g. 2026-06-20, 2026-06-21">
+          <div class="form-text">Example: <code>2026-06-20, 2026-06-21</code> for a 2-day typhoon suspension</div>
+          {% if suspended_labels %}
+          <div class="mt-3 p-2 rounded" style="background:#fee2e2;font-size:12px;color:#b91c1c">
+            <i class="bi bi-cloud-lightning-rain me-1"></i>
+            Currently marked: <strong>{{ suspended_labels|join(', ') }}</strong>
+          </div>
+          {% endif %}
+        </div>
+        <div class="modal-footer">
+          <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+          <button type="submit" class="btn btn-warning btn-sm fw-bold">Apply & Recalculate</button>
+        </div>
+      </form>
+    </div>
+  </div>
+</div>
+
 <style>
 @media print {
-  .page-header button, .page-header form, .page-header a { display: none !important; }
+  .page-header button, .page-header form, .page-header a,
+  [data-bs-toggle], .modal { display: none !important; }
   .card { break-inside: avoid; }
-  body { font-size: 12px; }
 }
 </style>
 {% endblock %}

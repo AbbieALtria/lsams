@@ -203,6 +203,42 @@ def leads():
                            search=search, gabay_users=gabay_users)
 
 
+@app.route('/leads/radar')
+@login_required
+def leads_radar():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('leads'))
+
+    city_filter = request.args.get('city', '').strip().lower()
+    priority_filter = request.args.get('priority', '').strip()
+
+    pool_q = Lead.query.filter(Lead.status == 'pool', Lead.gabay_id == None)
+    if city_filter:
+        pool_q = pool_q.filter(func.lower(Lead.city) == city_filter)
+    if priority_filter:
+        pool_q = pool_q.filter(Lead.priority_tier == priority_filter)
+    pool_leads = pool_q.order_by(Lead.priority_tier, Lead.conversion_score.desc()).all()
+
+    # All distinct cities that have pool leads (for filter dropdown)
+    from sqlalchemy import distinct
+    city_rows = db.session.query(distinct(Lead.city)).filter(
+        Lead.status == 'pool', Lead.gabay_id == None, Lead.city != None, Lead.city != ''
+    ).order_by(Lead.city).all()
+    cities = [r[0] for r in city_rows]
+
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    return render_template('leads/radar.html',
+        pool_leads=pool_leads,
+        cities=cities,
+        gabays=gabays,
+        city_filter=city_filter,
+        priority_filter=priority_filter,
+        total_pool=Lead.query.filter(Lead.status == 'pool', Lead.gabay_id == None).count(),
+    )
+
+
 @app.route('/leads/import', methods=['GET', 'POST'])
 @login_required
 def import_leads():
@@ -1781,8 +1817,24 @@ def report_forecast():
         return redirect(url_for('reports'))
 
     from calendar import monthrange
+    import datetime as _dt
+
     today = date.today()
     month_str = request.args.get('month', today.strftime('%Y-%m'))
+    # Force-majeure/suspension dates passed as comma-separated YYYY-MM-DD
+    suspended_raw = request.args.get('suspended', '')
+    suspended_dates = set()
+    suspended_labels = []
+    for s in suspended_raw.split(','):
+        s = s.strip()
+        if s:
+            try:
+                d = _dt.date.fromisoformat(s)
+                suspended_dates.add(d)
+                suspended_labels.append(d.strftime('%b %d'))
+            except Exception:
+                pass
+
     try:
         year, mon = int(month_str[:4]), int(month_str[5:7])
     except Exception:
@@ -1791,17 +1843,111 @@ def report_forecast():
     month_start = date(year, mon, 1)
     _, days_in_month = monthrange(year, mon)
     month_end = date(year, mon, days_in_month)
-    days_elapsed = min((today - month_start).days + 1, days_in_month) if (year, mon) == (today.year, today.month) else days_in_month
-    days_remaining = max(days_in_month - days_elapsed, 0)
     is_current_month = (year == today.year and mon == today.month)
+
+    # ── Philippine Public Holidays ────────────────────────────────────────
+    PH_HOLIDAYS = {
+        # 2026
+        date(2026, 1,  1): "New Year's Day",
+        date(2026, 4,  2): "Maundy Thursday",
+        date(2026, 4,  3): "Good Friday",
+        date(2026, 4,  4): "Black Saturday",
+        date(2026, 4,  9): "Araw ng Kagitingan",
+        date(2026, 5,  1): "Labor Day",
+        date(2026, 6, 12): "Independence Day",
+        date(2026, 8, 31): "National Heroes Day",
+        date(2026, 11, 1): "All Saints' Day",
+        date(2026, 11, 2): "All Souls' Day",
+        date(2026, 11,30): "Bonifacio Day",
+        date(2026, 12, 8): "Immaculate Conception",
+        date(2026, 12,25): "Christmas Day",
+        date(2026, 12,30): "Rizal Day",
+        date(2026, 12,31): "New Year's Eve",
+        # 2025
+        date(2025, 1,  1): "New Year's Day",
+        date(2025, 4, 17): "Maundy Thursday",
+        date(2025, 4, 18): "Good Friday",
+        date(2025, 4, 19): "Black Saturday",
+        date(2025, 4,  9): "Araw ng Kagitingan",
+        date(2025, 5,  1): "Labor Day",
+        date(2025, 6, 12): "Independence Day",
+        date(2025, 8, 25): "National Heroes Day",
+        date(2025, 11, 1): "All Saints' Day",
+        date(2025, 11,30): "Bonifacio Day",
+        date(2025, 12,25): "Christmas Day",
+        date(2025, 12,30): "Rizal Day",
+    }
+
+    def count_working_days(start_d, end_d):
+        """Count Mon–Sat days excluding PH holidays and suspended dates."""
+        count = 0
+        holidays_hit = []
+        d = start_d
+        while d <= end_d:
+            if d.weekday() == 6:  # Sunday
+                d += _dt.timedelta(days=1)
+                continue
+            if d in PH_HOLIDAYS:
+                holidays_hit.append((d, PH_HOLIDAYS[d]))
+                d += _dt.timedelta(days=1)
+                continue
+            if d in suspended_dates:
+                d += _dt.timedelta(days=1)
+                continue
+            count += 1
+            d += _dt.timedelta(days=1)
+        return count, holidays_hit
+
+    # Working days elapsed (Mon–Sat, excl. holidays/suspended)
+    if is_current_month:
+        working_elapsed, _ = count_working_days(month_start, today)
+        working_remaining, holidays_in_remaining = count_working_days(
+            today + _dt.timedelta(days=1), month_end)
+    else:
+        working_elapsed, _ = count_working_days(month_start, month_end)
+        working_remaining = 0
+        holidays_in_remaining = []
+
+    # Also collect holidays that already passed this month (for transparency)
+    _, holidays_elapsed = count_working_days(month_start, today if is_current_month else month_end)
+    # (holidays_elapsed is unused count, we want the list from second return)
+    elapsed_holiday_list = []
+    if is_current_month:
+        d = month_start
+        while d <= today:
+            if d in PH_HOLIDAYS:
+                elapsed_holiday_list.append((d, PH_HOLIDAYS[d]))
+            if d in suspended_dates:
+                elapsed_holiday_list.append((d, "⛈️ Suspended / Force Majeure"))
+            d += _dt.timedelta(days=1)
+
+    remaining_holiday_list = []
+    if is_current_month:
+        d = today + _dt.timedelta(days=1)
+        while d <= month_end:
+            if d in PH_HOLIDAYS:
+                remaining_holiday_list.append((d, PH_HOLIDAYS[d]))
+            if d in suspended_dates:
+                remaining_holiday_list.append((d, "⛈️ Suspended / Force Majeure"))
+            if d.weekday() == 6:
+                remaining_holiday_list.append((d, "Sunday (non-field day)"))
+            d += _dt.timedelta(days=1)
+        # Deduplicate sundays that are also holidays
+        seen = set()
+        unique_remaining = []
+        for item in remaining_holiday_list:
+            if item[0] not in seen:
+                seen.add(item[0])
+                unique_remaining.append(item)
+        remaining_holiday_list = sorted(unique_remaining, key=lambda x: x[0])
 
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
 
-    # Week boundaries within the month
+    # Week boundaries
     week_ranges = []
-    for w in range(4):
-        ws = month_start + __import__('datetime').timedelta(days=w*7)
-        we = min(month_start + __import__('datetime').timedelta(days=(w+1)*7 - 1), month_end)
+    for w in range(5):
+        ws = month_start + _dt.timedelta(days=w*7)
+        we = min(month_start + _dt.timedelta(days=(w+1)*7 - 1), month_end)
         if ws <= month_end:
             week_ranges.append((w+1, ws, we))
 
@@ -1811,84 +1957,75 @@ def report_forecast():
         target_live   = target.target_live   if target else 0
         target_visits = target.target_visits if target else 0
 
-        # Visits this month
         visits_this_month = Visit.query.filter(
             Visit.gabay_id == g.id,
             func.date(Visit.visited_at) >= month_start,
             func.date(Visit.visited_at) <= month_end
         ).all()
 
-        # Per-week visit counts
         weekly_visits = []
         for w_num, ws, we in week_ranges:
             cnt = sum(1 for v in visits_this_month if ws <= v.visited_at.date() <= we)
             weekly_visits.append({'week': w_num, 'start': ws, 'end': we, 'count': cnt})
 
         total_visits = len(visits_this_month)
-        daily_visit_rate = total_visits / days_elapsed if days_elapsed > 0 else 0
-        projected_visits = round(daily_visit_rate * days_in_month)
+        # Use working days elapsed (not calendar) for accurate daily rate
+        daily_visit_rate = total_visits / working_elapsed if working_elapsed > 0 else 0
+        projected_visits = round(total_visits + daily_visit_rate * working_remaining)
 
-        # Current pipeline counts
         assigned_leads = Lead.query.filter_by(gabay_id=g.id).all()
         status_counts = {}
         for lead in assigned_leads:
             status_counts[lead.status] = status_counts.get(lead.status, 0) + 1
 
-        live_count   = status_counts.get('live', 0)
-        reg_count    = status_counts.get('registration', 0)
-        nego_count   = status_counts.get('negotiation', 0)
-        attempt_count= status_counts.get('attempting', 0)
+        live_count    = status_counts.get('live', 0)
+        reg_count     = status_counts.get('registration', 0)
+        nego_count    = status_counts.get('negotiation', 0)
+        attempt_count = status_counts.get('attempting', 0)
         total_assigned = len(assigned_leads)
 
-        # Actual conversion rate from real data: live / total_assigned
         conv_rate = (live_count / total_assigned) if total_assigned > 0 else 0.0
 
-        # Days remaining factor: if half the month is gone, reduce projections
-        days_factor = days_remaining / days_in_month  # e.g. 15/30 = 0.5
+        # Working days factor (not calendar days)
+        total_working = working_elapsed + working_remaining
+        days_factor = working_remaining / total_working if total_working > 0 else 0
 
-        # Realistic forecast based on actual conv_rate + stage proximity
-        # Registration: closest to live — use actual conv_rate boosted slightly
-        # Negotiation: 2 steps away — conv_rate * 0.3 at most
-        # Attempting: far — conv_rate * 0.1 at most
-        # All scaled by days_factor (less time = fewer conversions possible)
-        reg_prob   = min(conv_rate * 3.0, 0.35) * days_factor
-        nego_prob  = min(conv_rate * 1.0, 0.10) * days_factor
-        att_prob   = min(conv_rate * 0.3, 0.03) * days_factor
-
-        # If no historical data yet, use conservative floor rates
+        reg_prob  = min(conv_rate * 3.0, 0.35) * days_factor
+        nego_prob = min(conv_rate * 1.0, 0.10) * days_factor
+        att_prob  = min(conv_rate * 0.3, 0.03) * days_factor
         if conv_rate == 0:
             reg_prob  = 0.15 * days_factor
             nego_prob = 0.05 * days_factor
             att_prob  = 0.01 * days_factor
 
-        hot_forecast = round(reg_count * reg_prob + nego_count * nego_prob + attempt_count * att_prob)
+        hot_forecast   = round(reg_count * reg_prob + nego_count * nego_prob + attempt_count * att_prob)
         projected_live = live_count + hot_forecast
-        gap = target_live - projected_live
+        gap            = target_live - projected_live
+        visit_gap      = target_visits - projected_visits
 
-        # Visit pace forecast
-        visit_gap = target_visits - projected_visits
-
-        # Coaching suggestions
         suggestions = []
-        if gap > 0:
+        if working_remaining == 0:
+            suggestions.append("📅 No working days remaining this month.")
+        elif gap > 0:
             if reg_count > 0:
-                suggestions.append(f"🔴 Push {reg_count} lead(s) in Registration — they are closest to going Live.")
+                suggestions.append(f"🔴 Push {reg_count} Registration lead(s) — closest to going Live.")
             if nego_count >= gap * 2:
-                suggestions.append(f"⚡ {nego_count} leads in Negotiation. Focus on top {min(nego_count, gap*3)} to convert {gap} more.")
+                suggestions.append(f"⚡ {nego_count} in Negotiation. Focus on top {min(nego_count, gap*3)} to close {gap} more.")
             elif nego_count > 0:
-                suggestions.append(f"⚡ Only {nego_count} leads in Negotiation — need to move more leads up the pipeline.")
+                suggestions.append(f"⚡ Only {nego_count} in Negotiation — move more leads up the pipeline.")
             if attempt_count > 3:
-                suggestions.append(f"📞 {attempt_count} leads still Attempting Contact. Re-visit or call to push to Negotiation.")
+                suggestions.append(f"📞 {attempt_count} still Attempting Contact — re-visit to push to Negotiation.")
             if daily_visit_rate < 2:
-                suggestions.append(f"🚶 Visit pace is low ({daily_visit_rate:.1f}/day). Increase to at least 3 visits/day to hit target.")
+                suggestions.append(f"🚶 Visit pace low ({daily_visit_rate:.1f}/working day). Need at least 3/day.")
+            if working_remaining <= 5:
+                suggestions.append(f"⏰ Only {working_remaining} working days left — prioritize Registration & Negotiation leads NOW.")
             if not suggestions:
-                suggestions.append(f"📋 Need {gap} more live seller(s). Review all active leads and prioritize follow-ups.")
+                suggestions.append(f"📋 Need {gap} more live seller(s) in {working_remaining} working days.")
         elif gap == 0:
-            suggestions.append("🎯 On track to meet target exactly. Maintain current pace.")
+            suggestions.append("🎯 On track to meet target. Maintain current pace.")
         else:
             suggestions.append(f"✅ Projected to EXCEED target by {abs(gap)} seller(s). Keep going!")
 
-        # Stalled leads (no visit in 7+ days, not live/matched/closed)
         stalled = []
         for lead in assigned_leads:
             if lead.status in ('live', 'matched', 'closed'):
@@ -1917,11 +2054,11 @@ def report_forecast():
             'suggestions': suggestions,
             'stalled': stalled,
             'conv_rate': round(conv_rate * 100, 1),
-            'days_elapsed': days_elapsed,
-            'days_remaining': days_remaining,
+            'reg_prob': round(reg_prob * 100, 1),
+            'nego_prob': round(nego_prob * 100, 1),
+            'att_prob': round(att_prob * 100, 1),
         })
 
-    # Sort: biggest gap first (most attention needed)
     results.sort(key=lambda r: r['gap'], reverse=True)
 
     return render_template('reports/forecast.html',
@@ -1929,10 +2066,15 @@ def report_forecast():
         month_str=month_str,
         month_label=month_start.strftime('%B %Y'),
         days_in_month=days_in_month,
-        days_elapsed=days_elapsed,
-        days_remaining=days_remaining,
+        working_elapsed=working_elapsed,
+        working_remaining=working_remaining,
+        elapsed_holiday_list=elapsed_holiday_list,
+        remaining_holiday_list=remaining_holiday_list,
+        suspended_raw=suspended_raw,
+        suspended_labels=suspended_labels,
         is_current_month=is_current_month,
         week_ranges=week_ranges,
+        today=today,
     )
 
 
