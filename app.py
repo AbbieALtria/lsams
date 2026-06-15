@@ -1873,7 +1873,7 @@ def admin_health():
     prev_visited = []
     for old in all_leads_with_visits:
         match = pool_names.get(old.seller_name.strip().lower())
-        if match:
+        if match and old.id != match.id:  # exclude self-match (pool lead's own visits)
             prev_visited.append({'pool_lead': match, 'old_lead': old,
                                   'visit_count': old.visits.count()})
 
