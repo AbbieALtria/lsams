@@ -213,7 +213,7 @@ def leads_radar():
     city_filter = request.args.get('city', '').strip().lower()
     priority_filter = request.args.get('priority', '').strip()
 
-    pool_q = Lead.query.filter(Lead.status == 'pool', Lead.gabay_id == None)
+    pool_q = Lead.query.filter(Lead.status == 'pool', Lead.gabay_id.is_(None))
     if city_filter:
         pool_q = pool_q.filter(func.lower(Lead.city) == city_filter)
     if priority_filter:
@@ -221,10 +221,10 @@ def leads_radar():
     pool_leads = pool_q.order_by(Lead.priority_tier, Lead.conversion_score.desc()).all()
 
     # All distinct cities that have pool leads (for filter dropdown)
-    from sqlalchemy import distinct
-    city_rows = db.session.query(distinct(Lead.city)).filter(
-        Lead.status == 'pool', Lead.gabay_id == None, Lead.city != None, Lead.city != ''
-    ).order_by(Lead.city).all()
+    city_rows = db.session.query(Lead.city).filter(
+        Lead.status == 'pool', Lead.gabay_id.is_(None),
+        Lead.city.isnot(None), Lead.city != ''
+    ).distinct().order_by(Lead.city).all()
     cities = [r[0] for r in city_rows]
 
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
@@ -235,7 +235,7 @@ def leads_radar():
         gabays=gabays,
         city_filter=city_filter,
         priority_filter=priority_filter,
-        total_pool=Lead.query.filter(Lead.status == 'pool', Lead.gabay_id == None).count(),
+        total_pool=Lead.query.filter(Lead.status == 'pool', Lead.gabay_id.is_(None)).count(),
     )
 
 
