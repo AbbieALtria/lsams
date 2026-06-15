@@ -1825,6 +1825,160 @@ def api_visits_trend():
     return jsonify([{'date': str(r.day), 'count': r.count} for r in results])
 
 
+@app.route('/reports/competitor')
+@login_required
+def report_competitor():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    from collections import defaultdict
+
+    STATUSES = ['pool','assigned','attempting','negotiation','registration','live','matched','closed']
+    STATUS_LABELS = {
+        'pool':'Pool','assigned':'Assigned','attempting':'Attempting',
+        'negotiation':'Negotiation','registration':'Registration',
+        'live':'Live','matched':'Matched','closed':'Closed'
+    }
+
+    # All leads with a project (competitor tag)
+    comp_leads = Lead.query.filter(Lead.project.isnot(None), Lead.project != '').all()
+
+    # Group by project
+    by_project = defaultdict(list)
+    for l in comp_leads:
+        by_project[l.project.strip()].append(l)
+
+    projects = []
+    for proj, leads in sorted(by_project.items(), key=lambda x: -len(x[1])):
+        status_dist = defaultdict(int)
+        for l in leads:
+            status_dist[l.status] += 1
+        live = status_dist.get('live', 0) + status_dist.get('matched', 0)
+        hot  = sum(1 for l in leads if l.conversion_score >= 60)
+        last_visit_leads = [l for l in leads if l.last_visit_days is not None]
+        avg_score = round(sum(l.conversion_score for l in leads) / len(leads)) if leads else 0
+        projects.append({
+            'name': proj,
+            'leads': leads,
+            'total': len(leads),
+            'live': live,
+            'hot': hot,
+            'avg_score': avg_score,
+            'status_dist': dict(status_dist),
+            'conv_rate': round(live / len(leads) * 100, 1) if leads else 0,
+        })
+
+    total_comp = len(comp_leads)
+    total_live  = sum(p['live'] for p in projects)
+
+    return render_template('reports/competitor.html',
+        projects=projects,
+        statuses=STATUSES,
+        status_labels=STATUS_LABELS,
+        total_comp=total_comp,
+        total_live=total_live,
+    )
+
+
+@app.route('/reports/hot-prospects')
+@login_required
+def report_hot_prospects():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    import datetime as _dt
+
+    gabay_filter = request.args.get('gabay_id', '', type=str)
+    project_filter = request.args.get('project', '')
+    today = date.today()
+    week_start = today - _dt.timedelta(days=today.weekday())
+
+    # Hot prospects = leads showing positive re-engagement signals
+    # Criteria: last visit outcome in (interested, callback, follow_up)
+    #           OR follow_up_date due within 7 days
+    #           AND status NOT live/matched/closed
+    active_statuses = ['assigned', 'attempting', 'negotiation', 'registration']
+
+    q = Lead.query.filter(Lead.status.in_(active_statuses))
+    if gabay_filter:
+        q = q.filter(Lead.gabay_id == int(gabay_filter))
+    if project_filter:
+        q = q.filter(Lead.project == project_filter)
+    all_active = q.all()
+
+    hot_prospects = []
+    for lead in all_active:
+        last_v = lead.latest_visit
+        is_hot = False
+        reason = []
+        fu_date = None
+
+        if last_v:
+            if last_v.outcome in ('interested', 'callback', 'follow_up', 'registered'):
+                is_hot = True
+                reason.append(f'Last visit: {last_v.outcome.replace("_"," ").title()}')
+            if last_v.follow_up_date:
+                fu_date = last_v.follow_up_date
+                days_to_fu = (fu_date - today).days
+                if days_to_fu <= 7:
+                    is_hot = True
+                    if days_to_fu < 0:
+                        reason.append(f'Follow-up OVERDUE by {abs(days_to_fu)}d')
+                    elif days_to_fu == 0:
+                        reason.append('Follow-up DUE TODAY')
+                    else:
+                        reason.append(f'Follow-up in {days_to_fu}d')
+
+        if lead.status in ('negotiation', 'registration'):
+            is_hot = True
+            reason.append(f'Pipeline: {lead.status.title()}')
+
+        if is_hot:
+            hot_prospects.append({
+                'lead': lead,
+                'score': lead.conversion_score,
+                'last_visit': last_v,
+                'fu_date': fu_date,
+                'reasons': reason,
+                'is_competitor': bool(lead.project),
+                'gabay': lead.assigned_gabay,
+            })
+
+    # Sort: overdue follow-ups first, then by score
+    def sort_key(p):
+        fu = p['fu_date']
+        overdue = (fu - today).days if fu else 99
+        return (overdue, -p['score'])
+    hot_prospects.sort(key=sort_key)
+
+    # Weekly summary
+    visits_this_week = Visit.query.filter(
+        func.date(Visit.visited_at) >= week_start,
+        func.date(Visit.visited_at) <= today,
+    ).count()
+
+    # Project list for filter
+    proj_rows = db.session.query(Lead.project).filter(
+        Lead.project.isnot(None), Lead.project != ''
+    ).distinct().order_by(Lead.project).all()
+    projects = [r[0] for r in proj_rows]
+
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    return render_template('reports/hot_prospects.html',
+        hot_prospects=hot_prospects,
+        visits_this_week=visits_this_week,
+        week_start=week_start,
+        today=today,
+        projects=projects,
+        gabays=gabays,
+        gabay_filter=gabay_filter,
+        project_filter=project_filter,
+    )
+
+
 @app.route('/reports/forecast')
 @login_required
 def report_forecast():
@@ -3423,10 +3577,32 @@ def gabay_quick_checkin():
             photos=json.dumps(photo_filenames) if photo_filenames else None
         )
         db.session.add(visit)
-        if new_status:
-            lead = Lead.query.get(lead_id)
-            if lead:
+        lead = Lead.query.get(lead_id)
+        if lead:
+            if new_status:
                 lead.status = new_status
+            # ── Competitor visit alert ────────────────────────────────────
+            if lead.project:
+                supervisors = User.query.filter(
+                    User.role.in_(['supervisor', 'admin', 'manager', 'superadmin']),
+                    User.is_active == True
+                ).all()
+                gabay_name = current_user.display_name
+                for sup in supervisors:
+                    notif = Notification(
+                        user_id=sup.id,
+                        type='competitor_visit',
+                        title=f'🏴 Competitor Lead Visited — {lead.project}',
+                        message=(
+                            f'{gabay_name} visited {lead.seller_name} '
+                            f'(currently on {lead.project}). '
+                            f'Outcome: {outcome or "—"}. '
+                            f'These sellers know the process — fast-track if interested!'
+                        ),
+                        link=f'/leads/{lead.id}',
+                        related_lead_id=lead.id,
+                    )
+                    db.session.add(notif)
         db.session.commit()
         flash('Visit logged successfully!', 'success')
         return redirect(url_for('gabay_home'))

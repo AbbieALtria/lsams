@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% block title %}Hot Prospects{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-fire me-2" style="color:#b91c1c"></i>Hot Prospects</div>
+    <small class="text-muted">Leads showing re-engagement signals — prioritize these for visits this week</small>
+  </div>
+  <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">← Reports</a>
+</div>
+
+<!-- FILTER BAR -->
+<form method="GET" class="card mb-4">
+  <div class="card-body py-2">
+    <div class="row g-2 align-items-end">
+      <div class="col-sm-4">
+        <label class="form-label fw-bold mb-1" style="font-size:11px">Gabay Agent</label>
+        <select name="gabay_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Gabay</option>
+          {% for g in gabays %}
+          <option value="{{ g.id }}" {% if gabay_filter == g.id|string %}selected{% endif %}>{{ g.display_name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <label class="form-label fw-bold mb-1" style="font-size:11px">Project / Competitor</label>
+        <select name="project" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Projects</option>
+          {% for pr in projects %}
+          <option value="{{ pr }}" {% if project_filter == pr %}selected{% endif %}>{{ pr }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-4">
+        <a href="{{ url_for('report_hot_prospects') }}" class="btn btn-sm btn-outline-secondary w-100">Clear Filters</a>
+      </div>
+    </div>
+  </div>
+</form>
+
+<!-- WEEKLY SUMMARY -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left:4px solid #b91c1c">
+      <div style="font-size:28px;font-weight:900;color:#b91c1c">{{ hot_prospects|length }}</div>
+      <div style="font-size:12px;color:#6b7280">Hot Prospects</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left:4px solid #d97706">
+      <div style="font-size:28px;font-weight:900;color:#d97706">
+        {{ hot_prospects|selectattr('fu_date')|list|length }}
+      </div>
+      <div style="font-size:12px;color:#6b7280">Have Follow-up Scheduled</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left:4px solid #d97706">
+      <div style="font-size:28px;font-weight:900;color:#d97706">{{ visits_this_week }}</div>
+      <div style="font-size:12px;color:#6b7280">Visits This Week<br><span style="font-size:10px;color:#9aabc5">from {{ week_start.strftime('%b %d') }}</span></div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3" style="border-left:4px solid #7c3aed">
+      <div style="font-size:28px;font-weight:900;color:#7c3aed">
+        {{ hot_prospects|selectattr('is_competitor')|list|length }}
+      </div>
+      <div style="font-size:12px;color:#6b7280">From Competitor Platforms</div>
+    </div>
+  </div>
+</div>
+
+{% if not hot_prospects %}
+<div class="text-center py-5">
+  <div style="font-size:48px">🎯</div>
+  <div class="fw-bold mt-3" style="color:#1F3864;font-size:16px">No hot prospects right now</div>
+  <p class="text-muted mt-2">Leads with interested/callback outcomes or upcoming follow-ups will appear here.</p>
+</div>
+{% else %}
+
+<!-- HOT PROSPECTS TABLE -->
+<div class="card">
+  <div class="card-header fw-bold" style="background:#1F3864;color:white">
+    <i class="bi bi-fire me-2"></i>{{ hot_prospects|length }} Hot Prospects — Sorted by urgency
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0" style="font-size:12px">
+      <thead style="background:#f8fafc">
+        <tr>
+          <th style="width:30px"></th>
+          <th>Seller</th>
+          <th>Project</th>
+          <th>Status</th>
+          <th>Score</th>
+          <th>Gabay</th>
+          <th>Why Hot</th>
+          <th>Follow-up</th>
+          <th></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set status_colors = {
+          'assigned':'#2E75B6','attempting':'#E07B00',
+          'negotiation':'#7c3aed','registration':'#be185d'
+        } %}
+        {% for p in hot_prospects %}
+        {% set lead = p.lead %}
+        {% set tier_label, tier_color, tier_bg, tier_icon = lead.conversion_tier %}
+        {% set sc = status_colors.get(lead.status, '#9aabc5') %}
+
+        {% set is_overdue = p.fu_date and p.fu_date < today %}
+        {% set is_today   = p.fu_date and p.fu_date == today %}
+
+        <tr {% if is_overdue %}style="background:#fff1f1"{% elif is_today %}style="background:#fffbeb"{% endif %}>
+          <td class="text-center">
+            {% if p.is_competitor %}
+            <span title="Competitor platform seller" style="color:#d97706"><i class="bi bi-flag-fill"></i></span>
+            {% endif %}
+          </td>
+          <td>
+            <div class="fw-bold" style="color:#1F3864">{{ lead.seller_name }}</div>
+            {% if lead.city %}<div style="font-size:10px;color:#9aabc5">{{ lead.city }}</div>{% endif %}
+          </td>
+          <td style="color:#d97706;font-size:11px;font-weight:600">{{ lead.project or '—' }}</td>
+          <td>
+            <span class="badge" style="background:{{ sc }}22;color:{{ sc }};border:1px solid {{ sc }}">
+              {{ lead.status_label }}
+            </span>
+          </td>
+          <td>
+            <span style="font-weight:800;color:{{ tier_color }}">{{ tier_icon }} {{ lead.conversion_score }}</span>
+          </td>
+          <td style="color:#6b7280">{{ p.gabay.display_name if p.gabay else '—' }}</td>
+          <td>
+            {% for r in p.reasons %}
+            <span class="badge me-1"
+                  style="background:#f0f4fa;color:#374151;font-weight:600;font-size:10px">
+              {{ r }}
+            </span>
+            {% endfor %}
+          </td>
+          <td>
+            {% if p.fu_date %}
+              {% if is_overdue %}
+                <span style="color:#b91c1c;font-weight:800;font-size:11px">
+                  ⚠️ {{ p.fu_date.strftime('%b %d') }} OVERDUE
+                </span>
+              {% elif is_today %}
+                <span style="color:#d97706;font-weight:800;font-size:11px">
+                  🔔 TODAY
+                </span>
+              {% else %}
+                <span style="color:#15803d;font-size:11px">
+                  📅 {{ p.fu_date.strftime('%b %d') }}
+                </span>
+              {% endif %}
+            {% else %}
+              <span style="color:#9aabc5;font-size:11px">—</span>
+            {% endif %}
+          </td>
+          <td>
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}"
+               class="btn btn-outline-secondary btn-sm py-0 px-2" style="font-size:10px">View</a>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- WEEKLY PROJECTION NOTE -->
+<div class="card mt-4" style="background:#f0fdf4;border:1.5px solid #bbf7d0">
+  <div class="card-body" style="font-size:13px;color:#15803d">
+    <i class="bi bi-graph-up-arrow me-2"></i>
+    <strong>Weekly projection:</strong>
+    Of these {{ hot_prospects|length }} hot prospects,
+    <strong>{{ hot_prospects|selectattr('lead')|map(attribute='lead')|selectattr('status','equalto','negotiation')|list|length }}</strong> are in Negotiation and
+    <strong>{{ hot_prospects|selectattr('lead')|map(attribute='lead')|selectattr('status','equalto','registration')|list|length }}</strong> are in Registration —
+    highest chance of going live this week.
+    Focus gabay visits on overdue follow-ups first.
+  </div>
+</div>
+
+{% endif %}
+{% endblock %}

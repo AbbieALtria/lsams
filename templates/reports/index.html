@@ -11,6 +11,46 @@
   {% endif %}
 </div>
 
+<!-- COMPETITOR + HOT PROSPECTS HIGHLIGHTS -->
+{% if current_user.is_supervisor %}
+<div class="row g-3 mb-4">
+  <div class="col-md-6">
+    <a href="{{ url_for('report_competitor') }}" class="text-decoration-none">
+      <div class="card h-100" style="border:2px solid #d97706;background:linear-gradient(135deg,#fffbeb,#fef3c7);cursor:pointer"
+           onmouseover="this.style.boxShadow='0 4px 20px #d9770633'" onmouseout="this.style.boxShadow=''">
+        <div class="card-body py-3 d-flex align-items-center gap-3">
+          <div style="font-size:40px">🏴</div>
+          <div>
+            <div style="font-weight:800;color:#92400e;font-size:15px">Competitor Intelligence</div>
+            <div style="color:#78350f;font-size:12px;margin-top:2px">
+              TikTok, Top Coffee & other platform sellers — pipeline by competitor
+            </div>
+          </div>
+          <div class="ms-auto" style="color:#d97706;font-size:22px"><i class="bi bi-arrow-right-circle-fill"></i></div>
+        </div>
+      </div>
+    </a>
+  </div>
+  <div class="col-md-6">
+    <a href="{{ url_for('report_hot_prospects') }}" class="text-decoration-none">
+      <div class="card h-100" style="border:2px solid #b91c1c;background:linear-gradient(135deg,#fff1f2,#fee2e2);cursor:pointer"
+           onmouseover="this.style.boxShadow='0 4px 20px #b91c1c33'" onmouseout="this.style.boxShadow=''">
+        <div class="card-body py-3 d-flex align-items-center gap-3">
+          <div style="font-size:40px">🔥</div>
+          <div>
+            <div style="font-weight:800;color:#7f1d1d;font-size:15px">Hot Prospects</div>
+            <div style="color:#991b1b;font-size:12px;margin-top:2px">
+              Leads with re-engagement signals — follow-ups due, interested, negotiation
+            </div>
+          </div>
+          <div class="ms-auto" style="color:#b91c1c;font-size:22px"><i class="bi bi-arrow-right-circle-fill"></i></div>
+        </div>
+      </div>
+    </a>
+  </div>
+</div>
+{% endif %}
+
 <!-- FORECAST HIGHLIGHT -->
 {% if current_user.is_supervisor %}
 <a href="{{ url_for('report_forecast') }}" class="text-decoration-none">

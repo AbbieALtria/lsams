@@ -382,6 +382,7 @@ class Notification(db.Model):
         'new_assignment': ('bi-person-check-fill', '#2E75B6'),
         'reg_pending': ('bi-file-earmark-check-fill', '#7c3aed'),
         'live_achieved': ('bi-star-fill', '#15803d'),
+        'competitor_visit': ('bi-flag-fill', '#d97706'),
     }
 
     @property
