@@ -184,4 +184,131 @@
 
 {% endif %}
 
+<!-- ══ RADAR SECTION ══ -->
+{% if radar_leads %}
+<div style="margin-top:24px">
+
+  <!-- Toggle button -->
+  <button onclick="document.getElementById('radar-panel').style.display=
+                   document.getElementById('radar-panel').style.display==='none'?'block':'none'"
+          style="width:100%;background:linear-gradient(135deg,#0f766e,#0d9488);
+                 color:white;border:none;border-radius:16px;padding:14px 18px;
+                 display:flex;align-items:center;gap:12px;cursor:pointer;
+                 font-size:14px;font-weight:800;text-align:left">
+    <span style="font-size:22px">📡</span>
+    <div style="flex:1">
+      <div>Seller Radar — {{ radar_leads|length }} Nearby</div>
+      <div style="font-size:11px;font-weight:500;opacity:.85">
+        Unassigned sellers in your area — tap to explore
+      </div>
+    </div>
+    <span style="font-size:18px;opacity:.7">▾</span>
+  </button>
+
+  <!-- Radar panel (hidden by default) -->
+  <div id="radar-panel" style="display:none;margin-top:10px">
+
+    <div style="background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:14px;
+                padding:10px 14px;margin-bottom:10px;font-size:11px;color:#0f766e">
+      <i class="bi bi-info-circle me-1"></i>
+      These sellers are in your city but not yet assigned to anyone.
+      If you visit one, check in and your supervisor can officially assign them to you.
+    </div>
+
+    {% set tier_colors = {'P0':'#b91c1c','P1':'#d97706','P2':'#2563eb','P3':'#6b7280'} %}
+    {% set tier_bgs    = {'P0':'#fee2e2','P1':'#fef3c7','P2':'#dbeafe','P3':'#f3f4f6'} %}
+
+    {% for lead in radar_leads %}
+    <div style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;
+                padding:13px 14px;margin-bottom:10px;
+                border-left:4px solid {{ tier_colors.get(lead.priority_tier or 'P3','#6b7280') }}">
+
+      <!-- Header row -->
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-weight:800;font-size:13px;color:#1F3864;flex:1">
+          {{ lead.seller_name }}
+        </span>
+        {% if lead.priority_tier %}
+        <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;
+                     background:{{ tier_bgs.get(lead.priority_tier,'#f3f4f6') }};
+                     color:{{ tier_colors.get(lead.priority_tier,'#6b7280') }}">
+          {{ lead.priority_tier }}
+        </span>
+        {% endif %}
+        {% if lead.project %}
+        <span style="font-size:10px;color:#9aabc5;font-weight:600">{{ lead.project }}</span>
+        {% endif %}
+      </div>
+
+      <!-- Address -->
+      {% if lead.address or lead.city %}
+      <div style="font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.4">
+        <i class="bi bi-geo-alt me-1" style="color:#0d9488"></i>
+        {% if lead.address %}{{ lead.address }}{% endif %}
+        {% if lead.barangay %}, {{ lead.barangay }}{% endif %}
+        {% if lead.city %}, {{ lead.city }}{% endif %}
+      </div>
+      {% endif %}
+
+      <!-- Category / cluster -->
+      {% if lead.category or lead.cluster %}
+      <div style="font-size:11px;color:#9aabc5;margin-bottom:8px">
+        <i class="bi bi-tag me-1"></i>
+        {{ lead.cluster or '' }}{% if lead.cluster and lead.category %} · {% endif %}{{ lead.category or '' }}
+      </div>
+      {% endif %}
+
+      <!-- Links / contact -->
+      {% if lead.link %}
+      <div style="font-size:11px;margin-bottom:8px">
+        <a href="{{ lead.link }}" target="_blank" style="color:#0d9488;text-decoration:none">
+          <i class="bi bi-shop me-1"></i>View Shop
+        </a>
+      </div>
+      {% endif %}
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        {% if lead.address %}
+        <a href="https://www.google.com/maps/search/?api=1&query={{ lead.address|urlencode }}"
+           target="_blank"
+           style="background:#4285F418;border:1.5px solid #4285F4;color:#4285F4;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                  text-decoration:none">
+          <i class="bi bi-map me-1"></i>Maps
+        </a>
+        <a href="https://waze.com/ul?q={{ lead.address|urlencode }}&navigate=yes"
+           target="_blank"
+           style="background:#00AAFF18;border:1.5px solid #00AAFF;color:#00AAFF;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                  text-decoration:none">
+          <i class="bi bi-navigation-fill me-1"></i>Waze
+        </a>
+        {% endif %}
+        <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
+           style="background:#0f766e18;border:1.5px solid #0f766e;color:#0f766e;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                  text-decoration:none">
+          <i class="bi bi-eye me-1"></i>View
+        </a>
+        <a href="{{ url_for('gabay_checkin') }}?lead_id={{ lead.id }}"
+           style="background:#15803d18;border:1.5px solid #15803d;color:#15803d;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
+                  text-decoration:none">
+          <i class="bi bi-check2-circle me-1"></i>Check In
+        </a>
+      </div>
+
+    </div>
+    {% endfor %}
+
+    <div style="text-align:center;padding:6px 0 4px;font-size:11px;color:#9aabc5">
+      Showing top {{ radar_leads|length }} unassigned sellers in your city by priority
+    </div>
+  </div>
+</div>
+{% endif %}
+
+{% endblock %}
+
 {% endblock %}

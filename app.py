@@ -718,11 +718,28 @@ def gabay_plan_route():
     if route_leads:
         waze_url = f'https://waze.com/ul?q={urllib.parse.quote(route_leads[0].address)}&navigate=yes'
 
+    # ── RADAR: unassigned pool sellers in the same cities ──────────────
+    radar_leads = []
+    gabay_cities = current_user.city_list  # normalized lowercase list
+    if gabay_cities:
+        pool_candidates = Lead.query.filter(
+            Lead.status == 'pool',
+            Lead.gabay_id == None
+        ).all()
+        for pl in pool_candidates:
+            if pl.city and pl.city.strip().lower() in gabay_cities:
+                radar_leads.append(pl)
+        # Sort by priority tier then conversion score
+        tier_order = {'P0': 0, 'P1': 1, 'P2': 2, 'P3': 3}
+        radar_leads.sort(key=lambda l: (tier_order.get(l.priority_tier or 'P3', 3), -l.conversion_score))
+        radar_leads = radar_leads[:8]  # top 8 nearby unassigned
+
     return render_template('gabay_app/route.html',
         stops=route_leads, maps_url=maps_url, waze_url=waze_url,
         optimized=(maps_key != '' and error is None),
         error=error, maps_key=maps_key,
-        total_leads=len(active_leads))
+        total_leads=len(active_leads),
+        radar_leads=radar_leads)
 
 
 @app.route('/visits/new/<int:lead_id>', methods=['GET', 'POST'])
