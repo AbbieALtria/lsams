@@ -2113,13 +2113,29 @@ def report_forecast():
 
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
 
-    # Week boundaries
+    # Week boundaries for current month
     week_ranges = []
     for w in range(5):
         ws = month_start + _dt.timedelta(days=w*7)
         we = min(month_start + _dt.timedelta(days=(w+1)*7 - 1), month_end)
         if ws <= month_end:
             week_ranges.append((w+1, ws, we))
+
+    # Previous month boundaries
+    if mon == 1:
+        prev_year, prev_mon = year - 1, 12
+    else:
+        prev_year, prev_mon = year, mon - 1
+    prev_month_str = f'{prev_year:04d}-{prev_mon:02d}'
+    _, prev_days = monthrange(prev_year, prev_mon)
+    prev_start = date(prev_year, prev_mon, 1)
+    prev_end   = date(prev_year, prev_mon, prev_days)
+    prev_week_ranges = []
+    for w in range(5):
+        ws = prev_start + _dt.timedelta(days=w*7)
+        we = min(prev_start + _dt.timedelta(days=(w+1)*7 - 1), prev_end)
+        if ws <= prev_end:
+            prev_week_ranges.append((w+1, ws, we))
 
     results = []
     for g in gabays:
@@ -2133,10 +2149,50 @@ def report_forecast():
             func.date(Visit.visited_at) <= month_end
         ).all()
 
+        # Registrations this month (submitted + activated)
+        from models import Registration
+        regs_this_month = db.session.query(Registration).join(Lead).filter(
+            Lead.gabay_id == g.id,
+            Registration.created_at >= _dt.datetime.combine(month_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(month_end, _dt.time.max),
+        ).all()
+        live_this_month = [r for r in regs_this_month if r.activated_at and
+                           month_start <= r.activated_at.date() <= month_end]
+
         weekly_visits = []
         for w_num, ws, we in week_ranges:
-            cnt = sum(1 for v in visits_this_month if ws <= v.visited_at.date() <= we)
-            weekly_visits.append({'week': w_num, 'start': ws, 'end': we, 'count': cnt})
+            v_cnt  = sum(1 for v in visits_this_month if ws <= v.visited_at.date() <= we)
+            r_cnt  = sum(1 for r in regs_this_month if ws <= r.created_at.date() <= we)
+            l_cnt  = sum(1 for r in live_this_month if ws <= r.activated_at.date() <= we)
+            weekly_visits.append({
+                'week': w_num, 'start': ws, 'end': we,
+                'visits': v_cnt, 'registrations': r_cnt, 'live': l_cnt,
+                'count': v_cnt,  # kept for backward compat
+            })
+
+        # Previous month data for WoW comparison
+        prev_visits = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            func.date(Visit.visited_at) >= prev_start,
+            func.date(Visit.visited_at) <= prev_end,
+        ).all()
+        prev_regs = db.session.query(Registration).join(Lead).filter(
+            Lead.gabay_id == g.id,
+            Registration.created_at >= _dt.datetime.combine(prev_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(prev_end, _dt.time.max),
+        ).all()
+        prev_live = [r for r in prev_regs if r.activated_at and
+                     prev_start <= r.activated_at.date() <= prev_end]
+
+        prev_weekly = []
+        for w_num, ws, we in prev_week_ranges:
+            v_cnt = sum(1 for v in prev_visits if ws <= v.visited_at.date() <= we)
+            r_cnt = sum(1 for r in prev_regs if ws <= r.created_at.date() <= we)
+            l_cnt = sum(1 for r in prev_live if ws <= r.activated_at.date() <= we)
+            prev_weekly.append({
+                'week': w_num, 'start': ws, 'end': we,
+                'visits': v_cnt, 'registrations': r_cnt, 'live': l_cnt,
+            })
 
         total_visits = len(visits_this_month)
         # Use working days elapsed (not calendar) for accurate daily rate
@@ -2221,6 +2277,12 @@ def report_forecast():
             'gap': gap,
             'visit_gap': visit_gap,
             'weekly_visits': weekly_visits,
+            'prev_weekly': prev_weekly,
+            'total_regs_month': len(regs_this_month),
+            'total_live_month': len(live_this_month),
+            'prev_total_visits': len(prev_visits),
+            'prev_total_regs': len(prev_regs),
+            'prev_total_live': len(prev_live),
             'suggestions': suggestions,
             'stalled': stalled,
             'conv_rate': round(conv_rate * 100, 1),
@@ -2235,6 +2297,7 @@ def report_forecast():
         results=results,
         month_str=month_str,
         month_label=month_start.strftime('%B %Y'),
+        prev_month_label=prev_start.strftime('%B %Y'),
         days_in_month=days_in_month,
         working_elapsed=working_elapsed,
         working_remaining=working_remaining,
@@ -2244,6 +2307,7 @@ def report_forecast():
         suspended_labels=suspended_labels,
         is_current_month=is_current_month,
         week_ranges=week_ranges,
+        prev_week_ranges=prev_week_ranges,
         today=today,
     )
 

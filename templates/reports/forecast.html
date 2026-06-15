@@ -215,6 +215,109 @@
         </div>
       </div>
 
+      <!-- Week-on-Week Comparison -->
+      <div class="col-12">
+        <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">
+          <i class="bi bi-arrow-left-right me-1"></i>Week-on-Week vs {{ prev_month_label }}
+        </div>
+        <div class="table-responsive">
+          <table class="table table-sm mb-2" style="font-size:11px;border-collapse:separate;border-spacing:0">
+            <thead>
+              <tr style="background:#f8fafc">
+                <th style="padding:4px 8px;border-bottom:2px solid #e2e8f0">Week</th>
+                <th style="padding:4px 8px;border-bottom:2px solid #e2e8f0">Dates</th>
+                <th colspan="2" style="padding:4px 8px;border-bottom:2px solid #e2e8f0;color:#0891b2;text-align:center">Visits</th>
+                <th colspan="2" style="padding:4px 8px;border-bottom:2px solid #e2e8f0;color:#be185d;text-align:center">Registrations</th>
+                <th colspan="2" style="padding:4px 8px;border-bottom:2px solid #e2e8f0;color:#15803d;text-align:center">Live</th>
+              </tr>
+              <tr style="background:#f8fafc;color:#9ca3af;font-size:10px">
+                <th></th><th></th>
+                <th style="padding:2px 8px;text-align:center">This</th>
+                <th style="padding:2px 8px;text-align:center">Prev</th>
+                <th style="padding:2px 8px;text-align:center">This</th>
+                <th style="padding:2px 8px;text-align:center">Prev</th>
+                <th style="padding:2px 8px;text-align:center">This</th>
+                <th style="padding:2px 8px;text-align:center">Prev</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for w in r.weekly_visits %}
+              {% set pw = r.prev_weekly[loop.index0] if r.prev_weekly and loop.index0 < r.prev_weekly|length else none %}
+              {% set pws = prev_week_ranges[loop.index0] if prev_week_ranges and loop.index0 < prev_week_ranges|length else none %}
+              <tr style="border-bottom:1px solid #f1f5f9">
+                <td style="padding:4px 8px;color:#6b7280;font-weight:600">W{{ w.week }}</td>
+                <td style="padding:4px 8px;color:#9ca3af">
+                  {{ w.start.strftime('%b %d') }}–{{ w.end.strftime('%d') }}
+                  {% if pws %}<span style="color:#d1d5db"> / {{ pws[1].strftime('%b %d') }}–{{ pws[2].strftime('%d') }}</span>{% endif %}
+                </td>
+                {# Visits #}
+                {% set v_this = w.visits %}
+                {% set v_prev = pw.visits if pw else 0 %}
+                {% set v_delta = v_this - v_prev %}
+                <td style="padding:4px 8px;text-align:center;font-weight:700;color:#0891b2">{{ v_this }}</td>
+                <td style="padding:4px 8px;text-align:center;color:#9ca3af">
+                  {{ v_prev }}
+                  {% if v_delta > 0 %}<span style="color:#15803d">↑{{ v_delta }}</span>
+                  {% elif v_delta < 0 %}<span style="color:#b91c1c">↓{{ v_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+                {# Registrations #}
+                {% set r_this = w.registrations %}
+                {% set r_prev = pw.registrations if pw else 0 %}
+                {% set r_delta = r_this - r_prev %}
+                <td style="padding:4px 8px;text-align:center;font-weight:700;color:#be185d">{{ r_this }}</td>
+                <td style="padding:4px 8px;text-align:center;color:#9ca3af">
+                  {{ r_prev }}
+                  {% if r_delta > 0 %}<span style="color:#15803d">↑{{ r_delta }}</span>
+                  {% elif r_delta < 0 %}<span style="color:#b91c1c">↓{{ r_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+                {# Live #}
+                {% set l_this = w.live %}
+                {% set l_prev = pw.live if pw else 0 %}
+                {% set l_delta = l_this - l_prev %}
+                <td style="padding:4px 8px;text-align:center;font-weight:700;color:#15803d">{{ l_this }}</td>
+                <td style="padding:4px 8px;text-align:center;color:#9ca3af">
+                  {{ l_prev }}
+                  {% if l_delta > 0 %}<span style="color:#15803d">↑{{ l_delta }}</span>
+                  {% elif l_delta < 0 %}<span style="color:#b91c1c">↓{{ l_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+              </tr>
+              {% endfor %}
+              {# Monthly totals row #}
+              {% set tv_delta = r.total_visits - (r.prev_total_visits or 0) %}
+              {% set tr_delta = r.total_regs_month - (r.prev_total_regs or 0) %}
+              {% set tl_delta = r.total_live_month - (r.prev_total_live or 0) %}
+              <tr style="background:#f0f4fa;font-weight:700;border-top:2px solid #e2e8f0">
+                <td colspan="2" style="padding:5px 8px;color:#374151">Monthly Total</td>
+                <td style="padding:5px 8px;text-align:center;color:#0891b2">{{ r.total_visits }}</td>
+                <td style="padding:5px 8px;text-align:center;color:#9ca3af">
+                  {{ r.prev_total_visits or 0 }}
+                  {% if tv_delta > 0 %}<span style="color:#15803d">↑{{ tv_delta }}</span>
+                  {% elif tv_delta < 0 %}<span style="color:#b91c1c">↓{{ tv_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+                <td style="padding:5px 8px;text-align:center;color:#be185d">{{ r.total_regs_month }}</td>
+                <td style="padding:5px 8px;text-align:center;color:#9ca3af">
+                  {{ r.prev_total_regs or 0 }}
+                  {% if tr_delta > 0 %}<span style="color:#15803d">↑{{ tr_delta }}</span>
+                  {% elif tr_delta < 0 %}<span style="color:#b91c1c">↓{{ tr_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+                <td style="padding:5px 8px;text-align:center;color:#15803d">{{ r.total_live_month }}</td>
+                <td style="padding:5px 8px;text-align:center;color:#9ca3af">
+                  {{ r.prev_total_live or 0 }}
+                  {% if tl_delta > 0 %}<span style="color:#15803d">↑{{ tl_delta }}</span>
+                  {% elif tl_delta < 0 %}<span style="color:#b91c1c">↓{{ tl_delta|abs }}</span>
+                  {% else %}<span style="color:#9ca3af">—</span>{% endif %}
+                </td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+
       <!-- Suggestions + Stalled -->
       <div class="col-md-5">
         <div style="font-size:12px;font-weight:700;color:#374151;margin-bottom:8px">
