@@ -2312,6 +2312,187 @@ def report_forecast():
     )
 
 
+@app.route('/reports/wow')
+@login_required
+def report_wow():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    from calendar import monthrange
+    import datetime as _dt
+
+    today = date.today()
+    month_str = request.args.get('month', today.strftime('%Y-%m'))
+    view = request.args.get('view', 'gabay')  # gabay | project | overall
+
+    try:
+        year, mon = int(month_str[:4]), int(month_str[5:7])
+    except Exception:
+        year, mon = today.year, today.month
+        month_str = f'{year:04d}-{mon:02d}'
+
+    _, days_in_month = monthrange(year, mon)
+    month_start = date(year, mon, 1)
+    month_end   = date(year, mon, days_in_month)
+
+    # Previous month
+    if mon == 1:
+        prev_year, prev_mon = year - 1, 12
+    else:
+        prev_year, prev_mon = year, mon - 1
+    _, prev_days = monthrange(prev_year, prev_mon)
+    prev_start = date(prev_year, prev_mon, 1)
+    prev_end   = date(prev_year, prev_mon, prev_days)
+
+    # Week ranges (current month: calendar weeks 1-5 aligned to month start)
+    week_ranges = []
+    for w in range(5):
+        ws = month_start + _dt.timedelta(days=w * 7)
+        we = min(month_start + _dt.timedelta(days=(w + 1) * 7 - 1), month_end)
+        if ws <= month_end:
+            week_ranges.append((w + 1, ws, we))
+
+    prev_week_ranges = []
+    for w in range(5):
+        ws = prev_start + _dt.timedelta(days=w * 7)
+        we = min(prev_start + _dt.timedelta(days=(w + 1) * 7 - 1), prev_end)
+        if ws <= prev_end:
+            prev_week_ranges.append((w + 1, ws, we))
+
+    from models import Registration
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    def week_stats(visits_list, regs_list, live_list, ranges):
+        rows = []
+        for w_num, ws, we in ranges:
+            rows.append({
+                'week': w_num, 'start': ws, 'end': we,
+                'visits': sum(1 for v in visits_list if ws <= v.visited_at.date() <= we),
+                'registrations': sum(1 for r in regs_list if ws <= r.created_at.date() <= we),
+                'live': sum(1 for r in live_list if r.activated_at and ws <= r.activated_at.date() <= we),
+            })
+        return rows
+
+    gabay_rows = []
+    for g in gabays:
+        curr_vis = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            func.date(Visit.visited_at) >= month_start,
+            func.date(Visit.visited_at) <= month_end,
+        ).all()
+        curr_regs = db.session.query(Registration).join(Lead).filter(
+            Lead.gabay_id == g.id,
+            Registration.created_at >= _dt.datetime.combine(month_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(month_end, _dt.time.max),
+        ).all()
+        curr_live = [r for r in curr_regs if r.activated_at and month_start <= r.activated_at.date() <= month_end]
+
+        prev_vis = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            func.date(Visit.visited_at) >= prev_start,
+            func.date(Visit.visited_at) <= prev_end,
+        ).all()
+        prev_regs = db.session.query(Registration).join(Lead).filter(
+            Lead.gabay_id == g.id,
+            Registration.created_at >= _dt.datetime.combine(prev_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(prev_end, _dt.time.max),
+        ).all()
+        prev_live = [r for r in prev_regs if r.activated_at and prev_start <= r.activated_at.date() <= prev_end]
+
+        gabay_rows.append({
+            'gabay': g,
+            'curr_weekly': week_stats(curr_vis, curr_regs, curr_live, week_ranges),
+            'prev_weekly': week_stats(prev_vis, prev_regs, prev_live, prev_week_ranges),
+            'curr_total': {'visits': len(curr_vis), 'registrations': len(curr_regs), 'live': len(curr_live)},
+            'prev_total': {'visits': len(prev_vis), 'registrations': len(prev_regs), 'live': len(prev_live)},
+        })
+
+    # Overall team totals across all gabays
+    def sum_weeks(rows_list, n_weeks):
+        totals = [{'week': i+1, 'visits': 0, 'registrations': 0, 'live': 0} for i in range(n_weeks)]
+        for row in rows_list:
+            for i, w in enumerate(row):
+                if i < n_weeks:
+                    totals[i]['visits'] += w['visits']
+                    totals[i]['registrations'] += w['registrations']
+                    totals[i]['live'] += w['live']
+        return totals
+
+    n_curr = len(week_ranges)
+    n_prev = len(prev_week_ranges)
+    overall_curr_weekly = sum_weeks([r['curr_weekly'] for r in gabay_rows], n_curr)
+    overall_prev_weekly = sum_weeks([r['prev_weekly'] for r in gabay_rows], n_prev)
+    overall_curr_total = {
+        'visits': sum(r['curr_total']['visits'] for r in gabay_rows),
+        'registrations': sum(r['curr_total']['registrations'] for r in gabay_rows),
+        'live': sum(r['curr_total']['live'] for r in gabay_rows),
+    }
+    overall_prev_total = {
+        'visits': sum(r['prev_total']['visits'] for r in gabay_rows),
+        'registrations': sum(r['prev_total']['registrations'] for r in gabay_rows),
+        'live': sum(r['prev_total']['live'] for r in gabay_rows),
+    }
+
+    # Per-project breakdown
+    project_leads = Lead.query.filter(Lead.project.isnot(None), Lead.project != '').all()
+    projects_set = sorted(set(l.project for l in project_leads))
+    project_rows = []
+    for proj in projects_set:
+        p_leads = [l for l in project_leads if l.project == proj]
+        lead_ids = [l.id for l in p_leads]
+        gabay_ids_proj = list(set(l.gabay_id for l in p_leads if l.gabay_id))
+
+        curr_vis = Visit.query.filter(
+            Visit.lead_id.in_(lead_ids),
+            func.date(Visit.visited_at) >= month_start,
+            func.date(Visit.visited_at) <= month_end,
+        ).all()
+        curr_regs = db.session.query(Registration).filter(
+            Registration.lead_id.in_(lead_ids),
+            Registration.created_at >= _dt.datetime.combine(month_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(month_end, _dt.time.max),
+        ).all()
+        curr_live = [r for r in curr_regs if r.activated_at and month_start <= r.activated_at.date() <= month_end]
+
+        prev_vis = Visit.query.filter(
+            Visit.lead_id.in_(lead_ids),
+            func.date(Visit.visited_at) >= prev_start,
+            func.date(Visit.visited_at) <= prev_end,
+        ).all()
+        prev_regs = db.session.query(Registration).filter(
+            Registration.lead_id.in_(lead_ids),
+            Registration.created_at >= _dt.datetime.combine(prev_start, _dt.time.min),
+            Registration.created_at <= _dt.datetime.combine(prev_end, _dt.time.max),
+        ).all()
+        prev_live = [r for r in prev_regs if r.activated_at and prev_start <= r.activated_at.date() <= prev_end]
+
+        project_rows.append({
+            'name': proj,
+            'total_leads': len(p_leads),
+            'curr_weekly': week_stats(curr_vis, curr_regs, curr_live, week_ranges),
+            'prev_weekly': week_stats(prev_vis, prev_regs, prev_live, prev_week_ranges),
+            'curr_total': {'visits': len(curr_vis), 'registrations': len(curr_regs), 'live': len(curr_live)},
+            'prev_total': {'visits': len(prev_vis), 'registrations': len(prev_regs), 'live': len(prev_live)},
+        })
+
+    return render_template('reports/wow.html',
+        month_str=month_str,
+        month_label=month_start.strftime('%B %Y'),
+        prev_month_label=prev_start.strftime('%B %Y'),
+        week_ranges=week_ranges,
+        prev_week_ranges=prev_week_ranges,
+        gabay_rows=gabay_rows,
+        overall_curr_weekly=overall_curr_weekly,
+        overall_prev_weekly=overall_prev_weekly,
+        overall_curr_total=overall_curr_total,
+        overall_prev_total=overall_prev_total,
+        project_rows=project_rows,
+        view=view,
+        today=today,
+    )
+
+
 @app.route('/reports/export/leads')
 @login_required
 def export_leads():

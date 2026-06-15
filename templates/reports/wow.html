@@ -1,0 +1,258 @@
+{% extends "base.html" %}
+{% block title %}Week-on-Week Report — {{ month_label }}{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-arrow-left-right me-2"></i>Week-on-Week Report</div>
+    <small class="text-muted">{{ month_label }} vs {{ prev_month_label }} — Visits · Registrations · Live</small>
+  </div>
+  <div class="d-flex align-items-center gap-2 flex-wrap">
+    <form method="GET" class="d-flex align-items-center gap-2">
+      <input type="hidden" name="view" value="{{ view }}">
+      <input type="month" name="month" value="{{ month_str }}" class="form-control form-control-sm" style="width:160px">
+      <button class="btn btn-sm btn-outline-primary">View</button>
+    </form>
+    <button onclick="window.print()" class="btn btn-sm" style="background:#1F3864;color:white">
+      <i class="bi bi-printer me-1"></i>Print
+    </button>
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">← Reports</a>
+  </div>
+</div>
+
+<!-- VIEW TOGGLE -->
+<div class="d-flex gap-2 mb-4 flex-wrap">
+  {% for v, label, icon in [('overall','Overall Team','bi-people-fill'),('gabay','Per Gabay','bi-person-badge'),('project','Per Project','bi-flag-fill')] %}
+  <a href="?month={{ month_str }}&view={{ v }}"
+     class="btn btn-sm {% if view == v %}btn-primary{% else %}btn-outline-secondary{% endif %}">
+    <i class="bi {{ icon }} me-1"></i>{{ label }}
+  </a>
+  {% endfor %}
+</div>
+
+<!-- LEGEND -->
+<div class="d-flex gap-3 mb-3 flex-wrap" style="font-size:11px;color:#6b7280">
+  <span><strong style="color:#0891b2">V</strong> = Visits</span>
+  <span><strong style="color:#be185d">R</strong> = Registrations</span>
+  <span><strong style="color:#15803d">L</strong> = Live</span>
+  <span><span style="color:#15803d">↑</span> = improvement vs {{ prev_month_label }}</span>
+  <span><span style="color:#b91c1c">↓</span> = decline vs {{ prev_month_label }}</span>
+  <span style="background:#f0f4fa;padding:2px 6px;border-radius:4px">Prev = {{ prev_month_label }}</span>
+</div>
+
+{% macro delta(curr, prev) %}
+  {% set d = curr - prev %}
+  {% if d > 0 %}<span style="color:#15803d;font-weight:700">↑{{ d }}</span>
+  {% elif d < 0 %}<span style="color:#b91c1c;font-weight:700">↓{{ d|abs }}</span>
+  {% else %}<span style="color:#d1d5db">—</span>{% endif %}
+{% endmacro %}
+
+{% macro wow_table(curr_weekly, prev_weekly, curr_total, prev_total, week_ranges, prev_week_ranges) %}
+<div class="table-responsive">
+<table class="table table-sm mb-0" style="font-size:12px">
+  <thead>
+    <tr style="background:#1F3864;color:white">
+      <th style="padding:6px 10px">Week</th>
+      <th style="padding:6px 10px">Period</th>
+      <th style="padding:6px 10px;text-align:center;color:#7dd3fc">Visits<br><span style="font-size:10px;opacity:.7">This / Prev / Δ</span></th>
+      <th style="padding:6px 10px;text-align:center;color:#f9a8d4">Regs<br><span style="font-size:10px;opacity:.7">This / Prev / Δ</span></th>
+      <th style="padding:6px 10px;text-align:center;color:#86efac">Live<br><span style="font-size:10px;opacity:.7">This / Prev / Δ</span></th>
+    </tr>
+  </thead>
+  <tbody>
+    {% for i in range(curr_weekly|length) %}
+    {% set cw = curr_weekly[i] %}
+    {% set pw = prev_weekly[i] if i < prev_weekly|length else none %}
+    {% set pr = prev_week_ranges[i] if i < prev_week_ranges|length else none %}
+    <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index is odd %}background:#fafafa{% endif %}">
+      <td style="padding:5px 10px;font-weight:700;color:#374151">W{{ cw.week }}</td>
+      <td style="padding:5px 10px;color:#6b7280;font-size:11px">
+        {% if week_ranges and i < week_ranges|length %}
+          {{ week_ranges[i][1].strftime('%b %d') }}–{{ week_ranges[i][2].strftime('%d') }}
+        {% endif %}
+        {% if pr %}<br><span style="color:#d1d5db">{{ pr[1].strftime('%b %d') }}–{{ pr[2].strftime('%d') }}</span>{% endif %}
+      </td>
+      <td style="padding:5px 10px;text-align:center">
+        <strong style="color:#0891b2">{{ cw.visits }}</strong>
+        / <span style="color:#9ca3af">{{ pw.visits if pw else 0 }}</span>
+        / {{ delta(cw.visits, pw.visits if pw else 0) }}
+      </td>
+      <td style="padding:5px 10px;text-align:center">
+        <strong style="color:#be185d">{{ cw.registrations }}</strong>
+        / <span style="color:#9ca3af">{{ pw.registrations if pw else 0 }}</span>
+        / {{ delta(cw.registrations, pw.registrations if pw else 0) }}
+      </td>
+      <td style="padding:5px 10px;text-align:center">
+        <strong style="color:#15803d">{{ cw.live }}</strong>
+        / <span style="color:#9ca3af">{{ pw.live if pw else 0 }}</span>
+        / {{ delta(cw.live, pw.live if pw else 0) }}
+      </td>
+    </tr>
+    {% endfor %}
+    <!-- Monthly total -->
+    <tr style="background:#f0f4fa;font-weight:800;border-top:2px solid #e2e8f0">
+      <td colspan="2" style="padding:7px 10px;color:#1F3864">TOTAL</td>
+      <td style="padding:7px 10px;text-align:center">
+        <strong style="color:#0891b2">{{ curr_total.visits }}</strong>
+        / <span style="color:#9ca3af">{{ prev_total.visits }}</span>
+        / {{ delta(curr_total.visits, prev_total.visits) }}
+      </td>
+      <td style="padding:7px 10px;text-align:center">
+        <strong style="color:#be185d">{{ curr_total.registrations }}</strong>
+        / <span style="color:#9ca3af">{{ prev_total.registrations }}</span>
+        / {{ delta(curr_total.registrations, prev_total.registrations) }}
+      </td>
+      <td style="padding:7px 10px;text-align:center">
+        <strong style="color:#15803d">{{ curr_total.live }}</strong>
+        / <span style="color:#9ca3af">{{ prev_total.live }}</span>
+        / {{ delta(curr_total.live, prev_total.live) }}
+      </td>
+    </tr>
+  </tbody>
+</table>
+</div>
+{% endmacro %}
+
+
+<!-- ══ OVERALL VIEW ══ -->
+{% if view == 'overall' or view == 'all' %}
+<div class="card mb-4">
+  <div class="card-header fw-bold" style="background:#1F3864;color:white;font-size:15px">
+    <i class="bi bi-people-fill me-2"></i>Overall Team — {{ month_label }} vs {{ prev_month_label }}
+  </div>
+
+  <!-- Summary stat cards -->
+  <div class="card-body pb-0">
+    <div class="row g-3 mb-3">
+      {% for label, curr, prev, color, icon in [
+        ('Total Visits', overall_curr_total.visits, overall_prev_total.visits, '#0891b2', 'bi-walking'),
+        ('Total Registrations', overall_curr_total.registrations, overall_prev_total.registrations, '#be185d', 'bi-clipboard-check'),
+        ('Total Live', overall_curr_total.live, overall_prev_total.live, '#15803d', 'bi-shop'),
+      ] %}
+      {% set d = curr - prev %}
+      <div class="col-4">
+        <div class="p-3 rounded text-center" style="background:#f8fafc;border:1.5px solid #e2e8f0">
+          <i class="bi {{ icon }} mb-1" style="font-size:20px;color:{{ color }}"></i>
+          <div style="font-size:26px;font-weight:900;color:{{ color }}">{{ curr }}</div>
+          <div style="font-size:11px;color:#6b7280">{{ label }}</div>
+          <div style="font-size:12px;margin-top:3px">
+            vs <span style="color:#9ca3af">{{ prev }}</span>
+            {% if d > 0 %}<span style="color:#15803d;font-weight:700"> ↑{{ d }}</span>
+            {% elif d < 0 %}<span style="color:#b91c1c;font-weight:700"> ↓{{ d|abs }}</span>
+            {% else %}<span style="color:#d1d5db"> —</span>{% endif %}
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+  </div>
+
+  {{ wow_table(overall_curr_weekly, overall_prev_weekly, overall_curr_total, overall_prev_total, week_ranges, prev_week_ranges) }}
+</div>
+
+
+<!-- Per-gabay mini summary in overall view -->
+<div class="card mb-4">
+  <div class="card-header fw-bold" style="background:#374151;color:white;font-size:13px">
+    <i class="bi bi-person-badge me-2"></i>Gabay Breakdown — {{ month_label }}
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0" style="font-size:12px">
+      <thead style="background:#f8fafc">
+        <tr>
+          <th style="padding:6px 10px">Gabay</th>
+          <th style="padding:6px 10px;text-align:center;color:#0891b2">Visits<br><span style="font-size:10px;color:#9ca3af">This / Prev / Δ</span></th>
+          <th style="padding:6px 10px;text-align:center;color:#be185d">Regs<br><span style="font-size:10px;color:#9ca3af">This / Prev / Δ</span></th>
+          <th style="padding:6px 10px;text-align:center;color:#15803d">Live<br><span style="font-size:10px;color:#9ca3af">This / Prev / Δ</span></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in gabay_rows | sort(attribute='curr_total.visits', reverse=True) %}
+        <tr>
+          <td style="padding:5px 10px;font-weight:600;color:#1F3864">{{ r.gabay.display_name }}</td>
+          <td style="padding:5px 10px;text-align:center">
+            <strong style="color:#0891b2">{{ r.curr_total.visits }}</strong>
+            / <span style="color:#9ca3af">{{ r.prev_total.visits }}</span>
+            / {{ delta(r.curr_total.visits, r.prev_total.visits) }}
+          </td>
+          <td style="padding:5px 10px;text-align:center">
+            <strong style="color:#be185d">{{ r.curr_total.registrations }}</strong>
+            / <span style="color:#9ca3af">{{ r.prev_total.registrations }}</span>
+            / {{ delta(r.curr_total.registrations, r.prev_total.registrations) }}
+          </td>
+          <td style="padding:5px 10px;text-align:center">
+            <strong style="color:#15803d">{{ r.curr_total.live }}</strong>
+            / <span style="color:#9ca3af">{{ r.prev_total.live }}</span>
+            / {{ delta(r.curr_total.live, r.prev_total.live) }}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+
+<!-- ══ PER-GABAY VIEW ══ -->
+{% if view == 'gabay' %}
+{% for r in gabay_rows %}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center gap-3 py-2"
+       style="background:#1F3864;color:white">
+    <div style="width:36px;height:36px;border-radius:50%;background:rgba(255,255,255,0.2);
+                display:flex;align-items:center;justify-content:center;font-weight:800;font-size:15px">
+      {{ r.gabay.display_name[0] }}
+    </div>
+    <div>
+      <div class="fw-bold" style="font-size:15px">{{ r.gabay.display_name }}</div>
+      <small style="opacity:.7">{{ r.gabay.assigned_city or 'No city' }}</small>
+    </div>
+    <div class="ms-auto d-flex gap-3" style="font-size:13px">
+      <span>V: <strong>{{ r.curr_total.visits }}</strong></span>
+      <span>R: <strong>{{ r.curr_total.registrations }}</strong></span>
+      <span>L: <strong>{{ r.curr_total.live }}</strong></span>
+    </div>
+  </div>
+  {{ wow_table(r.curr_weekly, r.prev_weekly, r.curr_total, r.prev_total, week_ranges, prev_week_ranges) }}
+</div>
+{% endfor %}
+{% endif %}
+
+
+<!-- ══ PER-PROJECT VIEW ══ -->
+{% if view == 'project' %}
+{% if not project_rows %}
+<div class="text-center py-5 text-muted">
+  <i class="bi bi-flag" style="font-size:40px"></i>
+  <p class="mt-3">No project-tagged leads found. Tag leads with a Project field (TikTok TTS, etc.) to see data here.</p>
+</div>
+{% else %}
+{% for p in project_rows %}
+<div class="card mb-4">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="background:#78350f;color:white">
+    <div>
+      <i class="bi bi-flag-fill me-2" style="color:#fbbf24"></i>
+      <strong style="font-size:15px">{{ p.name }}</strong>
+      <span class="badge ms-2" style="background:rgba(255,255,255,0.2);font-size:11px">{{ p.total_leads }} leads</span>
+    </div>
+    <div class="d-flex gap-3" style="font-size:13px">
+      <span>V: <strong>{{ p.curr_total.visits }}</strong></span>
+      <span>R: <strong>{{ p.curr_total.registrations }}</strong></span>
+      <span>L: <strong>{{ p.curr_total.live }}</strong></span>
+    </div>
+  </div>
+  {{ wow_table(p.curr_weekly, p.prev_weekly, p.curr_total, p.prev_total, week_ranges, prev_week_ranges) }}
+</div>
+{% endfor %}
+{% endif %}
+{% endif %}
+
+<style>
+@media print {
+  .page-header button, .page-header a, .d-flex.gap-2.mb-4 { display:none !important; }
+  .card { break-inside: avoid; }
+}
+</style>
+{% endblock %}

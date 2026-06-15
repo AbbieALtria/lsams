@@ -51,6 +51,25 @@
 </div>
 {% endif %}
 
+<!-- WoW HIGHLIGHT -->
+{% if current_user.is_supervisor %}
+<a href="{{ url_for('report_wow') }}" class="text-decoration-none">
+  <div class="card mb-3" style="border:2px solid #0891b2;background:linear-gradient(135deg,#ecfeff,#cffafe);cursor:pointer;transition:box-shadow 0.2s"
+       onmouseover="this.style.boxShadow='0 4px 20px #0891b233'" onmouseout="this.style.boxShadow=''">
+    <div class="card-body py-3 d-flex align-items-center gap-4">
+      <div style="font-size:40px">📊</div>
+      <div>
+        <div style="font-weight:800;color:#0e7490;font-size:16px">Week-on-Week Report</div>
+        <div style="color:#0891b2;font-size:12px;margin-top:3px">
+          All gabays · Per project · Overall team — Visits, Registrations &amp; Live vs previous month
+        </div>
+      </div>
+      <div class="ms-auto" style="color:#0891b2;font-size:24px"><i class="bi bi-arrow-right-circle-fill"></i></div>
+    </div>
+  </div>
+</a>
+{% endif %}
+
 <!-- FORECAST HIGHLIGHT -->
 {% if current_user.is_supervisor %}
 <a href="{{ url_for('report_forecast') }}" class="text-decoration-none">
