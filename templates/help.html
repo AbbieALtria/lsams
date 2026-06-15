@@ -34,6 +34,12 @@
     </a>
   </li>
   <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabAI">
+      <i class="bi bi-stars me-1"></i>AI Tools
+      <span class="badge ms-1" style="background:#7c3aed;color:white;font-size:9px">NEW</span>
+    </a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link" data-bs-toggle="tab" href="#tabFaq">
       <i class="bi bi-patch-question me-1"></i>FAQ
     </a>
@@ -441,6 +447,209 @@
       </div>
     </div>
   </div>
+
+  <!-- ══════════ AI TOOLS ══════════ -->
+  <div class="tab-pane fade" id="tabAI">
+
+    <div class="alert d-flex gap-3 mb-4" style="background:#F5F0FF;border:1px solid #c4b5fd;border-radius:14px;padding:14px 18px">
+      <i class="bi bi-stars" style="color:#7c3aed;font-size:22px;flex-shrink:0"></i>
+      <div>
+        <div style="font-weight:800;color:#5b21b6;font-size:14px">AI-Powered Tools sa LSAMS</div>
+        <div style="font-size:12px;color:#6b21a8;margin-top:2px">
+          Apat na AI features ang built-in sa sistema — para mas mabilis mag-trabaho ang bawat Gabay at mas matalino ang bawat desisyon ng management.
+          <em style="color:#7c3aed">(Four AI features are built into the system — to help every Gabay work faster and management decide smarter.)</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3">
+
+      <!-- VOICE CHECK-IN -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #7c3aed">
+          <div class="card-header py-2" style="background:#F5F0FF">
+            <i class="bi bi-mic-fill me-2" style="color:#7c3aed"></i>
+            <strong style="color:#5b21b6">🎤 Voice Check-in</strong>
+            <span class="badge ms-2" style="background:#7c3aed;color:white;font-size:10px">OpenAI Whisper</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              <strong>Ano ito?</strong> Pwede kang mag-report ng visit outcome gamit ang boses mo — Tagalog, Bisaya, o English. Hindi na kailangan mag-type.<br>
+              <em style="color:#9aabc5;font-size:11px">(What is it? You can report a visit outcome using your voice — Tagalog, Bisaya, or English. No need to type.)</em>
+            </p>
+            <div style="font-weight:700;color:#5b21b6;font-size:12px;margin-bottom:8px">Paano gamitin / How to use:</div>
+            {% for num, tl, en in [
+              ('1','Pumunta sa Check-In form ng isang lead','Go to the Check-In form of a lead'),
+              ('2','Hanapin ang purple na "Voice Check-in" bar','Find the purple "Voice Check-in" bar'),
+              ('3','I-tap ang mikropono button — magsisimulang mag-record','Tap the microphone button — it starts recording'),
+              ('4','Sabihin ang nangyari: "Interesado siya" o "Ayaw niya" o "Hindi siya nandoon"','Say what happened: "She is interested" or "He refused" or "Not home"'),
+              ('5','I-tap ulit para huminto — ipapakita ang transcript at outcome','Tap again to stop — transcript and outcome are shown'),
+              ('6','I-tap "Use This" para auto-fill ang form','Tap "Use This" to auto-fill the form'),
+            ] %}
+            <div class="d-flex gap-2 mb-2">
+              <div style="width:22px;height:22px;border-radius:50%;background:#7c3aed;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div style="font-size:12px;color:#4a5568">{{ tl }}<br><em style="color:#9aabc5;font-size:11px">{{ en }}</em></div>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:#ede9fe;font-size:11px;color:#5b21b6">
+              <i class="bi bi-lightbulb me-1"></i><strong>Tip:</strong> Mag-salita nang malinaw, malapit sa mikropono ng telepono. Kilala ng AI ang "interesado", "nag-register", "ayaw", "babalik", "tatawag", "wala".
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- SHOP SCANNER -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #0891b2">
+          <div class="card-header py-2" style="background:#ecfeff">
+            <i class="bi bi-camera-fill me-2" style="color:#0891b2"></i>
+            <strong style="color:#0e7490">📷 Shop Photo Scanner</strong>
+            <span class="badge ms-2" style="background:#0891b2;color:white;font-size:10px">Claude Vision AI</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              <strong>Ano ito?</strong> Kumuha ng larawan ng shop signage o tarpaulin — awtomatikong makukuha ng AI ang pangalan, contact number, at address ng seller.<br>
+              <em style="color:#9aabc5;font-size:11px">(Take a photo of a shop sign or tarpaulin — AI automatically extracts the seller's name, contact, and address.)</em>
+            </p>
+            <div style="font-weight:700;color:#0e7490;font-size:12px;margin-bottom:8px">Paano gamitin / How to use:</div>
+            {% for num, tl, en in [
+              ('1','I-tap ang "📷 Scan New Lead" sa Home screen','Tap "📷 Scan New Lead" on the Home screen'),
+              ('2','I-tap ang "Scan Shop Sign" button','Tap the "Scan Shop Sign" button'),
+              ('3','Kunin ang malinaw na larawan ng shop sign o business name','Take a clear photo of the shop sign or business name'),
+              ('4','Ipapakita ng AI ang nakuha niyang impormasyon','AI will show the information it extracted'),
+              ('5','I-check kung tama, pagkatapos ay i-tap "Apply to Form"','Check if correct, then tap "Apply to Form"'),
+              ('6','I-fill ang natitirang fields at i-save','Fill remaining fields and save'),
+            ] %}
+            <div class="d-flex gap-2 mb-2">
+              <div style="width:22px;height:22px;border-radius:50%;background:#0891b2;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div style="font-size:12px;color:#4a5568">{{ tl }}<br><em style="color:#9aabc5;font-size:11px">{{ en }}</em></div>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:#cffafe;font-size:11px;color:#0e7490">
+              <i class="bi bi-lightbulb me-1"></i><strong>Tip:</strong> Mas malinaw ang larawan, mas tumpak ang resulta. Kailangan ang ANTHROPIC_API_KEY sa Railway para gumana ito.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- LEAD PRIORITY SCORING -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #d97706">
+          <div class="card-header py-2" style="background:#fffbeb">
+            <i class="bi bi-stars me-2" style="color:#d97706"></i>
+            <strong style="color:#92400e">⭐ Lead Priority Scoring</strong>
+            <span class="badge ms-2" style="background:#d97706;color:white;font-size:10px">AI Score 0–100</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              <strong>Ano ito?</strong> Bawat lead ay may score mula 0 hanggang 100. Mas mataas ang score, mas malamang na mag-register ang seller. Awtomatiko itong kinukwenta.<br>
+              <em style="color:#9aabc5;font-size:11px">(Every lead has a score from 0 to 100. Higher score = more likely to register. Calculated automatically.)</em>
+            </p>
+            <div style="font-weight:700;color:#92400e;font-size:12px;margin-bottom:6px">Tier system:</div>
+            <div class="d-flex gap-2 flex-wrap mb-3">
+              {% for icon, label, color, bg, desc in [
+                ('🔥','Hot ≥70','#b91c1c','#fee2e2','Malapit nang mag-register'),
+                ('⚡','Warm ≥50','#d97706','#fef3c7','Interesado, kailangan ng follow-up'),
+                ('📋','Cool ≥30','#2563eb','#dbeafe','May potensyal, patuloy bisitahin'),
+                ('🧊','Cold <30','#6b7280','#f3f4f6','Hindi pa handa, ibang priority muna'),
+              ] %}
+              <div style="background:{{ bg }};border-radius:8px;padding:6px 10px;font-size:11px;font-weight:700;color:{{ color }}">
+                {{ icon }} {{ label }}<br>
+                <span style="font-weight:400;font-size:10px">{{ desc }}</span>
+              </div>
+              {% endfor %}
+            </div>
+            <div style="font-weight:700;color:#92400e;font-size:12px;margin-bottom:6px">Mga factors ng score / Scoring factors:</div>
+            {% for factor, pts, tl in [
+              ('Priority tier (P0–P3)','20 pts','Mas mataas ang priority, mas mataas ang score'),
+              ('Status stage','20 pts','Negotiation/Registration = mas mataas'),
+              ('Visit outcomes (last 5)','25 pts','Interested/Callback = positibo; Rejected = negatibo'),
+              ('Recency ng last visit','15 pts','Recent visits = mas mataas na score'),
+              ('Follow-up compliance','10 pts','May nakatakdang follow-up date = bonus'),
+            ] %}
+            <div class="d-flex gap-2 mb-1 align-items-center">
+              <span style="background:#fef3c7;color:#d97706;border-radius:6px;padding:2px 7px;font-size:10px;font-weight:800;white-space:nowrap">{{ pts }}</span>
+              <div style="font-size:12px;color:#4a5568">{{ factor }} — <em style="color:#9aabc5">{{ tl }}</em></div>
+            </div>
+            {% endfor %}
+            <div class="mt-3">
+              <a href="{{ url_for('report_lead_scoring') }}" class="btn btn-sm" style="background:#d97706;color:white;font-weight:700;font-size:12px">
+                <i class="bi bi-stars me-1"></i>Buksan ang Lead Scoring Report
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ROUTE OPTIMIZER -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #0f766e">
+          <div class="card-header py-2" style="background:#f0fdfa">
+            <i class="bi bi-map-fill me-2" style="color:#0f766e"></i>
+            <strong style="color:#134e4a">🗺️ Plan My Day — Route Optimizer</strong>
+            <span class="badge ms-2" style="background:#0f766e;color:white;font-size:10px">Google Maps AI</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              <strong>Ano ito?</strong> I-tap ang "Plan My Day" sa home screen at awtomatikong iaaayos ng AI ang pinaka-mabilis na order ng pagbibisita sa iyong mga leads ngayon.<br>
+              <em style="color:#9aabc5;font-size:11px">(Tap "Plan My Day" on the home screen and AI automatically arranges the fastest visit order for your leads today.)</em>
+            </p>
+            <div style="font-weight:700;color:#134e4a;font-size:12px;margin-bottom:8px">Paano gamitin / How to use:</div>
+            {% for num, tl, en in [
+              ('1','I-tap ang 🗺️ Plan My Day sa Home screen','Tap 🗺️ Plan My Day on the Home screen'),
+              ('2','Ipapakita ang listahan ng iyong mga leads na may address','Shows your leads that have addresses'),
+              ('3','Naka-sort na sa pinaka-optimal na order (Google Maps)','Sorted in the most optimal order (Google Maps)'),
+              ('4','I-tap "Open in Maps" para buksan ang buong route','Tap "Open in Maps" to open the full route'),
+              ('5','O i-tap "Waze" para sa bawat stop para mag-navigate','Or tap "Waze" per stop to navigate'),
+              ('6','Pagkatapos ng bawat bisita, i-tap "Check In" para mag-log','After each visit, tap "Check In" to log it'),
+            ] %}
+            <div class="d-flex gap-2 mb-2">
+              <div style="width:22px;height:22px;border-radius:50%;background:#0f766e;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div style="font-size:12px;color:#4a5568">{{ tl }}<br><em style="color:#9aabc5;font-size:11px">{{ en }}</em></div>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:#ccfbf1;font-size:11px;color:#134e4a">
+              <i class="bi bi-info-circle me-1"></i><strong>Note:</strong> Kailangan ng address sa lead para ma-include sa route. Kung walang Google Maps API key, naka-sort pa rin sa priority score — gumagana pa rin ito!
+            </div>
+            <div class="mt-2">
+              <a href="{{ url_for('gabay_plan_route') }}" class="btn btn-sm" style="background:#0f766e;color:white;font-weight:700;font-size:12px">
+                <i class="bi bi-map-fill me-1"></i>Buksan ang Plan My Day
+              </a>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /row -->
+
+    <!-- REQUIREMENTS -->
+    <div class="card mt-3" style="border-left:4px solid #7c3aed">
+      <div class="card-body">
+        <div style="font-weight:800;color:#1F3864;font-size:14px;margin-bottom:10px">
+          <i class="bi bi-gear-fill me-2" style="color:#7c3aed"></i>Setup Requirements para sa AI Features
+        </div>
+        <div class="row g-2" style="font-size:12px">
+          {% for feature, key, status, note in [
+            ('🎤 Voice Check-in','OPENAI_API_KEY','✅ Active','Set na sa Railway Variables'),
+            ('📷 Shop Scanner','ANTHROPIC_API_KEY','⚠️ Needs setup','Idagdag sa Railway → Variables'),
+            ('⭐ Lead Scoring','(none needed)','✅ Always on','Built-in — walang external API'),
+            ('🗺️ Route Optimizer','GOOGLE_MAPS_API_KEY','⚠️ Needs setup','Idagdag sa Railway → Variables'),
+          ] %}
+          <div class="col-md-6">
+            <div class="d-flex gap-2 align-items-center p-2 rounded" style="background:#F8FAFD;border:1px solid #E0E6EF">
+              <div style="flex:1">
+                <div style="font-weight:700;color:#1F3864">{{ feature }}</div>
+                <div style="color:#9aabc5;font-size:11px">Key: <code>{{ key }}</code> — {{ note }}</div>
+              </div>
+              <span style="font-size:12px;font-weight:700;{% if '✅' in status %}color:#15803d{% else %}color:#d97706{% endif %}">{{ status }}</span>
+            </div>
+          </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tabAI -->
 
   <!-- ══════════ FAQ ══════════ -->
   <div class="tab-pane fade" id="tabFaq">
