@@ -2476,6 +2476,121 @@ def report_wow():
     )
 
 
+@app.route('/reports/wow/week')
+@login_required
+def report_wow_week():
+    """Week drill-down: all visits for a specific week vs same week previous month."""
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    from calendar import monthrange
+    import datetime as _dt
+
+    today = date.today()
+    month_str  = request.args.get('month', today.strftime('%Y-%m'))
+    week_num   = int(request.args.get('week', 1))
+    scope      = request.args.get('scope', 'overall')   # overall | gabay_ID | project_NAME
+    back_view  = request.args.get('view', 'overall')
+
+    try:
+        year, mon = int(month_str[:4]), int(month_str[5:7])
+    except Exception:
+        year, mon = today.year, today.month
+        month_str = f'{year:04d}-{mon:02d}'
+
+    _, days_in_month = monthrange(year, mon)
+    month_start = date(year, mon, 1)
+    month_end   = date(year, mon, days_in_month)
+
+    if mon == 1:
+        prev_year, prev_mon = year - 1, 12
+    else:
+        prev_year, prev_mon = year, mon - 1
+    _, prev_days = monthrange(prev_year, prev_mon)
+    prev_start = date(prev_year, prev_mon, 1)
+    prev_end   = date(prev_year, prev_mon, prev_days)
+
+    # Current week boundaries
+    w_idx = week_num - 1
+    curr_ws = month_start + _dt.timedelta(days=w_idx * 7)
+    curr_we = min(month_start + _dt.timedelta(days=(w_idx + 1) * 7 - 1), month_end)
+
+    # Same week number in previous month
+    prev_ws = prev_start + _dt.timedelta(days=w_idx * 7)
+    prev_we = min(prev_start + _dt.timedelta(days=(w_idx + 1) * 7 - 1), prev_end)
+
+    live_lead_ids = {l.id for l in Lead.query.filter(Lead.status.in_(['live', 'matched'])).all()}
+
+    def enrich(visits):
+        result = []
+        for v in visits:
+            lead = Lead.query.get(v.lead_id)
+            gabay = User.query.get(v.gabay_id)
+            result.append({
+                'visit': v,
+                'lead': lead,
+                'gabay': gabay,
+                'is_reg': v.outcome == 'registered',
+                'is_live': v.outcome == 'registered' and v.lead_id in live_lead_ids,
+            })
+        result.sort(key=lambda x: x['visit'].visited_at, reverse=True)
+        return result
+
+    # Build base query filter depending on scope
+    def visits_in(ws, we, extra_filters):
+        q = Visit.query.filter(
+            func.date(Visit.visited_at) >= ws,
+            func.date(Visit.visited_at) <= we,
+        )
+        for f in extra_filters:
+            q = q.filter(f)
+        return q.order_by(Visit.visited_at.desc()).all()
+
+    scope_label = 'All Gabays'
+    extra = []
+    gabay_filter = None
+    project_filter = None
+
+    if scope.startswith('gabay_'):
+        gabay_id = int(scope.split('_', 1)[1])
+        gabay_filter = User.query.get(gabay_id)
+        scope_label = gabay_filter.display_name if gabay_filter else scope
+        extra = [Visit.gabay_id == gabay_id]
+    elif scope.startswith('project_'):
+        project_filter = scope[8:]
+        scope_label = project_filter
+        proj_lead_ids = [l.id for l in Lead.query.filter_by(project=project_filter).all()]
+        extra = [Visit.lead_id.in_(proj_lead_ids)] if proj_lead_ids else [Visit.id == -1]
+
+    curr_visits = enrich(visits_in(curr_ws, curr_we, extra))
+    prev_visits = enrich(visits_in(prev_ws, prev_we, extra))
+
+    def totals(enriched):
+        return {
+            'visits': len(enriched),
+            'registrations': sum(1 for e in enriched if e['is_reg']),
+            'live': sum(1 for e in enriched if e['is_live']),
+        }
+
+    return render_template('reports/wow_week.html',
+        month_str=month_str,
+        month_label=month_start.strftime('%B %Y'),
+        prev_month_label=prev_start.strftime('%B %Y'),
+        week_num=week_num,
+        curr_ws=curr_ws, curr_we=curr_we,
+        prev_ws=prev_ws, prev_we=prev_we,
+        curr_visits=curr_visits,
+        prev_visits=prev_visits,
+        curr_totals=totals(curr_visits),
+        prev_totals=totals(prev_visits),
+        scope=scope,
+        scope_label=scope_label,
+        back_view=back_view,
+        today=today,
+    )
+
+
 @app.route('/reports/export/leads')
 @login_required
 def export_leads():

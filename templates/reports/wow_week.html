@@ -1,0 +1,241 @@
+{% extends "base.html" %}
+{% block title %}Week {{ week_num }} Detail — {{ month_label }}{% endblock %}
+{% block content %}
+
+{% set status_colors = {
+  'pool':'#9aabc5','assigned':'#2E75B6','attempting':'#E07B00',
+  'negotiation':'#7c3aed','registration':'#be185d','live':'#15803d',
+  'matched':'#15803d','closed':'#6b7280'
+} %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title">
+      <i class="bi bi-calendar-week me-2"></i>
+      Week {{ week_num }} — {{ scope_label }}
+    </div>
+    <small class="text-muted">
+      {{ curr_ws.strftime('%b %d') }}–{{ curr_we.strftime('%b %d, %Y') }}
+      vs {{ prev_ws.strftime('%b %d') }}–{{ prev_we.strftime('%b %d') }} ({{ prev_month_label }})
+    </small>
+  </div>
+  <a href="{{ url_for('report_wow') }}?month={{ month_str }}&view={{ back_view }}"
+     class="btn btn-sm btn-outline-secondary">← Back to WoW Report</a>
+</div>
+
+<!-- SUMMARY COMPARISON CARDS -->
+<div class="row g-3 mb-4">
+  {% for label, curr_val, prev_val, color, icon in [
+    ('Visits', curr_totals.visits, prev_totals.visits, '#0891b2', 'bi-walking'),
+    ('Registrations', curr_totals.registrations, prev_totals.registrations, '#be185d', 'bi-clipboard-check'),
+    ('Live', curr_totals.live, prev_totals.live, '#15803d', 'bi-shop'),
+  ] %}
+  {% set delta = curr_val - prev_val %}
+  <div class="col-4">
+    <div class="card text-center py-3" style="border-left:4px solid {{ color }}">
+      <i class="bi {{ icon }} mb-1" style="font-size:20px;color:{{ color }}"></i>
+      <div style="font-size:32px;font-weight:900;color:{{ color }}">{{ curr_val }}</div>
+      <div style="font-size:11px;color:#6b7280">{{ label }}</div>
+      <div style="font-size:12px;margin-top:4px">
+        vs <span style="color:#9ca3af">{{ prev_val }}</span> ({{ prev_month_label }})
+        {% if delta > 0 %}
+          <span class="badge ms-1" style="background:#dcfce7;color:#15803d">↑ +{{ delta }}</span>
+        {% elif delta < 0 %}
+          <span class="badge ms-1" style="background:#fee2e2;color:#b91c1c">↓ {{ delta }}</span>
+        {% else %}
+          <span class="badge ms-1" style="background:#f1f5f9;color:#6b7280">= same</span>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<!-- SIDE BY SIDE VISIT TABLES -->
+<div class="row g-3">
+
+  <!-- THIS MONTH -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold d-flex align-items-center justify-content-between"
+           style="background:#1F3864;color:white">
+        <span><i class="bi bi-calendar-check me-2"></i>{{ month_label }} — Week {{ week_num }}</span>
+        <span class="badge" style="background:rgba(255,255,255,0.2)">
+          {{ curr_ws.strftime('%b %d') }}–{{ curr_we.strftime('%d') }}
+        </span>
+      </div>
+
+      {% if not curr_visits %}
+      <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-calendar-x" style="font-size:32px"></i>
+        <p class="mt-2">No visits this week yet.</p>
+      </div>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0" style="font-size:12px">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="padding:6px 10px">Seller</th>
+              <th style="padding:6px 10px">Gabay</th>
+              <th style="padding:6px 10px">Date</th>
+              <th style="padding:6px 10px">Outcome</th>
+              <th style="padding:6px 10px">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in curr_visits %}
+            {% set lead = e.lead %}
+            {% set sc = status_colors.get(lead.status if lead else '', '#9aabc5') %}
+            <tr {% if e.is_live %}style="background:#f0fdf4"{% elif e.is_reg %}style="background:#fdf4ff"{% endif %}>
+              <td style="padding:5px 10px">
+                {% if lead %}
+                <a href="{{ url_for('lead_detail', lead_id=lead.id) }}"
+                   class="fw-bold text-decoration-none" style="color:#1F3864">
+                  {{ lead.seller_name[:30] }}{% if lead.seller_name|length > 30 %}…{% endif %}
+                </a>
+                {% if lead.city %}<div style="font-size:10px;color:#9aabc5">{{ lead.city }}</div>{% endif %}
+                {% else %}<span class="text-muted">Unknown</span>{% endif %}
+              </td>
+              <td style="padding:5px 10px;color:#6b7280">{{ e.gabay.display_name if e.gabay else '—' }}</td>
+              <td style="padding:5px 10px;color:#6b7280;white-space:nowrap">{{ e.visit.visited_at.strftime('%b %d') }}</td>
+              <td style="padding:5px 10px">
+                {% if e.is_live %}
+                  <span class="badge" style="background:#dcfce7;color:#15803d">🏪 Live</span>
+                {% elif e.is_reg %}
+                  <span class="badge" style="background:#fae8ff;color:#be185d">📋 Registered</span>
+                {% else %}
+                  {% set ol = {'interested':'Interested','follow_up':'Follow Up','no_answer':'No Answer',
+                                'callback':'Callback','not_interested':'Not Interested','registered':'Registered'} %}
+                  <span class="badge" style="background:#f1f5f9;color:#374151">
+                    {{ ol.get(e.visit.outcome, e.visit.outcome or '—') }}
+                  </span>
+                {% endif %}
+              </td>
+              <td style="padding:5px 10px">
+                {% if lead %}
+                <span class="badge" style="background:{{ sc }}22;color:{{ sc }};border:1px solid {{ sc }}">
+                  {{ lead.status_label }}
+                </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if e.visit.notes %}
+            <tr style="{% if e.is_live %}background:#f0fdf4{% elif e.is_reg %}background:#fdf4ff{% endif %}">
+              <td colspan="5" style="padding:2px 10px 6px 30px;color:#6b7280;font-size:11px;font-style:italic">
+                {{ e.visit.notes[:120] }}{% if e.visit.notes|length > 120 %}…{% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+  <!-- PREVIOUS MONTH SAME WEEK -->
+  <div class="col-lg-6">
+    <div class="card h-100">
+      <div class="card-header fw-bold d-flex align-items-center justify-content-between"
+           style="background:#374151;color:white">
+        <span><i class="bi bi-clock-history me-2"></i>{{ prev_month_label }} — Week {{ week_num }}</span>
+        <span class="badge" style="background:rgba(255,255,255,0.2)">
+          {{ prev_ws.strftime('%b %d') }}–{{ prev_we.strftime('%d') }}
+        </span>
+      </div>
+
+      {% if not prev_visits %}
+      <div class="card-body text-center text-muted py-5">
+        <i class="bi bi-calendar-x" style="font-size:32px"></i>
+        <p class="mt-2">No visits recorded for this week last month.</p>
+      </div>
+      {% else %}
+      <div class="table-responsive">
+        <table class="table table-sm table-hover mb-0" style="font-size:12px">
+          <thead style="background:#f8fafc">
+            <tr>
+              <th style="padding:6px 10px">Seller</th>
+              <th style="padding:6px 10px">Gabay</th>
+              <th style="padding:6px 10px">Date</th>
+              <th style="padding:6px 10px">Outcome</th>
+              <th style="padding:6px 10px">Status</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for e in prev_visits %}
+            {% set lead = e.lead %}
+            {% set sc = status_colors.get(lead.status if lead else '', '#9aabc5') %}
+            <tr {% if e.is_live %}style="background:#f0fdf4;opacity:.85"{% elif e.is_reg %}style="background:#fdf4ff;opacity:.85"{% endif %}>
+              <td style="padding:5px 10px">
+                {% if lead %}
+                <a href="{{ url_for('lead_detail', lead_id=lead.id) }}"
+                   class="fw-bold text-decoration-none" style="color:#374151">
+                  {{ lead.seller_name[:30] }}{% if lead.seller_name|length > 30 %}…{% endif %}
+                </a>
+                {% if lead.city %}<div style="font-size:10px;color:#9aabc5">{{ lead.city }}</div>{% endif %}
+                {% else %}<span class="text-muted">Unknown</span>{% endif %}
+              </td>
+              <td style="padding:5px 10px;color:#6b7280">{{ e.gabay.display_name if e.gabay else '—' }}</td>
+              <td style="padding:5px 10px;color:#6b7280;white-space:nowrap">{{ e.visit.visited_at.strftime('%b %d') }}</td>
+              <td style="padding:5px 10px">
+                {% if e.is_live %}
+                  <span class="badge" style="background:#dcfce7;color:#15803d">🏪 Live</span>
+                {% elif e.is_reg %}
+                  <span class="badge" style="background:#fae8ff;color:#be185d">📋 Registered</span>
+                {% else %}
+                  {% set ol = {'interested':'Interested','follow_up':'Follow Up','no_answer':'No Answer',
+                                'callback':'Callback','not_interested':'Not Interested','registered':'Registered'} %}
+                  <span class="badge" style="background:#f1f5f9;color:#374151">
+                    {{ ol.get(e.visit.outcome, e.visit.outcome or '—') }}
+                  </span>
+                {% endif %}
+              </td>
+              <td style="padding:5px 10px">
+                {% if lead %}
+                <span class="badge" style="background:{{ sc }}22;color:{{ sc }};border:1px solid {{ sc }}">
+                  {{ lead.status_label }}
+                </span>
+                {% endif %}
+              </td>
+            </tr>
+            {% if e.visit.notes %}
+            <tr>
+              <td colspan="5" style="padding:2px 10px 6px 30px;color:#6b7280;font-size:11px;font-style:italic">
+                {{ e.visit.notes[:120] }}{% if e.visit.notes|length > 120 %}…{% endif %}
+              </td>
+            </tr>
+            {% endif %}
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% endif %}
+    </div>
+  </div>
+
+</div><!-- /row -->
+
+<!-- NAVIGATE BETWEEN WEEKS -->
+<div class="d-flex justify-content-between mt-4">
+  {% if week_num > 1 %}
+  <a href="{{ url_for('report_wow_week') }}?month={{ month_str }}&week={{ week_num-1 }}&scope={{ scope }}&view={{ back_view }}"
+     class="btn btn-outline-secondary btn-sm">
+    ← Week {{ week_num - 1 }}
+  </a>
+  {% else %}<span></span>{% endif %}
+
+  <a href="{{ url_for('report_wow') }}?month={{ month_str }}&view={{ back_view }}"
+     class="btn btn-sm" style="background:#1F3864;color:white">
+    ↩ Back to WoW Report
+  </a>
+
+  {% if week_num < 5 %}
+  <a href="{{ url_for('report_wow_week') }}?month={{ month_str }}&week={{ week_num+1 }}&scope={{ scope }}&view={{ back_view }}"
+     class="btn btn-outline-secondary btn-sm">
+    Week {{ week_num + 1 }} →
+  </a>
+  {% else %}<span></span>{% endif %}
+</div>
+
+{% endblock %}

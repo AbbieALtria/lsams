@@ -47,7 +47,7 @@
   {% else %}<span style="color:#d1d5db">—</span>{% endif %}
 {% endmacro %}
 
-{% macro wow_table(curr_weekly, prev_weekly, curr_total, prev_total, week_ranges, prev_week_ranges) %}
+{% macro wow_table(curr_weekly, prev_weekly, curr_total, prev_total, week_ranges, prev_week_ranges, scope='overall') %}
 <div class="table-responsive">
 <table class="table table-sm mb-0" style="font-size:12px">
   <thead>
@@ -64,8 +64,11 @@
     {% set cw = curr_weekly[i] %}
     {% set pw = prev_weekly[i] if i < prev_weekly|length else none %}
     {% set pr = prev_week_ranges[i] if i < prev_week_ranges|length else none %}
-    <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index is odd %}background:#fafafa{% endif %}">
-      <td style="padding:5px 10px;font-weight:700;color:#374151">W{{ cw.week }}</td>
+    <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index is odd %}background:#fafafa{% endif %};cursor:pointer"
+        onclick="window.location='{{ url_for('report_wow_week') }}?month={{ month_str }}&week={{ cw.week }}&scope={{ scope|urlencode }}&view={{ view }}'"
+      <td style="padding:5px 10px;font-weight:700;color:#2563eb;text-decoration:underline">
+        <i class="bi bi-box-arrow-up-right" style="font-size:10px;margin-right:3px"></i>W{{ cw.week }}
+      </td>
       <td style="padding:5px 10px;color:#6b7280;font-size:11px">
         {% if week_ranges and i < week_ranges|length %}
           {{ week_ranges[i][1].strftime('%b %d') }}–{{ week_ranges[i][2].strftime('%d') }}
@@ -165,7 +168,7 @@
     </div>
   </div>
 
-  {{ wow_table(overall_curr_weekly, overall_prev_weekly, overall_curr_total, overall_prev_total, week_ranges, prev_week_ranges) }}
+  {{ wow_table(overall_curr_weekly, overall_prev_weekly, overall_curr_total, overall_prev_total, week_ranges, prev_week_ranges, 'overall') }}
 </div>
 
 
@@ -251,7 +254,7 @@
     </div>
   </div>
 
-  {{ wow_table(r.curr_weekly, r.prev_weekly, r.curr_total, r.prev_total, week_ranges, prev_week_ranges) }}
+  {{ wow_table(r.curr_weekly, r.prev_weekly, r.curr_total, r.prev_total, week_ranges, prev_week_ranges, 'gabay_' ~ r.gabay.id) }}
 </div>
 {% endfor %}
 {% endif %}
@@ -299,7 +302,7 @@
     </div>
   </div>
 
-  {{ wow_table(p.curr_weekly, p.prev_weekly, p.curr_total, p.prev_total, week_ranges, prev_week_ranges) }}
+  {{ wow_table(p.curr_weekly, p.prev_weekly, p.curr_total, p.prev_total, week_ranges, prev_week_ranges, 'project_' ~ p.name) }}
 </div>
 {% endfor %}
 {% endif %}
