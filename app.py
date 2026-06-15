@@ -218,7 +218,8 @@ def leads_radar():
         pool_q = pool_q.filter(func.lower(Lead.city) == city_filter)
     if priority_filter:
         pool_q = pool_q.filter(Lead.priority_tier == priority_filter)
-    pool_leads = pool_q.order_by(Lead.priority_tier, Lead.conversion_score.desc()).all()
+    pool_leads = pool_q.order_by(Lead.priority_tier).all()
+    pool_leads.sort(key=lambda l: l.conversion_score, reverse=True)
 
     # All distinct cities that have pool leads (for filter dropdown)
     city_rows = db.session.query(Lead.city).filter(
