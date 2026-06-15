@@ -2910,6 +2910,7 @@ def admin_edit_user(user_id):
         u.is_active = 'is_active' in request.form
         if u.role == 'gabay':
             u.assigned_city = request.form.get('assigned_city', '').strip() or None
+            u.mobile = request.form.get('mobile', '').strip() or None
         else:
             u.assigned_city = None
         new_pw = request.form.get('password', '').strip()
