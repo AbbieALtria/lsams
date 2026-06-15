@@ -1756,6 +1756,155 @@ def api_visits_trend():
     return jsonify([{'date': str(r.day), 'count': r.count} for r in results])
 
 
+@app.route('/reports/forecast')
+@login_required
+def report_forecast():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+
+    from calendar import monthrange
+    today = date.today()
+    month_str = request.args.get('month', today.strftime('%Y-%m'))
+    try:
+        year, mon = int(month_str[:4]), int(month_str[5:7])
+    except Exception:
+        year, mon = today.year, today.month
+
+    month_start = date(year, mon, 1)
+    _, days_in_month = monthrange(year, mon)
+    month_end = date(year, mon, days_in_month)
+    days_elapsed = min((today - month_start).days + 1, days_in_month) if (year, mon) == (today.year, today.month) else days_in_month
+    days_remaining = max(days_in_month - days_elapsed, 0)
+    is_current_month = (year == today.year and mon == today.month)
+
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    # Week boundaries within the month
+    week_ranges = []
+    for w in range(4):
+        ws = month_start + __import__('datetime').timedelta(days=w*7)
+        we = min(month_start + __import__('datetime').timedelta(days=(w+1)*7 - 1), month_end)
+        if ws <= month_end:
+            week_ranges.append((w+1, ws, we))
+
+    results = []
+    for g in gabays:
+        target = GabayTarget.query.filter_by(gabay_id=g.id, month=month_str).first()
+        target_live   = target.target_live   if target else 0
+        target_visits = target.target_visits if target else 0
+
+        # Visits this month
+        visits_this_month = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            func.date(Visit.visited_at) >= month_start,
+            func.date(Visit.visited_at) <= month_end
+        ).all()
+
+        # Per-week visit counts
+        weekly_visits = []
+        for w_num, ws, we in week_ranges:
+            cnt = sum(1 for v in visits_this_month if ws <= v.visited_at.date() <= we)
+            weekly_visits.append({'week': w_num, 'start': ws, 'end': we, 'count': cnt})
+
+        total_visits = len(visits_this_month)
+        daily_visit_rate = total_visits / days_elapsed if days_elapsed > 0 else 0
+        projected_visits = round(daily_visit_rate * days_in_month)
+
+        # Current pipeline counts
+        assigned_leads = Lead.query.filter_by(gabay_id=g.id).all()
+        status_counts = {}
+        for lead in assigned_leads:
+            status_counts[lead.status] = status_counts.get(lead.status, 0) + 1
+
+        live_count   = status_counts.get('live', 0)
+        reg_count    = status_counts.get('registration', 0)
+        nego_count   = status_counts.get('negotiation', 0)
+        attempt_count= status_counts.get('attempting', 0)
+        total_assigned = len(assigned_leads)
+
+        # Historical conversion rate: live / total_assigned (min 5% floor)
+        conv_rate = (live_count / total_assigned) if total_assigned > 0 else 0.0
+
+        # Forecast: leads in hot pipeline likely to convert this month
+        # Registration → very high chance (70%)
+        # Negotiation → moderate (25%)
+        # Attempting → low (8%)
+        hot_forecast = round(reg_count * 0.70 + nego_count * 0.25 + attempt_count * 0.08)
+        projected_live = live_count + hot_forecast
+        gap = target_live - projected_live
+
+        # Visit pace forecast
+        visit_gap = target_visits - projected_visits
+
+        # Coaching suggestions
+        suggestions = []
+        if gap > 0:
+            if reg_count > 0:
+                suggestions.append(f"🔴 Push {reg_count} lead(s) in Registration — they are closest to going Live.")
+            if nego_count >= gap * 2:
+                suggestions.append(f"⚡ {nego_count} leads in Negotiation. Focus on top {min(nego_count, gap*3)} to convert {gap} more.")
+            elif nego_count > 0:
+                suggestions.append(f"⚡ Only {nego_count} leads in Negotiation — need to move more leads up the pipeline.")
+            if attempt_count > 3:
+                suggestions.append(f"📞 {attempt_count} leads still Attempting Contact. Re-visit or call to push to Negotiation.")
+            if daily_visit_rate < 2:
+                suggestions.append(f"🚶 Visit pace is low ({daily_visit_rate:.1f}/day). Increase to at least 3 visits/day to hit target.")
+            if not suggestions:
+                suggestions.append(f"📋 Need {gap} more live seller(s). Review all active leads and prioritize follow-ups.")
+        elif gap == 0:
+            suggestions.append("🎯 On track to meet target exactly. Maintain current pace.")
+        else:
+            suggestions.append(f"✅ Projected to EXCEED target by {abs(gap)} seller(s). Keep going!")
+
+        # Stalled leads (no visit in 7+ days, not live/matched/closed)
+        stalled = []
+        for lead in assigned_leads:
+            if lead.status in ('live', 'matched', 'closed'):
+                continue
+            lvd = lead.last_visit_days
+            if lvd is None or lvd >= 7:
+                stalled.append(lead)
+        stalled = sorted(stalled, key=lambda l: l.conversion_score, reverse=True)[:5]
+
+        results.append({
+            'gabay': g,
+            'target_live': target_live,
+            'target_visits': target_visits,
+            'live_count': live_count,
+            'reg_count': reg_count,
+            'nego_count': nego_count,
+            'attempt_count': attempt_count,
+            'total_visits': total_visits,
+            'daily_visit_rate': round(daily_visit_rate, 1),
+            'projected_visits': projected_visits,
+            'projected_live': projected_live,
+            'hot_forecast': hot_forecast,
+            'gap': gap,
+            'visit_gap': visit_gap,
+            'weekly_visits': weekly_visits,
+            'suggestions': suggestions,
+            'stalled': stalled,
+            'conv_rate': round(conv_rate * 100, 1),
+            'days_elapsed': days_elapsed,
+            'days_remaining': days_remaining,
+        })
+
+    # Sort: biggest gap first (most attention needed)
+    results.sort(key=lambda r: r['gap'], reverse=True)
+
+    return render_template('reports/forecast.html',
+        results=results,
+        month_str=month_str,
+        month_label=month_start.strftime('%B %Y'),
+        days_in_month=days_in_month,
+        days_elapsed=days_elapsed,
+        days_remaining=days_remaining,
+        is_current_month=is_current_month,
+        week_ranges=week_ranges,
+    )
+
+
 @app.route('/reports/export/leads')
 @login_required
 def export_leads():

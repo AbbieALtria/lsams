@@ -11,6 +11,28 @@
   {% endif %}
 </div>
 
+<!-- FORECAST HIGHLIGHT -->
+{% if current_user.is_supervisor %}
+<a href="{{ url_for('report_forecast') }}" class="text-decoration-none">
+  <div class="card mb-4" style="border:2px solid #7c3aed;background:linear-gradient(135deg,#f5f3ff,#ede9fe);cursor:pointer;transition:box-shadow 0.2s"
+       onmouseover="this.style.boxShadow='0 4px 20px #7c3aed33'" onmouseout="this.style.boxShadow=''">
+    <div class="card-body py-3 d-flex align-items-center gap-4">
+      <div style="font-size:48px">🔮</div>
+      <div>
+        <div style="font-weight:800;color:#5b21b6;font-size:18px">
+          Monthly Forecast & Productivity Report
+          <span class="badge ms-2" style="background:#7c3aed;font-size:11px">NEW</span>
+        </div>
+        <div style="color:#6d28d9;font-size:13px;margin-top:3px">
+          AI-powered projection per gabay — visit pace, pipeline forecast, gap to target, and coaching suggestions
+        </div>
+      </div>
+      <div class="ms-auto" style="color:#7c3aed;font-size:28px"><i class="bi bi-arrow-right-circle-fill"></i></div>
+    </div>
+  </div>
+</a>
+{% endif %}
+
 <!-- DOWNLOADABLE REPORTS -->
 {% if current_user.is_supervisor %}
 <div class="card mb-4">
