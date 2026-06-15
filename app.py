@@ -49,6 +49,21 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
+    # Add ML scoring columns to leads + ml_model_runs table
+    _new_lead_cols = [
+        ("ml_score",       "FLOAT"),
+        ("ml_trained_at",  "TIMESTAMP"),
+    ]
+    with db.engine.connect() as _conn:
+        for _col, _type in _new_lead_cols:
+            try:
+                _conn.execute(text(
+                    f"ALTER TABLE leads ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                ))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
+
 
 @login_manager.user_loader
 def load_user(user_id):
@@ -2256,6 +2271,59 @@ def import_data():
 
 
 # ─── SUPERADMIN USER MANAGEMENT ──────────────────────────────────────────────
+
+@app.route('/admin/ml/train', methods=['GET', 'POST'])
+@login_required
+def admin_ml_train():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    from models import MLModelRun
+    import threading
+
+    if request.method == 'POST':
+        run = MLModelRun(trained_by=current_user.id, status='pending')
+        db.session.add(run)
+        db.session.commit()
+
+        def _bg_train(run_id, app_ref):
+            import ml_engine
+            ml_engine.train(app_ref, run_id=run_id)
+
+        t = threading.Thread(target=_bg_train, args=(run.id, app), daemon=True)
+        t.start()
+        flash(f'Model training started (Run #{run.id}). Refresh in 30 seconds to see results.', 'info')
+        return redirect(url_for('admin_ml_train'))
+
+    # GET — show history and current model status
+    import json as _json
+    import os as _os
+    runs = MLModelRun.query.order_by(MLModelRun.trained_at.desc()).limit(10).all()
+    latest = next((r for r in runs if r.status == 'success'), None)
+    top_features = []
+    if latest and latest.top_features:
+        try:
+            top_features = _json.loads(latest.top_features)
+        except Exception:
+            pass
+
+    from ml_engine import MODEL_PATH, MIN_POSITIVE
+    model_exists = _os.path.exists(MODEL_PATH)
+
+    live_count = Lead.query.filter(Lead.status.in_(['live', 'matched'])).count()
+    total_scored = Lead.query.filter(Lead.ml_score.isnot(None)).count()
+
+    return render_template('admin/ml_train.html',
+        runs=runs,
+        latest=latest,
+        top_features=top_features,
+        model_exists=model_exists,
+        live_count=live_count,
+        min_positive=MIN_POSITIVE,
+        total_scored=total_scored,
+    )
+
 
 @app.route('/admin/db-status')
 @login_required

@@ -416,6 +416,9 @@
     <i class="bi bi-bar-chart-line"></i> Reports
   </a>
   {% if current_user.is_supervisor %}
+  <a href="{{ url_for('admin_ml_train') }}" class="nav-link {% if request.endpoint == 'admin_ml_train' %}active{% endif %}">
+    <i class="bi bi-cpu" style="color:#7c3aed"></i> AI Scoring
+  </a>
   <a href="{{ url_for('campaigns') }}" class="nav-link {% if 'campaign' in request.endpoint %}active{% endif %}">
     <i class="bi bi-collection"></i> Campaigns
   </a>

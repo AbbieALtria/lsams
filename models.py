@@ -114,6 +114,9 @@ class Lead(db.Model):
     imported_at = db.Column(db.DateTime, default=datetime.utcnow)
     batch_ref = db.Column(db.String(100))
     notes = db.Column(db.Text)
+    # ML model output — updated by /admin/ml/train, None = use rule-based score
+    ml_score = db.Column(db.Float)
+    ml_trained_at = db.Column(db.DateTime)
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
@@ -155,17 +158,20 @@ class Lead(db.Model):
     @property
     def conversion_score(self):
         """
-        AI-style lead conversion score 0–100.
-        Higher = more likely to register on Lazada soon.
+        Lead conversion score 0–100. Higher = more likely to register soon.
+        When the ML model has been trained and scored this lead, the ML score
+        is blended in (70% ML, 30% rules). Otherwise pure rule-based.
 
-        Factors (max points):
+        Rule factors (max pts):
           Priority tier          : 20
           Status progression     : 20
           Visit outcome momentum : 25
           Recency of last visit  : 15
           Follow-up compliance   : 10
+          Category/cluster bonus :  8
+          Online presence bonus  :  5
+          Contact info bonus     :  2
           Lead age penalty       : -10 max
-          Rejection signal       : -20
         """
         score = 0
 
@@ -182,7 +188,6 @@ class Lead(db.Model):
         score += status_pts.get(self.status, 0)
 
         # ── 3. Visit outcome momentum (25 pts) ──────────────────────────
-        # Look at last 5 visits, most recent weighted more
         outcome_pts = {
             'interested':     10,
             'callback':        8,
@@ -195,14 +200,14 @@ class Lead(db.Model):
         recent_visits = self.visits.order_by(Visit.visited_at.desc()).limit(5).all()
         visit_score = 0
         for i, v in enumerate(recent_visits):
-            weight = 1.0 - (i * 0.15)  # most recent = weight 1.0, drops 15% each
+            weight = 1.0 - (i * 0.15)
             visit_score += outcome_pts.get(v.outcome or '', 0) * weight
         score += max(-20, min(25, int(visit_score)))
 
         # ── 4. Recency of last visit (15 pts) ───────────────────────────
         lvd = self.last_visit_days
         if lvd is None:
-            recency = -5   # never visited = slightly negative
+            recency = -5
         elif lvd <= 2:
             recency = 15
         elif lvd <= 5:
@@ -214,35 +219,63 @@ class Lead(db.Model):
         elif lvd <= 45:
             recency = 0
         else:
-            recency = -8   # very stale
+            recency = -8
         score += recency
 
         # ── 5. Follow-up compliance (10 pts) ────────────────────────────
-        # If last visit set a follow-up and it's due/overdue = urgent
         last_v = self.latest_visit
         if last_v and last_v.follow_up_date:
             days_to_fu = (last_v.follow_up_date - datetime.utcnow().date()).days
             if -3 <= days_to_fu <= 1:
-                score += 10   # due today ±3 days
+                score += 10
             elif days_to_fu < -3:
-                score += 5    # overdue — still relevant
+                score += 5
             elif days_to_fu <= 7:
-                score += 6    # coming up soon
+                score += 6
 
-        # ── 6. Lead age penalty (up to -10) ─────────────────────────────
+        # ── 6. Category / cluster affinity (8 pts) ──────────────────────
+        # High-volume categories on Lazada PH that convert faster
+        HIGH_CONV_CATEGORIES = {
+            'beauty', 'health', 'fashion', 'clothing', 'accessories',
+            'food', 'beverage', 'snacks', 'groceries', 'fmcg',
+            'home', 'kitchen', 'appliances', 'electronics',
+        }
+        MEDIUM_CONV_CATEGORIES = {
+            'sports', 'automotive', 'toys', 'baby', 'pet',
+            'office', 'tools', 'garden',
+        }
+        cat = (self.category or '').lower()
+        cluster = (self.cluster or '').lower()
+        cat_text = f'{cat} {cluster}'
+        if any(k in cat_text for k in HIGH_CONV_CATEGORIES):
+            score += 8
+        elif any(k in cat_text for k in MEDIUM_CONV_CATEGORIES):
+            score += 4
+
+        # ── 7. Online presence — existing shop = easier onboarding (5 pts)
+        if self.link:
+            score += 3   # TikTok / Shopee shop already exists
+        if self.social_media_link:
+            score += 2   # Facebook / Instagram presence
+
+        # ── 8. Contact info available (2 pts) ───────────────────────────
+        if self.contact_number:
+            score += 2
+
+        # ── 9. Lead age penalty (up to -10) ─────────────────────────────
         age = self.age_days
         if age > 60:
             score -= 10
         elif age > 30:
             score -= 5
 
-        # ── 7. Has social media / contact info bonus ─────────────────────
-        if self.link or self.social_media_link:
-            score += 3
-        if self.contact_number:
-            score += 2
+        rule_score = max(0, min(100, score))
 
-        return max(0, min(100, score))
+        # ── 10. Blend ML score if available (70% ML, 30% rules) ─────────
+        if self.ml_score is not None:
+            return int(round(self.ml_score * 0.7 + rule_score * 0.3))
+
+        return rule_score
 
     @property
     def conversion_tier(self):
@@ -376,6 +409,22 @@ class LeadAssignmentHistory(db.Model):
     gabay_id = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     assigned_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
     assigned_at = db.Column(db.DateTime, default=datetime.utcnow)
+    notes = db.Column(db.Text)
+
+
+class MLModelRun(db.Model):
+    """Tracks each training run of the lead scoring ML model."""
+    __tablename__ = 'ml_model_runs'
+    id = db.Column(db.Integer, primary_key=True)
+    trained_at = db.Column(db.DateTime, default=datetime.utcnow)
+    trained_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    n_samples = db.Column(db.Integer)       # total leads used
+    n_positive = db.Column(db.Integer)      # live leads (label=1)
+    accuracy = db.Column(db.Float)          # cross-val accuracy
+    roc_auc = db.Column(db.Float)           # AUC score
+    top_features = db.Column(db.Text)       # JSON: [{name, weight}]
+    model_path = db.Column(db.String(300))  # path to .pkl file
+    status = db.Column(db.String(30), default='pending')  # pending, success, failed, insufficient_data
     notes = db.Column(db.Text)
 
 
