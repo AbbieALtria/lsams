@@ -37,6 +37,7 @@ with app.app_context():
         ("city_address",   "VARCHAR(100)"),
         ("profile_photo",  "VARCHAR(200)"),
         ("deactivated_at", "TIMESTAMP"),
+        ("gabay_name",     "VARCHAR(100)"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_user_cols:
