@@ -147,6 +147,24 @@
     </div>
   </div>
 
+  <!-- Trend chart -->
+  <div class="card-body border-top pt-3 pb-0">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span style="font-size:12px;font-weight:700;color:#374151"><i class="bi bi-graph-up me-1"></i>Weekly Trend</span>
+      <div>
+        {% for m, lbl, col in [('visits','Visits','#0891b2'),('registrations','Regs','#be185d'),('live','Live','#15803d')] %}
+        <button class="trend-tab-btn {% if m == 'visits' %}active{% endif %}"
+                data-scope="overall" data-metric="{{ m }}"
+                style="color:{{ col }}"
+                onclick="__trendSwitchMetric('overall','{{ m }}')">{{ lbl }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="position:relative;height:220px">
+      <canvas id="trend_overall"></canvas>
+    </div>
+  </div>
+
   {{ wow_table(overall_curr_weekly, overall_prev_weekly, overall_curr_total, overall_prev_total, week_ranges, prev_week_ranges) }}
 </div>
 
@@ -214,6 +232,25 @@
       <span>L: <strong>{{ r.curr_total.live }}</strong></span>
     </div>
   </div>
+  <!-- Trend chart per gabay -->
+  {% set gkey = r.gabay.display_name | replace(' ','_') | replace('.','_') %}
+  <div class="card-body border-top pt-3 pb-0">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span style="font-size:12px;font-weight:700;color:#374151"><i class="bi bi-graph-up me-1"></i>Weekly Trend</span>
+      <div>
+        {% for m, lbl, col in [('visits','Visits','#0891b2'),('registrations','Regs','#be185d'),('live','Live','#15803d')] %}
+        <button class="trend-tab-btn {% if m == 'visits' %}active{% endif %}"
+                data-scope="gabay_{{ r.gabay.display_name }}" data-metric="{{ m }}"
+                style="color:{{ col }}"
+                onclick="__trendSwitchMetric('gabay_{{ r.gabay.display_name }}','{{ m }}')">{{ lbl }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="position:relative;height:180px">
+      <canvas id="trend_gabay_{{ gkey }}"></canvas>
+    </div>
+  </div>
+
   {{ wow_table(r.curr_weekly, r.prev_weekly, r.curr_total, r.prev_total, week_ranges, prev_week_ranges) }}
 </div>
 {% endfor %}
@@ -243,6 +280,25 @@
       <span>L: <strong>{{ p.curr_total.live }}</strong></span>
     </div>
   </div>
+  <!-- Trend chart per project -->
+  {% set pkey = p.name | replace(' ','_') | replace('.','_') | replace('(','_') | replace(')','_') %}
+  <div class="card-body border-top pt-3 pb-0">
+    <div class="d-flex align-items-center justify-content-between mb-2">
+      <span style="font-size:12px;font-weight:700;color:#374151"><i class="bi bi-graph-up me-1"></i>Weekly Trend</span>
+      <div>
+        {% for m, lbl, col in [('visits','Visits','#0891b2'),('registrations','Regs','#be185d'),('live','Live','#15803d')] %}
+        <button class="trend-tab-btn {% if m == 'visits' %}active{% endif %}"
+                data-scope="proj_{{ p.name }}" data-metric="{{ m }}"
+                style="color:{{ col }}"
+                onclick="__trendSwitchMetric('proj_{{ p.name }}','{{ m }}')">{{ lbl }}</button>
+        {% endfor %}
+      </div>
+    </div>
+    <div style="position:relative;height:180px">
+      <canvas id="trend_proj_{{ pkey }}"></canvas>
+    </div>
+  </div>
+
   {{ wow_table(p.curr_weekly, p.prev_weekly, p.curr_total, p.prev_total, week_ranges, prev_week_ranges) }}
 </div>
 {% endfor %}
@@ -254,5 +310,168 @@
   .page-header button, .page-header a, .d-flex.gap-2.mb-4 { display:none !important; }
   .card { break-inside: avoid; }
 }
+.trend-tab-btn { background:none;border:none;padding:6px 14px;font-size:12px;font-weight:600;color:#6b7280;border-bottom:2px solid transparent;cursor:pointer }
+.trend-tab-btn.active { color:#1F3864;border-bottom-color:#1F3864 }
 </style>
+
+<script>
+(function(){
+  /* ── raw data from Jinja ── */
+  const weekLabels = [
+    {% for w_num, ws, we in week_ranges %}"W{{ w_num }} {{ ws.strftime('%b %d') }}"{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+  const prevLabels = [
+    {% for w_num, ws, we in prev_week_ranges %}"W{{ w_num }} {{ ws.strftime('%b %d') }}"{% if not loop.last %},{% endif %}{% endfor %}
+  ];
+
+  /* overall */
+  const overallCurr = {
+    visits:        [{% for w in overall_curr_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+    registrations: [{% for w in overall_curr_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+    live:          [{% for w in overall_curr_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+  };
+  const overallPrev = {
+    visits:        [{% for w in overall_prev_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+    registrations: [{% for w in overall_prev_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+    live:          [{% for w in overall_prev_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+  };
+
+  /* per gabay */
+  const gabayData = [
+    {% for r in gabay_rows %}{
+      name: "{{ r.gabay.display_name }}",
+      curr: {
+        visits:        [{% for w in r.curr_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+        registrations: [{% for w in r.curr_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+        live:          [{% for w in r.curr_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+      },
+      prev: {
+        visits:        [{% for w in r.prev_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+        registrations: [{% for w in r.prev_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+        live:          [{% for w in r.prev_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+      },
+    },{% endfor %}
+  ];
+
+  /* per project */
+  const projectData = [
+    {% for p in project_rows %}{
+      name: "{{ p.name }}",
+      curr: {
+        visits:        [{% for w in p.curr_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+        registrations: [{% for w in p.curr_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+        live:          [{% for w in p.curr_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+      },
+      prev: {
+        visits:        [{% for w in p.prev_weekly %}{{ w.visits }}{% if not loop.last %},{% endif %}{% endfor %}],
+        registrations: [{% for w in p.prev_weekly %}{{ w.registrations }}{% if not loop.last %},{% endif %}{% endfor %}],
+        live:          [{% for w in p.prev_weekly %}{{ w.live }}{% if not loop.last %},{% endif %}{% endfor %}],
+      },
+    },{% endfor %}
+  ];
+
+  const CURR_MONTH = "{{ month_label }}";
+  const PREV_MONTH = "{{ prev_month_label }}";
+  const VIEW       = "{{ view }}";
+
+  /* palette */
+  const C = {
+    visits_curr: '#0891b2', visits_prev: '#bae6fd',
+    regs_curr:   '#be185d', regs_prev:   '#fce7f3',
+    live_curr:   '#15803d', live_prev:   '#bbf7d0',
+  };
+
+  function makeDatasets(curr, prev, metric) {
+    const keyC = metric + '_curr', keyP = metric + '_prev';
+    const labels = { visits:'Visits', registrations:'Regs', live:'Live' };
+    return [
+      {
+        label: labels[metric] + ' — ' + CURR_MONTH,
+        data: curr[metric],
+        borderColor: C[keyC], backgroundColor: C[keyC] + '18',
+        borderWidth: 3, pointRadius: 5, pointHoverRadius: 7,
+        tension: 0.35, fill: true,
+      },
+      {
+        label: labels[metric] + ' — ' + PREV_MONTH,
+        data: prev[metric],
+        borderColor: C[keyP], backgroundColor: 'transparent',
+        borderWidth: 2, pointRadius: 4, borderDash: [5, 4],
+        tension: 0.35, fill: false,
+      },
+    ];
+  }
+
+  function buildChart(canvasId, curr, prev, metric) {
+    const ctx = document.getElementById(canvasId);
+    if (!ctx) return null;
+    const maxVal = Math.max(...curr[metric], ...prev[metric], 1);
+    return new Chart(ctx, {
+      type: 'line',
+      data: { labels: weekLabels, datasets: makeDatasets(curr, prev, metric) },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { position: 'top', labels: { font: { size: 11 }, padding: 10, usePointStyle: true } },
+          tooltip: {
+            callbacks: {
+              afterBody(items) {
+                const curr = items.find(i => i.datasetIndex === 0)?.raw ?? 0;
+                const prev = items.find(i => i.datasetIndex === 1)?.raw ?? 0;
+                const d = curr - prev;
+                return d > 0 ? [`▲ +${d} vs ${PREV_MONTH}`] : d < 0 ? [`▼ ${d} vs ${PREV_MONTH}`] : [`= same as ${PREV_MONTH}`];
+              }
+            }
+          }
+        },
+        scales: {
+          x: { grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 } } },
+          y: { beginAtZero: true, suggestedMax: maxVal + 1,
+               grid: { color: '#f1f5f9' }, ticks: { font: { size: 11 }, precision: 0 } },
+        },
+      },
+    });
+  }
+
+  /* switch metric tabs */
+  function switchMetric(scope, metric) {
+    const scopes = { overall: { curr: overallCurr, prev: overallPrev } };
+    gabayData.forEach(g => { scopes['gabay_' + g.name] = { curr: g.curr, prev: g.prev }; });
+    projectData.forEach(p => { scopes['proj_' + p.name] = { curr: p.curr, prev: p.prev }; });
+
+    const s = scopes[scope];
+    if (!s) return;
+    const canvasId = 'trend_' + scope.replace(/[^a-zA-Z0-9]/g, '_');
+    const existing = Chart.getChart(canvasId);
+    if (existing) {
+      existing.data.datasets = makeDatasets(s.curr, s.prev, metric);
+      const maxVal = Math.max(...s.curr[metric], ...s.prev[metric], 1);
+      existing.options.scales.y.suggestedMax = maxVal + 1;
+      existing.update();
+    }
+    document.querySelectorAll('.trend-tab-btn[data-scope="' + scope + '"]').forEach(b => {
+      b.classList.toggle('active', b.dataset.metric === metric);
+    });
+  }
+
+  window.__trendSwitchMetric = switchMetric;
+
+  document.addEventListener('DOMContentLoaded', () => {
+    if (VIEW === 'overall' || VIEW === 'all') {
+      buildChart('trend_overall', overallCurr, overallPrev, 'visits');
+    }
+    if (VIEW === 'gabay') {
+      gabayData.forEach(g => {
+        buildChart('trend_gabay_' + g.name.replace(/[^a-zA-Z0-9]/g,'_'), g.curr, g.prev, 'visits');
+      });
+    }
+    if (VIEW === 'project') {
+      projectData.forEach(p => {
+        buildChart('trend_proj_' + p.name.replace(/[^a-zA-Z0-9]/g,'_'), p.curr, p.prev, 'visits');
+      });
+    }
+  });
+})();
+</script>
 {% endblock %}
