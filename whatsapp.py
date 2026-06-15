@@ -203,9 +203,13 @@ def handle_incoming(data: dict):
         if not body:
             return  # ignore non-text messages for now
 
+        logger.info(f'[WA] Message from {from_}: {body[:80]}')
+
         # 1. Find which gabay sent this
         gabay = find_gabay_by_phone(from_)
+        logger.info(f'[WA] Gabay lookup for {from_}: {gabay}')
         if not gabay:
+            logger.warning(f'[WA] No gabay found for number {from_} — sending unregistered reply')
             send_message(from_,
                 "⚠️ Your number is not registered in LSAMS. "
                 "Ask your supervisor to add your mobile number to your profile.")

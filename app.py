@@ -2291,11 +2291,14 @@ def whatsapp_incoming():
     """Meta POSTs incoming messages here."""
     import threading
     data = request.get_json(silent=True) or {}
-    # Process in background so we return 200 immediately (Meta requires fast response)
+    app.logger.info(f'[WA] Incoming payload: {data}')
     def _process():
         with app.app_context():
-            from whatsapp import handle_incoming
-            handle_incoming(data)
+            try:
+                from whatsapp import handle_incoming
+                handle_incoming(data)
+            except Exception as e:
+                app.logger.error(f'[WA] handle_incoming error: {e}', exc_info=True)
     threading.Thread(target=_process, daemon=True).start()
     return 'OK', 200
 
