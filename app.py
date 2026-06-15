@@ -1554,7 +1554,7 @@ def reports():
 @app.route('/reports/daily-field')
 @login_required
 def report_daily_field():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     today = date.today()
@@ -1577,7 +1577,7 @@ def report_daily_field():
 @app.route('/reports/gabay-performance')
 @login_required
 def report_gabay_performance():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     today = date.today()
@@ -1604,7 +1604,7 @@ def report_gabay_performance():
 @app.route('/reports/pipeline-detail')
 @login_required
 def report_pipeline_detail():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     statuses = ['pool', 'assigned', 'attempting', 'negotiation', 'registration', 'live', 'matched', 'closed']
@@ -1625,7 +1625,7 @@ def report_pipeline_detail():
 @app.route('/reports/stalled')
 @login_required
 def report_stalled():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     from datetime import timedelta
@@ -1643,7 +1643,7 @@ def report_stalled():
 @app.route('/reports/city-coverage')
 @login_required
 def report_city_coverage():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     visited_ids = {v.lead_id for v in Visit.query.with_entities(Visit.lead_id).all()}
@@ -1664,7 +1664,7 @@ def report_city_coverage():
 @app.route('/reports/registrations-status')
 @login_required
 def report_registrations_status():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     regs = Registration.query.order_by(Registration.submitted_at.desc()).all()
@@ -1678,7 +1678,7 @@ def report_registrations_status():
 @app.route('/reports/campaign-roi')
 @login_required
 def report_campaign_roi():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     batches = db.session.query(
@@ -1696,7 +1696,7 @@ def report_campaign_roi():
 @app.route('/reports/lead-scoring')
 @login_required
 def report_lead_scoring():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -1734,7 +1734,7 @@ def report_lead_scoring():
 @app.route('/reports/gabay-pipeline')
 @login_required
 def report_gabay_pipeline():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     gabay_users = User.query.filter_by(role='gabay').order_by(User.full_name).all()
@@ -2057,7 +2057,7 @@ def admin_health_flag_warehouse(lead_id):
 @app.route('/reports/competitor')
 @login_required
 def report_competitor():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -2113,7 +2113,7 @@ def report_competitor():
 @app.route('/reports/hot-prospects')
 @login_required
 def report_hot_prospects():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -2211,7 +2211,7 @@ def report_hot_prospects():
 @app.route('/reports/forecast')
 @login_required
 def report_forecast():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -2544,7 +2544,7 @@ def report_forecast():
 @app.route('/reports/wow')
 @login_required
 def report_wow():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -2709,7 +2709,7 @@ def report_wow():
 @login_required
 def report_wow_week():
     """Week drill-down: all visits for a specific week vs same week previous month."""
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
 
@@ -2823,7 +2823,7 @@ def report_wow_week():
 @app.route('/reports/export/leads')
 @login_required
 def export_leads():
-    if not current_user.is_supervisor:
+    if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     leads = Lead.query.all()
