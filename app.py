@@ -2272,6 +2272,34 @@ def import_data():
 
 # ─── SUPERADMIN USER MANAGEMENT ──────────────────────────────────────────────
 
+# ── WhatsApp Webhook ──────────────────────────────────────────────────────────
+
+@app.route('/webhook/whatsapp', methods=['GET'])
+def whatsapp_verify():
+    """Meta calls this GET to verify the webhook URL."""
+    verify_token = os.environ.get('WHATSAPP_VERIFY_TOKEN', 'lsams_webhook_2026')
+    mode      = request.args.get('hub.mode')
+    token     = request.args.get('hub.verify_token')
+    challenge = request.args.get('hub.challenge')
+    if mode == 'subscribe' and token == verify_token:
+        return challenge, 200
+    return 'Forbidden', 403
+
+
+@app.route('/webhook/whatsapp', methods=['POST'])
+def whatsapp_incoming():
+    """Meta POSTs incoming messages here."""
+    import threading
+    data = request.get_json(silent=True) or {}
+    # Process in background so we return 200 immediately (Meta requires fast response)
+    def _process():
+        with app.app_context():
+            from whatsapp import handle_incoming
+            handle_incoming(data)
+    threading.Thread(target=_process, daemon=True).start()
+    return 'OK', 200
+
+
 @app.route('/admin/ml/train', methods=['GET', 'POST'])
 @login_required
 def admin_ml_train():
