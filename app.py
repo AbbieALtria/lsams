@@ -210,7 +210,7 @@ def leads():
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
-            Lead.business_name.ilike(f'%{search}%'),
+            Lead.sender_name.ilike(f'%{search}%'),
             Lead.contact_number.ilike(f'%{search}%'),
             Lead.city.ilike(f'%{search}%')
         ))
@@ -1029,7 +1029,7 @@ def assign_center():
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
-            Lead.business_name.ilike(f'%{search}%'),
+            Lead.sender_name.ilike(f'%{search}%'),
             Lead.contact_number.ilike(f'%{search}%'),
         ))
     if city_filter:
