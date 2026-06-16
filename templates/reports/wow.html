@@ -65,7 +65,7 @@
     {% set pw = prev_weekly[i] if i < prev_weekly|length else none %}
     {% set pr = prev_week_ranges[i] if i < prev_week_ranges|length else none %}
     <tr style="border-bottom:1px solid #f1f5f9;{% if loop.index is odd %}background:#fafafa{% endif %};cursor:pointer"
-        onclick="window.location='{{ url_for('report_wow_week') }}?month={{ month_str }}&week={{ cw.week }}&scope={{ scope|urlencode }}&view={{ view }}'"
+        onclick="window.location='{{ url_for('report_wow_week') }}?month={{ month_str }}&week={{ cw.week }}&scope={{ scope|urlencode }}&view={{ view }}'">
       <td style="padding:5px 10px;font-weight:700;color:#2563eb;text-decoration:underline">
         <i class="bi bi-box-arrow-up-right" style="font-size:10px;margin-right:3px"></i>W{{ cw.week }}
       </td>
