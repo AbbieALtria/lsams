@@ -88,6 +88,7 @@ Reply with only the JSON object, no explanation."""
 
 def _keyword_parse(text: str) -> dict:
     """Fallback: simple keyword-based parser when Claude is unavailable."""
+    import re
     t = text.lower()
     outcome = 'follow_up'
     if any(w in t for w in ['interested', 'gusto', 'willing', 'open']):
@@ -113,8 +114,29 @@ def _keyword_parse(text: str) -> dict:
     elif '2 days' in t:
         follow_up_days = 2
 
+    # Try to pull a seller name out of the free text instead of giving up.
+    # Strip a leading "visited"/"visit" verb, then either split on a dash
+    # separator ("Seller — outcome") or cut at the first outcome keyword.
+    s = re.sub(r'^\s*(visited|visit|nag-?visit|pumunta\s+sa)\s+', '', text, flags=re.IGNORECASE)
+    dash_parts = re.split(r'\s[—–\-]\s', s, maxsplit=1)
+    if len(dash_parts) > 1:
+        seller_name = dash_parts[0].strip(' .,') or None
+    else:
+        all_keywords = ['interested', 'gusto', 'willing', 'open', 'not interested', 'ayaw',
+                         'decline', 'refused', 'not home', 'wala', 'closed', 'absent',
+                         'reject', 'tanggihan', 'registered', 'live', 'done', 'activated',
+                         'call back', 'callback', 'tawag ulit', 'will call', 'follow up']
+        s_lower = s.lower()
+        cut_idx = len(s)
+        for kw in all_keywords:
+            idx = s_lower.find(kw)
+            if idx != -1 and 0 < idx < cut_idx:
+                cut_idx = idx
+        candidate = s[:cut_idx].strip(' .,-')
+        seller_name = candidate or None
+
     return {
-        'seller_name': None,
+        'seller_name': seller_name,
         'outcome': outcome,
         'notes': text,
         'follow_up_days': follow_up_days,
@@ -283,8 +305,9 @@ def handle_incoming(data: dict):
             # Can't match — ask for clarification
             assigned = Lead.query.filter_by(gabay_id=gabay.id).limit(5).all()
             names = '\n'.join(f"• {l.seller_name}" for l in assigned)
+            shown = f'"{seller_name}"' if seller_name else 'a seller name'
             send_message(from_,
-                f"🔍 Couldn't find *\"{seller_name}\"* in your leads.\n\n"
+                f"🔍 Couldn't find {shown} in your leads.\n\n"
                 f"Your recent leads:\n{names}\n\n"
                 f"Try: _\"Visited [exact seller name] — [outcome]\"_"
             )
