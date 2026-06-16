@@ -4114,6 +4114,9 @@ def gabay_quick_checkin():
         selected_lead = Lead.query.get(preselect)
     if request.method == 'POST':
         lead_id = request.form.get('lead_id')
+        if not lead_id:
+            flash('Please select a seller before checking in.', 'danger')
+            return redirect(url_for('gabay_quick_checkin'))
         outcome = request.form.get('outcome')
         notes = request.form.get('notes', '')
         gps_lat = request.form.get('gps_lat')
