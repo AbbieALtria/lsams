@@ -201,6 +201,62 @@ def find_gabay_by_phone(phone: str):
     return None
 
 
+# ── Transcribe a WhatsApp audio/voice message via Whisper ────────────────────
+
+def _transcribe_audio(media_id: str) -> str | None:
+    """
+    Download a WhatsApp voice note by media_id and transcribe it with
+    OpenAI Whisper. Returns the transcript string, or None on failure.
+    Requires OPENAI_API_KEY env var; silently returns None if not set.
+    """
+    openai_key = os.environ.get('OPENAI_API_KEY')
+    if not openai_key:
+        logger.warning('[WA] OPENAI_API_KEY not set — cannot transcribe audio')
+        return None
+
+    headers = {'Authorization': f'Bearer {WHATSAPP_TOKEN}'}
+
+    # Step 1: resolve media URL from Graph API
+    try:
+        meta_resp = requests.get(
+            f'https://graph.facebook.com/v25.0/{media_id}',
+            headers=headers, timeout=10
+        )
+        meta_resp.raise_for_status()
+        media_url = meta_resp.json().get('url')
+        if not media_url:
+            logger.error(f'[WA] No URL in media metadata for {media_id}')
+            return None
+    except Exception as e:
+        logger.error(f'[WA] Failed to fetch media metadata: {e}')
+        return None
+
+    # Step 2: download the audio bytes
+    try:
+        audio_resp = requests.get(media_url, headers=headers, timeout=30)
+        audio_resp.raise_for_status()
+        audio_bytes = audio_resp.content
+    except Exception as e:
+        logger.error(f'[WA] Failed to download audio: {e}')
+        return None
+
+    # Step 3: send to Whisper
+    try:
+        whisper_resp = requests.post(
+            'https://api.openai.com/v1/audio/transcriptions',
+            headers={'Authorization': f'Bearer {openai_key}'},
+            files={'file': ('voice.ogg', audio_bytes, 'audio/ogg')},
+            data={'model': 'whisper-1', 'language': 'tl'},  # tl = Filipino/Tagalog
+            timeout=30
+        )
+        whisper_resp.raise_for_status()
+        transcript = whisper_resp.json().get('text', '').strip()
+        return transcript or None
+    except Exception as e:
+        logger.error(f'[WA] Whisper transcription failed: {e}')
+        return None
+
+
 # ── Main handler called by the Flask webhook route ───────────────────────────
 
 def handle_incoming(data: dict):
@@ -220,10 +276,24 @@ def handle_incoming(data: dict):
         msg     = messages[0]
         from_   = msg['from']           # sender phone e.g. '639171234567'
         msg_id  = msg['id']
-        body    = msg.get('text', {}).get('body', '').strip()
+        msg_type = msg.get('type', 'text')
 
-        if not body:
-            return  # ignore non-text messages for now
+        # Handle voice notes / audio messages
+        if msg_type == 'audio':
+            audio_id = msg.get('audio', {}).get('id')
+            if not audio_id:
+                return
+            body = _transcribe_audio(audio_id)
+            if not body:
+                send_message(from_,
+                    "🎙️ Sorry, I couldn't understand that voice note. "
+                    "Please try again or type your visit instead.")
+                return
+            logger.info(f'[WA] Voice note from {from_} transcribed: {body[:80]}')
+        else:
+            body = msg.get('text', {}).get('body', '').strip()
+            if not body:
+                return  # ignore non-text messages (images, stickers, etc.)
 
         logger.info(f'[WA] Message from {from_}: {body[:80]}')
 
@@ -243,12 +313,13 @@ def handle_incoming(data: dict):
         if body_lower in ('help', 'tulong', '?', 'commands'):
             send_message(from_, (
                 "📋 *LSAMS Bot Commands*\n\n"
-                "Just send a plain message describing your visit:\n"
+                "Send a text or 🎙️ *voice note* describing your visit:\n"
                 "_\"Visited Chokorean Online — seller interested, call next week\"_\n\n"
                 "Or use shorthand:\n"
                 "• *status* — see your lead summary\n"
                 "• *today* — today's visit count\n"
-                "• *help* — show this menu"
+                "• *help* — show this menu\n\n"
+                "💡 Voice notes work too — just speak naturally!"
             ))
             return
 
