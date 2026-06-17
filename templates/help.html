@@ -2,11 +2,73 @@
 {% block title %}Help & User Guide{% endblock %}
 {% block content %}
 
+<style>
+/* ── Print / PDF styles ─────────────────────────────────────── */
+@media print {
+  /* Hide everything that is not the help content */
+  nav, .sidebar, .navbar, #helpTabs, .btn-pdf-download,
+  footer, .page-header .badge { display: none !important; }
+
+  /* Show ALL tab panes as normal blocks */
+  .tab-pane { display: block !important; opacity: 1 !important;
+               page-break-inside: avoid; margin-bottom: 32px; }
+
+  /* Section headings */
+  .tab-section-title { display: block !important; }
+
+  body { font-size: 11px; color: #000; background: #fff; }
+  .card { border: 1px solid #ccc !important; box-shadow: none !important;
+          page-break-inside: avoid; margin-bottom: 12px; }
+  a { color: #1F3864 !important; text-decoration: none !important; }
+
+  /* Copyright footer on every printed page */
+  .pdf-copyright {
+    display: block !important;
+    position: fixed; bottom: 0; left: 0; right: 0;
+    text-align: center; font-size: 10px; color: #6b7280;
+    border-top: 1px solid #e5e7eb; padding: 6px 0;
+    background: #fff;
+  }
+
+  /* Cover block visible only when printing */
+  .pdf-cover { display: block !important; }
+}
+
+@media screen {
+  .pdf-copyright { display: none; }
+  .pdf-cover     { display: none; }
+  .tab-section-title { display: none; }
+}
+</style>
+
+<!-- PDF Cover (only visible when printing) -->
+<div class="pdf-cover" style="text-align:center;padding:60px 40px;page-break-after:always">
+  <div style="font-size:32px;font-weight:900;color:#1F3864;margin-bottom:8px">LSAMS</div>
+  <div style="font-size:18px;color:#4a5568;margin-bottom:4px">Lazada Seller Acquisition Management System</div>
+  <div style="font-size:14px;color:#9aabc5;margin-bottom:32px">Help & User Guide</div>
+  <div style="width:60px;height:4px;background:#1F3864;margin:0 auto 32px"></div>
+  <div style="font-size:13px;color:#4a5568">Prepared for internal use</div>
+  <div style="font-size:13px;color:#4a5568;margin-top:4px">© {{ 2026 }} Altria Call Center. All rights reserved.</div>
+</div>
+
+<!-- Copyright footer (printed on every page) -->
+<div class="pdf-copyright">
+  © {{ 2026 }} Altria Call Center. All rights reserved. &nbsp;|&nbsp; LSAMS Help & User Guide &nbsp;|&nbsp; Confidential — Internal Use Only
+</div>
+
 <div class="page-header">
   <div class="page-title"><i class="bi bi-question-circle me-2"></i>Help & User Guide</div>
-  <span style="background:#1F3864;color:white;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700">
-    You are: {{ current_user.role.upper() }}
-  </span>
+  <div class="d-flex align-items-center gap-2">
+    <span style="background:#1F3864;color:white;border-radius:20px;padding:5px 14px;font-size:12px;font-weight:700">
+      You are: {{ current_user.role.upper() }}
+    </span>
+    <button onclick="window.print()" class="btn-pdf-download"
+            style="background:#e11d48;color:white;border:none;border-radius:20px;
+                   padding:5px 14px;font-size:12px;font-weight:700;cursor:pointer;
+                   display:flex;align-items:center;gap:6px">
+      <i class="bi bi-file-earmark-pdf-fill"></i> Download PDF
+    </button>
+  </div>
 </div>
 
 <!-- ROLE TABS -->
@@ -55,6 +117,9 @@
 <div class="tab-content">
 
   <!-- ══════════ MY ROLE GUIDE ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    1. My Role Guide
+  </div>
   <div class="tab-pane fade show {% if current_user.role in ('admin','manager','supervisor') %}active{% endif %}" id="tabMyRole">
 
     {% if current_user.role == 'admin' %}
@@ -199,6 +264,9 @@
 
   <!-- ══════════ ASSIGNMENT GUIDE ══════════ -->
   {% if current_user.is_supervisor %}
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    2. Assignment Guide
+  </div>
   <div class="tab-pane fade" id="tabAssign">
     <div class="row g-3 mb-4">
       <div class="col-12">
@@ -328,6 +396,9 @@
   {% endif %}
 
   <!-- ══════════ PIPELINE FLOW ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    3. Pipeline Flow
+  </div>
   <div class="tab-pane fade" id="tabPipeline">
     <div class="card mb-3">
       <div class="card-header" style="background:#1F3864;color:white;font-weight:800">Lead Pipeline — Full Status Flow</div>
@@ -387,6 +458,9 @@
   </div>
 
   <!-- ══════════ EXCEL IMPORT ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    4. Excel Import
+  </div>
   <div class="tab-pane fade" id="tabImport">
     <div class="row g-3">
       <div class="col-md-5">
@@ -455,6 +529,9 @@
   </div>
 
   <!-- ══════════ AI TOOLS ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    5. AI Tools
+  </div>
   <div class="tab-pane fade" id="tabAI">
 
     <div class="alert d-flex gap-3 mb-4" style="background:#F5F0FF;border:1px solid #c4b5fd;border-radius:14px;padding:14px 18px">
@@ -695,6 +772,9 @@
   </div><!-- /tabAI -->
 
   <!-- ══════════ WHATSAPP BOT ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    6. WhatsApp Bot
+  </div>
   <div class="tab-pane fade" id="tabWhatsApp">
 
     <!-- Hero banner -->
@@ -861,6 +941,9 @@
   </div>
 
   <!-- ══════════ FAQ ══════════ -->
+  <div class="tab-section-title" style="font-size:18px;font-weight:900;color:#1F3864;border-bottom:3px solid #1F3864;padding-bottom:6px;margin-bottom:16px;page-break-before:always">
+    7. FAQ
+  </div>
   <div class="tab-pane fade" id="tabFaq">
     <div class="accordion" id="faqAccordion">
       {% set faqs = [
@@ -890,4 +973,11 @@
   </div>
 
 </div>
+
+<!-- On-screen copyright footer -->
+<div style="text-align:center;margin-top:40px;padding:16px;border-top:1px solid #e2e8f0;font-size:11px;color:#9aabc5">
+  © 2026 <strong style="color:#1F3864">Altria Call Center</strong>. All rights reserved. &nbsp;·&nbsp;
+  LSAMS — Lazada Seller Acquisition Management System &nbsp;·&nbsp; Confidential — Internal Use Only
+</div>
+
 {% endblock %}
