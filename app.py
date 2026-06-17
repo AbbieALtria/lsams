@@ -49,6 +49,16 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
+    # Add photo_pending column to visits
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text(
+                "ALTER TABLE visits ADD COLUMN IF NOT EXISTS photo_pending BOOLEAN DEFAULT FALSE"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Add ML scoring + health inspection columns to leads
     _new_lead_cols = [
         ("ml_score",          "FLOAT"),
