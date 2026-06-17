@@ -40,6 +40,12 @@
     </a>
   </li>
   <li class="nav-item">
+    <a class="nav-link" data-bs-toggle="tab" href="#tabWhatsApp">
+      <i class="bi bi-whatsapp me-1" style="color:#25D366"></i>WhatsApp Bot
+      <span class="badge ms-1" style="background:#25D366;color:white;font-size:9px">NEW</span>
+    </a>
+  </li>
+  <li class="nav-item">
     <a class="nav-link" data-bs-toggle="tab" href="#tabFaq">
       <i class="bi bi-patch-question me-1"></i>FAQ
     </a>
@@ -166,9 +172,9 @@
     <div class="mb-2" style="font-weight:800;color:#1F3864;font-size:15px">Your Daily Workflow</div>
     {% for num, icon, color, step, where, detail in [
       ('1','bi-phone','#2E75B6','Open LSAMS on your phone','Browser → http://192.168.10.78:5001','Log in with your username and password.'),
-      ('2','bi-list-ul','#1F3864','Check your assigned leads','Leads (sidebar)','You only see your own leads. No one else\'s.'),
+      ('2','bi-list-ul','#1F3864','Check your assigned leads','Leads (sidebar) or Plan My Day','You only see your own leads. Plan My Day shows your route for the day — with 📡 Seller Radar for unassigned nearby sellers.'),
       ('3','bi-geo-alt','#E07B00','Arrive at seller location','Lead → Record Visit','Open the lead, tap "Record Visit", tap "Get Location" for GPS check-in.'),
-      ('4','bi-chat-dots','#7c3aed','Talk to the seller','During Visit form','Fill in outcome: Interested / Follow-Up / Not Interested / No Contact.'),
+      ('4','bi-chat-dots','#7c3aed','Talk to the seller','During Visit form or WhatsApp','Fill in outcome in the app — or just send a WhatsApp message / voice note to the bot. Works even without internet at the seller!'),
       ('5','bi-file-earmark-check','#15803d','If interested → Start Registration','Lead → Start Registration','Collect their documents and tick off the checklist.'),
       ('6','bi-send','#065f46','Submit registration','Registration → Submit for Review','Manager will review and approve or reject.'),
     ] %}
@@ -620,6 +626,41 @@
         </div>
       </div>
 
+      <!-- SELLER RADAR -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #0f766e">
+          <div class="card-header py-2" style="background:#f0fdfa">
+            <i class="bi bi-broadcast me-2" style="color:#0f766e"></i>
+            <strong style="color:#134e4a">📡 Seller Radar — Nearby Unassigned</strong>
+            <span class="badge ms-2" style="background:#0f766e;color:white;font-size:10px">Plan My Day</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              <strong>Ano ito?</strong> Sa ilalim ng Plan My Day page, may listahan ng mga seller sa iyong lungsod na <strong>hindi pa assigned</strong> sa kahit sino. Pwede mo silang bisitahin at i-check in — para malaman ng supervisor na interesado ka sa kanila.<br>
+              <em style="color:#9aabc5;font-size:11px">(Below the Plan My Day page, there's a list of sellers in your city that are not yet assigned to anyone. You can visit them and check in — so your supervisor knows you're interested.)</em>
+            </p>
+            <div style="font-weight:700;color:#134e4a;font-size:12px;margin-bottom:8px">Paano gamitin / How to use:</div>
+            {% for num, tl, en in [
+              ('1','Buksan ang Plan My Day sa home screen','Open Plan My Day on the home screen'),
+              ('2','I-scroll pababa — hanapin ang 📡 Seller Radar button','Scroll down — find the 📡 Seller Radar button'),
+              ('3','I-tap para buksan ang listahan ng nearby unassigned sellers','Tap to open the list of nearby unassigned sellers'),
+              ('4','I-tap "Maps" o "Waze" para pumunta sa seller','Tap "Maps" or "Waze" to navigate to the seller'),
+              ('5','Pagkatapos ng bisita, i-tap "Check In" para mag-log','After the visit, tap "Check In" to log it'),
+              ('6','Abisuhan ang iyong supervisor — pwede ka i-assign','Notify your supervisor — they can officially assign the lead to you'),
+            ] %}
+            <div class="d-flex gap-2 mb-2">
+              <div style="width:22px;height:22px;border-radius:50%;background:#0f766e;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div style="font-size:12px;color:#4a5568">{{ tl }}<br><em style="color:#9aabc5;font-size:11px">{{ en }}</em></div>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:#ccfbf1;font-size:11px;color:#134e4a">
+              <i class="bi bi-info-circle me-1"></i>
+              Naka-sort ang radar sa priority tier (P0 muna). Ikaw lang ang makakakita ng sellers sa iyong lungsod.
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div><!-- /row -->
 
     <!-- REQUIREMENTS -->
@@ -630,10 +671,12 @@
         </div>
         <div class="row g-2" style="font-size:12px">
           {% for feature, key, status, note in [
-            ('🎤 Voice Check-in','OPENAI_API_KEY','✅ Active','Set na sa Railway Variables'),
-            ('📷 Shop Scanner','ANTHROPIC_API_KEY','⚠️ Needs setup','Idagdag sa Railway → Variables'),
+            ('🎤 Voice Check-in (in-app)','OPENAI_API_KEY','✅ Active','Set na sa Railway Variables'),
+            ('🎙️ WhatsApp Voice Notes','OPENAI_API_KEY','✅ Active','Same key — gumagana na'),
+            ('📷 Shop Scanner','ANTHROPIC_API_KEY','✅ Active','Set na sa Railway Variables'),
             ('⭐ Lead Scoring','(none needed)','✅ Always on','Built-in — walang external API'),
-            ('🗺️ Route Optimizer','GOOGLE_MAPS_API_KEY','⚠️ Needs setup','Idagdag sa Railway → Variables'),
+            ('🗺️ Route Optimizer','GOOGLE_MAPS_API_KEY','⚠️ Optional','Without key: sorts by priority score'),
+            ('📡 Seller Radar','(none needed)','✅ Always on','Built-in — automatic per city'),
           ] %}
           <div class="col-md-6">
             <div class="d-flex gap-2 align-items-center p-2 rounded" style="background:#F8FAFD;border:1px solid #E0E6EF">
@@ -650,6 +693,172 @@
     </div>
 
   </div><!-- /tabAI -->
+
+  <!-- ══════════ WHATSAPP BOT ══════════ -->
+  <div class="tab-pane fade" id="tabWhatsApp">
+
+    <!-- Hero banner -->
+    <div class="alert d-flex gap-3 mb-4" style="background:#e7fbe9;border:1px solid #86efac;border-radius:14px;padding:16px 18px">
+      <i class="bi bi-whatsapp" style="color:#25D366;font-size:26px;flex-shrink:0"></i>
+      <div>
+        <div style="font-weight:800;color:#166534;font-size:15px">LSAMS WhatsApp Bot</div>
+        <div style="font-size:12px;color:#14532d;margin-top:3px">
+          I-report ang iyong visits gamit lang ang WhatsApp — text o voice note. <strong>Walang internet sa seller? Ok lang — i-send mo lang pagdating ng signal.</strong><br>
+          <em style="color:#15803d">(Report your visits using just WhatsApp — text or voice note. No internet at the seller? That's fine — just send when you have signal.)</em>
+        </div>
+      </div>
+    </div>
+
+    <div class="row g-3 mb-4">
+
+      <!-- HOW TO LOG A VISIT -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #25D366">
+          <div class="card-header py-2" style="background:#e7fbe9">
+            <i class="bi bi-chat-dots-fill me-2" style="color:#25D366"></i>
+            <strong style="color:#166534">Paano mag-log ng visit / How to log a visit</strong>
+          </div>
+          <div class="card-body">
+            <div style="font-size:13px;color:#4a5568;margin-bottom:10px">
+              <strong>Text:</strong> I-type lang ang nangyari sa iyong visit.<br>
+              <strong>Voice:</strong> Pindutin ang 🎙️ button sa WhatsApp, mag-salita, bitawan.
+            </div>
+
+            <div style="font-weight:700;color:#166534;font-size:12px;margin-bottom:6px">Mga halimbawa / Examples:</div>
+            {% for tl, en in [
+              ('"Visited Chokorean Online — interested, will call next week"','Seller name + dash + outcome + follow-up'),
+              ('"Pumunta sa BVS Store — ayaw niya"','Filipino works perfectly'),
+              ('"Jollibee Supply — not home, will try tomorrow"','Short is fine too'),
+              ('"Nano Shop — nag-register na siya"','Registration outcome'),
+            ] %}
+            <div class="mb-2 p-2 rounded" style="background:#f0fdf4;border-left:3px solid #86efac">
+              <div style="font-size:12px;color:#166534;font-family:monospace">{{ tl }}</div>
+              <div style="font-size:10px;color:#9aabc5;margin-top:2px">{{ en }}</div>
+            </div>
+            {% endfor %}
+
+            <div class="mt-3 p-2 rounded" style="background:#fefce8;border:1px solid #fde68a;font-size:11px;color:#78350f">
+              <i class="bi bi-lightbulb me-1" style="color:#d97706"></i>
+              <strong>Tip:</strong> Sabihin muna ang pangalan ng seller, pagkatapos ang outcome. Halimbawa: <em>"Seller Name — outcome"</em>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- VOICE NOTE -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #7c3aed">
+          <div class="card-header py-2" style="background:#F5F0FF">
+            <i class="bi bi-mic-fill me-2" style="color:#7c3aed"></i>
+            <strong style="color:#5b21b6">🎙️ Voice Note Support</strong>
+            <span class="badge ms-2" style="background:#7c3aed;color:white;font-size:10px">Whisper AI</span>
+          </div>
+          <div class="card-body">
+            <p style="font-size:13px;color:#4a5568">
+              Hindi na kailangang mag-type! I-send ang voice note sa WhatsApp — awtomatiko itong i-transcribe ng AI at ilo-log ang visit.<br>
+              <em style="color:#9aabc5;font-size:11px">(No need to type! Send a voice note on WhatsApp — AI automatically transcribes it and logs the visit.)</em>
+            </p>
+            <div style="font-weight:700;color:#5b21b6;font-size:12px;margin-bottom:8px">Steps:</div>
+            {% for num, step in [
+              ('1','Hold the 🎙️ mic button in WhatsApp'),
+              ('2','Speak clearly: seller name + outcome'),
+              ('3','Release to send'),
+              ('4','Bot replies with confirmation in seconds'),
+            ] %}
+            <div class="d-flex gap-2 mb-2 align-items-start">
+              <div style="width:22px;height:22px;border-radius:50%;background:#7c3aed;color:white;font-size:11px;font-weight:800;display:flex;align-items:center;justify-content:center;flex-shrink:0">{{ num }}</div>
+              <div style="font-size:12px;color:#4a5568;margin-top:2px">{{ step }}</div>
+            </div>
+            {% endfor %}
+            <div class="mt-3 p-2 rounded" style="background:#ede9fe;font-size:11px;color:#5b21b6">
+              <i class="bi bi-info-circle me-1"></i>
+              Suportado: Tagalog, Filipino, English, at halong dalawa. Mag-salita nang malinaw malapit sa mikropono.
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- COMMANDS -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #2E75B6">
+          <div class="card-header py-2" style="background:#eff6ff">
+            <i class="bi bi-terminal-fill me-2" style="color:#2E75B6"></i>
+            <strong style="color:#1d4ed8">Quick Commands</strong>
+          </div>
+          <div class="card-body p-0">
+            {% for cmd, icon, desc_tl, desc_en in [
+              ('status','bi-bar-chart-fill','Ipapakita ang buong summary mo — total leads, live sellers, visits ngayon','Shows your full summary — total leads, live sellers, visits today'),
+              ('today','bi-calendar-check','Listahan ng lahat ng visits mo ngayong araw','List of all your visits today'),
+              ('help','bi-question-circle','Ipapakita ang lahat ng commands at halimbawa','Shows all commands and examples'),
+            ] %}
+            <div style="padding:12px 16px;border-bottom:1px solid #e2e8f0">
+              <div class="d-flex align-items-center gap-2 mb-1">
+                <code style="background:#dbeafe;color:#1d4ed8;padding:2px 8px;border-radius:6px;font-size:13px;font-weight:700">{{ cmd }}</code>
+                <i class="bi {{ icon }}" style="color:#2E75B6"></i>
+              </div>
+              <div style="font-size:12px;color:#4a5568">{{ desc_tl }}</div>
+              <div style="font-size:11px;color:#9aabc5;font-style:italic">{{ desc_en }}</div>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+      <!-- OFFLINE + OUTCOMES -->
+      <div class="col-md-6">
+        <div class="card h-100" style="border-top:4px solid #0891b2">
+          <div class="card-header py-2" style="background:#ecfeff">
+            <i class="bi bi-wifi-off me-2" style="color:#0891b2"></i>
+            <strong style="color:#0e7490">Works Offline — Anytime, Anywhere</strong>
+          </div>
+          <div class="card-body">
+            <div class="p-3 rounded mb-3" style="background:#ecfeff;border:1px solid #a5f3fc">
+              <div style="font-weight:700;color:#0e7490;font-size:13px;margin-bottom:4px">📵 Walang internet sa seller?</div>
+              <div style="font-size:12px;color:#164e63">
+                Hindi problema. I-type o i-record ang mensahe — i-send mo lang kapag may signal na ulit (sa kalsada, sa susunod na lugar). Lahat ng visits ay nilo-log nang tama.
+              </div>
+              <div style="font-size:11px;color:#0891b2;margin-top:4px;font-style:italic">
+                No internet at the seller? No problem. Type or record your message — send it when you get signal again (on the road, at the next location). All visits are logged correctly.
+              </div>
+            </div>
+
+            <div style="font-weight:700;color:#0e7490;font-size:12px;margin-bottom:6px">Supported outcomes / Mga outcome:</div>
+            {% for outcome, color, bg, tl in [
+              ('interested','#15803d','#dcfce7','Interesado — gusto, willing, open'),
+              ('not interested','#b91c1c','#fee2e2','Hindi interesado — ayaw, decline, refused'),
+              ('not home','#6b7280','#f3f4f6','Wala — wala sa lugar, closed, absent'),
+              ('callback','#2563eb','#dbeafe','Tatawagan — call back, tawag ulit'),
+              ('registered','#7c3aed','#ede9fe','Nag-register — live, done, activated'),
+              ('follow up','#d97706','#fef3c7','Follow up — default kung walang keyword'),
+            ] %}
+            <div class="d-flex align-items-center gap-2 mb-1">
+              <span style="background:{{ bg }};color:{{ color }};border-radius:6px;padding:2px 8px;font-size:10px;font-weight:700;white-space:nowrap">{{ outcome }}</span>
+              <span style="font-size:11px;color:#9aabc5">{{ tl }}</span>
+            </div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- BOT PHONE NUMBER INFO -->
+    <div class="card" style="border-left:4px solid #25D366">
+      <div class="card-body">
+        <div style="font-weight:800;color:#1F3864;font-size:14px;margin-bottom:8px">
+          <i class="bi bi-whatsapp me-2" style="color:#25D366"></i>How to Connect
+        </div>
+        <div style="font-size:13px;color:#4a5568">
+          Ask your supervisor for the <strong>LSAMS Bot WhatsApp number</strong> and save it to your contacts.
+          Your phone number must be registered in your LSAMS profile (ask your supervisor to add it) — otherwise the bot won't recognize you.
+        </div>
+        <div class="mt-3 p-2 rounded" style="background:#f0fdf4;font-size:12px;color:#166534">
+          <i class="bi bi-check-circle me-1"></i> <strong>Gabay agents only</strong> — the bot only accepts messages from registered Gabay phone numbers.
+        </div>
+      </div>
+    </div>
+
+  </div>
 
   <!-- ══════════ FAQ ══════════ -->
   <div class="tab-pane fade" id="tabFaq">

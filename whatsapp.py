@@ -312,14 +312,20 @@ def handle_incoming(data: dict):
         # 2. Help command
         if body_lower in ('help', 'tulong', '?', 'commands'):
             send_message(from_, (
-                "📋 *LSAMS Bot Commands*\n\n"
-                "Send a text or 🎙️ *voice note* describing your visit:\n"
-                "_\"Visited Chokorean Online — seller interested, call next week\"_\n\n"
-                "Or use shorthand:\n"
-                "• *status* — see your lead summary\n"
-                "• *today* — today's visit count\n"
+                "📋 *LSAMS Bot — Commands*\n\n"
+                "🎙️ *Log a visit (text or voice note):*\n"
+                "_\"Visited Chokorean Online — interested, call next week\"_\n"
+                "_\"Pumunta sa Jollibee Store — ayaw niya\"_\n"
+                "Voice notes work the same — just speak naturally!\n\n"
+                "📊 *Quick commands:*\n"
+                "• *status* — your lead summary (total, live, visits today)\n"
+                "• *today* — list of today's visits\n"
                 "• *help* — show this menu\n\n"
-                "💡 Voice notes work too — just speak naturally!"
+                "💡 *Tips:*\n"
+                "• Works even without internet at the seller — just send later when you have signal\n"
+                "• Say the seller name clearly first, then the outcome\n"
+                "• Outcomes: interested · not interested · not home · callback · registered\n\n"
+                "🗺️ For your route & nearby sellers, open *Plan My Day* in the app."
             ))
             return
 
