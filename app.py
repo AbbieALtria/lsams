@@ -3039,6 +3039,25 @@ def whatsapp_incoming():
     return 'OK', 200
 
 
+@app.route('/admin/whatsapp-test')
+@login_required
+def whatsapp_test():
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    import requests as _req
+    token     = os.environ.get('WHATSAPP_TOKEN', '')
+    phone_id  = os.environ.get('WHATSAPP_PHONE_ID', '1125313127339997')
+    to_number = request.args.get('to', '639561331809')
+    url       = f'https://graph.facebook.com/v25.0/{phone_id}/messages'
+    payload   = {'messaging_product':'whatsapp','to':to_number,'type':'text','text':{'body':'✅ LSAMS bot test — working!'}}
+    headers   = {'Authorization':f'Bearer {token}','Content-Type':'application/json'}
+    try:
+        r = _req.post(url, json=payload, headers=headers, timeout=10)
+        return f'<pre>Status: {r.status_code}\nToken set: {"YES" if token else "NO (empty!)"}\nPhone ID: {phone_id}\nResponse: {r.text}</pre>'
+    except Exception as e:
+        return f'<pre>Exception: {e}\nToken set: {"YES" if token else "NO"}</pre>'
+
+
 @app.route('/admin/ml/train', methods=['GET', 'POST'])
 @login_required
 def admin_ml_train():
