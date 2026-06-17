@@ -1,3 +1,4 @@
+import json
 from datetime import datetime, date, timedelta
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
@@ -319,6 +320,16 @@ class Visit(db.Model):
     notes = db.Column(db.Text)
     follow_up_date = db.Column(db.Date)
     photos = db.Column(db.Text)  # JSON list of filenames
+    photo_pending = db.Column(db.Boolean, default=False)  # True = submitted without photos, upload later
+
+    @property
+    def photos_list(self):
+        if not self.photos:
+            return []
+        try:
+            return json.loads(self.photos)
+        except Exception:
+            return []
 
     @property
     def outcome_label(self):

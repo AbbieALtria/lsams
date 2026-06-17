@@ -66,6 +66,44 @@
 </div>
 {% endif %}
 
+<!-- PENDING PHOTO UPLOADS BANNER -->
+{% if pending_photos %}
+<div style="background:#fef3c7;border-left:4px solid #d97706;border-radius:16px;
+            padding:14px 16px;margin-bottom:14px">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+    <div style="display:flex;align-items:center;gap:10px">
+      <span style="font-size:22px">📷</span>
+      <div>
+        <div style="font-size:13px;font-weight:800;color:#92400e">
+          {{ pending_photos|length }} Visit{{ 's' if pending_photos|length > 1 }} Need{{ '' if pending_photos|length > 1 else 's' }} Photos
+        </div>
+        <div style="font-size:11px;color:#78350f">Upload your selfie proof when you have internet</div>
+      </div>
+    </div>
+  </div>
+  {% for visit in pending_photos %}
+  {% set lead = visit.lead %}
+  <div style="background:white;border-radius:12px;padding:11px 14px;margin-bottom:8px;
+              display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="flex:1;min-width:0">
+      <div style="font-size:13px;font-weight:800;color:#1F3864;white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+        {{ lead.seller_name if lead else 'Unknown Seller' }}
+      </div>
+      <div style="font-size:11px;color:#9aabc5;margin-top:1px">
+        {{ visit.visited_at.strftime('%b %d, %Y') }} · {{ visit.outcome_label }}
+      </div>
+    </div>
+    <a href="{{ url_for('gabay_upload_photo', visit_id=visit.id) }}"
+       style="background:#d97706;color:white;border-radius:10px;padding:8px 14px;
+              font-size:12px;font-weight:800;text-decoration:none;flex-shrink:0;
+              white-space:nowrap">
+      <i class="bi bi-camera-fill me-1"></i>Upload
+    </a>
+  </div>
+  {% endfor %}
+</div>
+{% endif %}
+
 <!-- KPI TILES -->
 <div class="kpi-row" style="margin-bottom:16px">
   <div class="kpi-tile" style="border-top:4px solid #2E75B6">

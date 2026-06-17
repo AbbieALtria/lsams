@@ -1,0 +1,187 @@
+{% extends "gabay_app/base.html" %}
+{% block title %}Upload Visit Photo{% endblock %}
+{% block content %}
+
+<!-- HEADER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+  <div>
+    <div style="font-size:18px;font-weight:800;color:#1F3864">
+      📷 Upload Visit Photo
+    </div>
+    <div style="font-size:12px;color:#9aabc5">Proof of visit for your supervisor</div>
+  </div>
+  <a href="{{ url_for('gabay_home') }}"
+     style="background:#f1f5f9;color:#4a5568;border:none;border-radius:12px;
+            padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
+    <i class="bi bi-arrow-left me-1"></i>Home
+  </a>
+</div>
+
+<!-- VISIT INFO CARD -->
+<div style="background:#EEF2FF;border-radius:16px;padding:14px 16px;margin-bottom:20px;
+            border-left:4px solid #4338ca">
+  <div style="font-size:13px;font-weight:800;color:#1F3864;margin-bottom:4px">
+    {{ lead.seller_name if lead else 'Unknown Seller' }}
+  </div>
+  <div style="font-size:11px;color:#6366f1">
+    <i class="bi bi-calendar3 me-1"></i>
+    Visit on {{ visit.visited_at.strftime('%b %d, %Y at %I:%M %p') }}
+  </div>
+  {% if visit.gps_address %}
+  <div style="font-size:11px;color:#9aabc5;margin-top:3px">
+    <i class="bi bi-geo-alt me-1"></i>{{ visit.gps_address[:70] }}{% if visit.gps_address|length > 70 %}…{% endif %}
+  </div>
+  {% endif %}
+  <div style="margin-top:8px">
+    {% set oc_colors = {'interested':'#15803d','not_interested':'#b91c1c','callback':'#2563eb','follow_up':'#be185d','not_home':'#92400e','rejected':'#b91c1c','registered':'#7c3aed','follow_up':'#be185d'} %}
+    <span style="background:{{ oc_colors.get(visit.outcome,'#6b7280') }}22;
+                 color:{{ oc_colors.get(visit.outcome,'#6b7280') }};
+                 border-radius:20px;padding:3px 10px;font-size:11px;font-weight:800">
+      {{ visit.outcome_label }}
+    </span>
+  </div>
+</div>
+
+<!-- ALREADY HAS PHOTOS -->
+{% if visit.photos_list %}
+<div style="background:#f0fdf4;border-radius:14px;padding:14px 16px;margin-bottom:16px;
+            border-left:4px solid #15803d">
+  <div style="font-size:12px;font-weight:800;color:#15803d;margin-bottom:10px">
+    <i class="bi bi-check-circle-fill me-1"></i>{{ visit.photos_list|length }} photo(s) already uploaded
+  </div>
+  <div style="display:flex;gap:8px;flex-wrap:wrap">
+    {% for fname in visit.photos_list %}
+    <img src="{{ url_for('visit_photo', filename=fname) }}"
+         style="width:80px;height:80px;object-fit:cover;border-radius:10px;
+                border:2px solid #15803d">
+    {% endfor %}
+  </div>
+  <div style="font-size:11px;color:#166534;margin-top:8px">
+    You can still add more photos below.
+  </div>
+</div>
+{% endif %}
+
+<!-- UPLOAD FORM -->
+<form method="POST" enctype="multipart/form-data" id="uploadForm">
+
+  <!-- SELFIE -->
+  <div style="margin-bottom:16px">
+    <div style="font-size:13px;font-weight:800;color:#1F3864;margin-bottom:8px">
+      🤳 Selfie at Seller Location
+    </div>
+    <div style="font-size:11px;color:#9aabc5;margin-bottom:8px">
+      Take a selfie showing yourself at the seller's location as proof of visit.
+    </div>
+    <input type="file" name="photo_selfie" id="selfieInput"
+           accept="image/*" capture="user" style="display:none"
+           onchange="previewPhoto(this,'selfiePreview','selfieBox')">
+    <div onclick="document.getElementById('selfieInput').click()"
+         id="selfieBox"
+         style="border:2px dashed #CBD5E1;border-radius:16px;padding:22px 16px;
+                text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s">
+      <div style="font-size:40px;margin-bottom:8px">🤳</div>
+      <div style="font-size:13px;font-weight:700;color:#4a5568">Tap to take selfie</div>
+      <div style="font-size:11px;color:#9aabc5;margin-top:4px">Uses front camera</div>
+    </div>
+    <img id="selfiePreview" src="" alt=""
+         style="display:none;width:100%;border-radius:14px;margin-top:10px;
+                max-height:220px;object-fit:cover;border:3px solid #15803d">
+  </div>
+
+  <!-- PROOF PHOTO -->
+  <div style="margin-bottom:20px">
+    <div style="font-size:13px;font-weight:800;color:#1F3864;margin-bottom:8px">
+      📸 Store / Meeting Proof Photo
+    </div>
+    <div style="font-size:11px;color:#9aabc5;margin-bottom:8px">
+      Photo of the store front, signage, or your meeting with the seller.
+    </div>
+    <input type="file" name="photo_proof" id="proofInput"
+           accept="image/*" capture="environment" style="display:none"
+           onchange="previewPhoto(this,'proofPreview','proofBox')">
+    <div onclick="document.getElementById('proofInput').click()"
+         id="proofBox"
+         style="border:2px dashed #CBD5E1;border-radius:16px;padding:22px 16px;
+                text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s">
+      <div style="font-size:40px;margin-bottom:8px">📸</div>
+      <div style="font-size:13px;font-weight:700;color:#4a5568">Tap to take proof photo</div>
+      <div style="font-size:11px;color:#9aabc5;margin-top:4px">Uses back camera</div>
+    </div>
+    <img id="proofPreview" src="" alt=""
+         style="display:none;width:100%;border-radius:14px;margin-top:10px;
+                max-height:220px;object-fit:cover;border:3px solid #15803d">
+  </div>
+
+  <!-- SUBMIT -->
+  <button type="submit" id="submitBtn" disabled
+          style="width:100%;background:#15803d;color:white;border:none;
+                 border-radius:16px;padding:18px;font-size:16px;font-weight:800;
+                 cursor:pointer;opacity:0.4;transition:opacity 0.3s">
+    <i class="bi bi-cloud-upload-fill me-2"></i>Upload Photos
+  </button>
+  <div id="hintText" style="text-align:center;font-size:12px;color:#9aabc5;margin-top:8px">
+    Select at least one photo to upload
+  </div>
+
+</form>
+
+<!-- SKIP LINK -->
+<div style="text-align:center;margin-top:20px">
+  <a href="{{ url_for('gabay_home') }}"
+     style="font-size:12px;color:#9aabc5;text-decoration:none">
+    Upload later — go back to Home
+  </a>
+</div>
+
+{% endblock %}
+
+{% block scripts %}
+<script>
+let photosSelected = 0;
+
+function previewPhoto(input, previewId, boxId) {
+  const file = input.files[0];
+  if (!file) return;
+
+  const preview = document.getElementById(previewId);
+  const box = document.getElementById(boxId);
+  preview.src = URL.createObjectURL(file);
+  preview.style.display = 'block';
+  box.style.borderColor = '#15803d';
+  box.style.background = '#f0fdf4';
+  box.innerHTML = `
+    <div style="font-size:28px;margin-bottom:6px">✅</div>
+    <div style="font-size:12px;font-weight:700;color:#15803d">Photo selected</div>
+    <div style="font-size:10px;color:#9aabc5;margin-top:2px">Tap to retake</div>
+  `;
+  photosSelected++;
+  updateSubmit();
+}
+
+function updateSubmit() {
+  const btn = document.getElementById('submitBtn');
+  const hint = document.getElementById('hintText');
+  const hasSelfie = document.getElementById('selfieInput').files.length > 0;
+  const hasProof  = document.getElementById('proofInput').files.length  > 0;
+  const hasAny = hasSelfie || hasProof;
+  btn.disabled = !hasAny;
+  btn.style.opacity = hasAny ? '1' : '0.4';
+  if (hasAny) {
+    const count = (hasSelfie ? 1 : 0) + (hasProof ? 1 : 0);
+    hint.textContent = `${count} photo(s) ready — tap Upload to save`;
+    hint.style.color = '#15803d';
+  }
+}
+
+document.getElementById('selfieInput').addEventListener('change', updateSubmit);
+document.getElementById('proofInput').addEventListener('change', updateSubmit);
+
+document.getElementById('uploadForm').addEventListener('submit', () => {
+  const btn = document.getElementById('submitBtn');
+  btn.textContent = '⏳ Uploading…';
+  btn.disabled = true;
+  btn.style.opacity = '0.7';
+});
+</script>
+{% endblock %}

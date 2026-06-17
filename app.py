@@ -4060,10 +4060,13 @@ def gabay_home():
         traffic_msg = 'Good time to travel. Light traffic expected — great for visiting farther sellers!'
         traffic_level = 'success'
 
+    pending_photos = Visit.query.filter_by(gabay_id=gid, photo_pending=True).order_by(Visit.visited_at.desc()).all()
+
     return render_template('gabay_app/home.html',
         stats=stats, greeting=greeting, today=today_str,
         followups=followups, priority_leads=priority_leads, stalled_count=stalled_count,
-        suggested_leads=suggested_leads, traffic_msg=traffic_msg, traffic_level=traffic_level)
+        suggested_leads=suggested_leads, traffic_msg=traffic_msg, traffic_level=traffic_level,
+        pending_photos=pending_photos)
 
 
 @app.route('/gabay/app/leads')
@@ -4149,7 +4152,8 @@ def gabay_quick_checkin():
             gps_lng=float(gps_lng) if gps_lng else None,
             gps_address=gps_address, outcome=outcome, notes=notes,
             follow_up_date=follow_up_date,
-            photos=json.dumps(photo_filenames) if photo_filenames else None
+            photos=json.dumps(photo_filenames) if photo_filenames else None,
+            photo_pending=(len(photo_filenames) == 0)
         )
         db.session.add(visit)
         lead = Lead.query.get(lead_id)
@@ -4179,9 +4183,47 @@ def gabay_quick_checkin():
                     )
                     db.session.add(notif)
         db.session.commit()
-        flash('Visit logged successfully!', 'success')
+        if visit.photo_pending:
+            flash('Visit logged! 📷 Don\'t forget to upload your selfie proof photo when you\'re back online.', 'warning')
+        else:
+            flash('Visit logged successfully!', 'success')
         return redirect(url_for('gabay_home'))
     return render_template('gabay_app/checkin.html', my_leads=my_leads, selected_lead=selected_lead)
+
+
+@app.route('/gabay/app/visit/<int:visit_id>/upload-photo', methods=['GET', 'POST'])
+@login_required
+def gabay_upload_photo(visit_id):
+    visit = Visit.query.get_or_404(visit_id)
+    if visit.gabay_id != current_user.id:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('gabay_home'))
+    lead = Lead.query.get(visit.lead_id)
+
+    if request.method == 'POST':
+        import uuid
+        visit_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'visits')
+        os.makedirs(visit_upload_dir, exist_ok=True)
+        existing = json.loads(visit.photos) if visit.photos else []
+        added = 0
+        for field_name in ('photo_selfie', 'photo_proof'):
+            f = request.files.get(field_name)
+            if f and f.filename:
+                ext = os.path.splitext(secure_filename(f.filename))[1].lower() or '.jpg'
+                fname = f'{current_user.id}_{visit.lead_id}_{field_name}_{uuid.uuid4().hex[:8]}{ext}'
+                f.save(os.path.join(visit_upload_dir, fname))
+                existing.append(fname)
+                added += 1
+        if added:
+            visit.photos = json.dumps(existing)
+            visit.photo_pending = False
+            db.session.commit()
+            flash(f'✅ {added} photo(s) uploaded — visit proof complete!', 'success')
+        else:
+            flash('No photos received. Please select at least one photo.', 'warning')
+        return redirect(url_for('gabay_upload_photo', visit_id=visit_id))
+
+    return render_template('gabay_app/upload_photo.html', visit=visit, lead=lead)
 
 
 @app.route('/uploads/visits/<path:filename>')
