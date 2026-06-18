@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -68,6 +68,7 @@ with app.app_context():
         ("ai_inspected_at",   "TIMESTAMP"),
         ("is_warehouse",      "BOOLEAN DEFAULT FALSE"),
         ("is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
+        ("campaign_id",       "INTEGER"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_cols:
@@ -78,6 +79,52 @@ with app.app_context():
                 _conn.commit()
             except Exception:
                 _conn.rollback()
+
+    # Create campaigns and campaign_priority_log tables if not exist, then seed Legacy campaign
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS campaigns (
+                    id SERIAL PRIMARY KEY,
+                    name VARCHAR(200) NOT NULL,
+                    description TEXT,
+                    priority INTEGER DEFAULT 99,
+                    status VARCHAR(20) DEFAULT 'active',
+                    created_by INTEGER REFERENCES users(id),
+                    created_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            _conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS campaign_priority_log (
+                    id SERIAL PRIMARY KEY,
+                    campaign_id INTEGER NOT NULL REFERENCES campaigns(id),
+                    changed_by INTEGER NOT NULL REFERENCES users(id),
+                    prev_priority INTEGER,
+                    new_priority INTEGER,
+                    reason TEXT,
+                    changed_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
+    # Seed "Legacy" campaign for existing leads that have no campaign_id
+    with app.app_context():
+        try:
+            legacy = Campaign.query.filter_by(name='Legacy').first()
+            if not legacy:
+                legacy = Campaign(name='Legacy', description='Leads imported before campaign tracking was added.', priority=99, status='active')
+                db.session.add(legacy)
+                db.session.flush()
+            # Backfill existing leads
+            db.session.execute(
+                text("UPDATE leads SET campaign_id = :cid WHERE campaign_id IS NULL"),
+                {'cid': legacy.id}
+            )
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
 
 
 @login_manager.user_loader
@@ -317,30 +364,58 @@ def import_leads():
         flash('Access denied.', 'danger')
         return redirect(url_for('leads'))
 
+    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority, Campaign.name).all()
+
     if request.method == 'POST':
         file = request.files.get('file')
         if not file or not file.filename.endswith(('.xlsx', '.xls', '.csv')):
             flash('Please upload a valid Excel or CSV file.', 'danger')
             return redirect(request.url)
 
+        campaign_mode = request.form.get('campaign_mode', 'new')  # 'new' or 'existing'
+        campaign_id = None
+
         try:
+            if campaign_mode == 'new':
+                camp_name = request.form.get('new_campaign_name', '').strip()
+                camp_desc = request.form.get('new_campaign_desc', '').strip()
+                camp_priority = int(request.form.get('new_campaign_priority', 99))
+                if not camp_name:
+                    flash('Please enter a campaign name.', 'danger')
+                    return redirect(request.url)
+                campaign = Campaign(
+                    name=camp_name,
+                    description=camp_desc or None,
+                    priority=camp_priority,
+                    status='active',
+                    created_by=current_user.id
+                )
+                db.session.add(campaign)
+                db.session.flush()
+                campaign_id = campaign.id
+            else:
+                campaign_id = int(request.form.get('existing_campaign_id', 0))
+                if not campaign_id:
+                    flash('Please select a campaign.', 'danger')
+                    return redirect(request.url)
+                campaign = Campaign.query.get(campaign_id)
+                if not campaign:
+                    flash('Campaign not found.', 'danger')
+                    return redirect(request.url)
+
             if file.filename.endswith('.csv'):
                 df = pd.read_csv(file)
             else:
-                # header=1 skips the merged "PIC / Seller Details" top row
                 df = pd.read_excel(file, header=1)
 
-            # Normalize column names
             df.columns = [str(c).strip() for c in df.columns]
             added, skipped, errors = 0, 0, 0
             duplicates = []
 
-            # Pre-load existing lazada_ids and phones for fast duplicate check
             existing_ids = {r[0] for r in db.session.query(Lead.lazada_id).filter(Lead.lazada_id.isnot(None)).all()}
             existing_phones = {r[0] for r in db.session.query(Lead.contact_number).filter(Lead.contact_number.isnot(None)).all()}
 
             def val(row, *keys):
-                """Return first non-empty value from row for any of the given keys."""
                 for k in keys:
                     v = row.get(k)
                     if v is not None and str(v).strip() not in ('', 'nan', '0', 'None'):
@@ -358,9 +433,8 @@ def import_leads():
                     phone = val(row, 'Contact Number', 'contact_number', 'Mobile', 'Phone')
                     email = val(row, 'Email Address', 'email_address', 'Email', 'email')
 
-                    # Duplicate checks
                     if lazada_id and lazada_id in existing_ids:
-                        duplicates.append({'seller': seller, 'reason': f'Leads ID already exists'})
+                        duplicates.append({'seller': seller, 'reason': 'Leads ID already exists'})
                         skipped += 1
                         continue
                     if phone and phone in existing_phones:
@@ -385,6 +459,7 @@ def import_leads():
                         email=email,
                         social_media_link=val(row, 'Social Media Link', 'social_media_link'),
                         batch_ref=file.filename,
+                        campaign_id=campaign_id,
                         status='pool'
                     )
                     db.session.add(lead)
@@ -398,12 +473,13 @@ def import_leads():
 
             db.session.commit()
             dup_msg = f', {len(duplicates)} duplicate{"s" if len(duplicates)!=1 else ""} skipped' if duplicates else ''
-            flash(f'Import complete: {added} added{dup_msg}, {errors} errors.', 'success')
-            return redirect(url_for('leads'))
+            flash(f'Import complete: {added} leads added to campaign "{campaign.name}"{dup_msg}, {errors} errors.', 'success')
+            return redirect(url_for('campaign_manage'))
         except Exception as e:
+            db.session.rollback()
             flash(f'Import failed: {str(e)}', 'danger')
 
-    return render_template('leads/import.html')
+    return render_template('leads/import.html', campaigns=campaigns)
 
 
 @app.route('/leads/<int:lead_id>')
@@ -4037,6 +4113,91 @@ def campaign_detail(batch_ref):
     return render_template('campaigns/detail.html', batch_ref=batch_ref, leads=leads)
 
 
+# ─── CAMPAIGN MANAGEMENT (Priority System) ────────────────────────────────────
+
+@app.route('/campaigns/manage')
+@login_required
+def campaign_manage():
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    for c in campaigns:
+        c._metrics = c.metrics()
+    return render_template('campaigns/manage.html', campaigns=campaigns)
+
+
+@app.route('/campaigns/manage/set-priority', methods=['POST'])
+@login_required
+def campaign_set_priority():
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    campaign_id = data.get('campaign_id')
+    new_priority = data.get('priority')
+    reason = data.get('reason', '').strip() or None
+    campaign = Campaign.query.get_or_404(campaign_id)
+    prev = campaign.priority
+    campaign.priority = int(new_priority)
+    log = CampaignPriorityLog(
+        campaign_id=campaign.id,
+        changed_by=current_user.id,
+        prev_priority=prev,
+        new_priority=int(new_priority),
+        reason=reason
+    )
+    db.session.add(log)
+    db.session.commit()
+    return jsonify({'ok': True, 'name': campaign.name, 'priority': campaign.priority})
+
+
+@app.route('/campaigns/manage/archive/<int:campaign_id>', methods=['POST'])
+@login_required
+def campaign_archive(campaign_id):
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign = Campaign.query.get_or_404(campaign_id)
+    campaign.status = 'archived' if campaign.status == 'active' else 'active'
+    db.session.commit()
+    return jsonify({'ok': True, 'status': campaign.status})
+
+
+@app.route('/campaigns/dashboard')
+@login_required
+def campaign_dashboard():
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    campaign_data = []
+    for c in campaigns:
+        m = c.metrics()
+        gabay_stats = db.session.query(
+            User.full_name,
+            func.count(Lead.id).label('assigned'),
+            func.sum(func.cast(Lead.status.in_(['live', 'matched']), db.Integer)).label('completed'),
+            func.sum(func.cast(Lead.status == 'pool', db.Integer)).label('unvisited'),
+        ).join(Lead, Lead.gabay_id == User.id)\
+         .filter(Lead.campaign_id == c.id, User.role == 'gabay')\
+         .group_by(User.id, User.full_name)\
+         .order_by(func.count(Lead.id).desc())\
+         .all()
+        campaign_data.append({'campaign': c, 'metrics': m, 'gabay_stats': gabay_stats})
+    return render_template('campaigns/dashboard.html', campaign_data=campaign_data)
+
+
+@app.route('/campaigns/audit-log')
+@login_required
+def campaign_audit_log():
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    logs = CampaignPriorityLog.query\
+        .order_by(CampaignPriorityLog.changed_at.desc())\
+        .limit(200).all()
+    return render_template('campaigns/audit_log.html', logs=logs)
+
+
 # ─── GABAY MOBILE APP ────────────────────────────────────────────────────────
 
 def _gabay_stats(gabay_id):
@@ -4080,10 +4241,14 @@ def gabay_home():
     ).join(Visit, Lead.id == Visit.lead_id).filter(
         func.date(Visit.follow_up_date) == date.today()
     ).limit(5).all()
-    priority_leads = Lead.query.filter(
-        Lead.gabay_id == gid,
-        Lead.status.in_(['negotiation', 'attempting', 'assigned'])
-    ).order_by(Lead.assigned_at.asc()).limit(8).all()
+    priority_leads = (Lead.query
+        .outerjoin(Campaign, Lead.campaign_id == Campaign.id)
+        .filter(
+            Lead.gabay_id == gid,
+            Lead.status.in_(['negotiation', 'attempting', 'assigned'])
+        )
+        .order_by(Campaign.priority.asc().nullslast(), Lead.assigned_at.asc())
+        .limit(8).all())
     stalled_cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0) - \
         __import__('datetime').timedelta(days=7)
     stalled_count = Lead.query.filter(

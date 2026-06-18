@@ -89,6 +89,63 @@ class User(UserMixin, db.Model):
         return f'<User {self.username}>'
 
 
+class Campaign(db.Model):
+    __tablename__ = 'campaigns'
+    id = db.Column(db.Integer, primary_key=True)
+    name = db.Column(db.String(200), nullable=False)
+    description = db.Column(db.Text)
+    priority = db.Column(db.Integer, default=99)   # lower number = higher priority (1 = top)
+    status = db.Column(db.String(20), default='active')  # active, archived
+    created_by = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    leads = db.relationship('Lead', backref='campaign', lazy='dynamic')
+    priority_logs = db.relationship('CampaignPriorityLog', backref='campaign', lazy='dynamic',
+                                    foreign_keys='CampaignPriorityLog.campaign_id')
+    creator = db.relationship('User', foreign_keys=[created_by])
+
+    @property
+    def lead_count(self):
+        return self.leads.count()
+
+    @property
+    def active_lead_count(self):
+        return self.leads.filter(Lead.status.notin_(['closed'])).count()
+
+    def metrics(self):
+        from sqlalchemy import func as _func
+        q = db.session.query(
+            Lead.status, _func.count(Lead.id)
+        ).filter(Lead.campaign_id == self.id).group_by(Lead.status).all()
+        counts = {s: c for s, c in q}
+        total = sum(counts.values())
+        completed = counts.get('live', 0) + counts.get('matched', 0)
+        closed = counts.get('closed', 0)
+        unvisited = counts.get('pool', 0)
+        in_progress = total - completed - closed - unvisited
+        avg_age = db.session.query(
+            _func.avg(_func.extract('epoch', _func.now()) - _func.extract('epoch', Lead.imported_at)) / 86400
+        ).filter(Lead.campaign_id == self.id).scalar() or 0
+        return {
+            'total': total, 'completed': completed, 'closed': closed,
+            'unvisited': unvisited, 'in_progress': in_progress,
+            'avg_age_days': round(avg_age, 1)
+        }
+
+
+class CampaignPriorityLog(db.Model):
+    __tablename__ = 'campaign_priority_log'
+    id = db.Column(db.Integer, primary_key=True)
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaigns.id'), nullable=False)
+    changed_by = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    prev_priority = db.Column(db.Integer)
+    new_priority = db.Column(db.Integer)
+    reason = db.Column(db.Text)
+    changed_at = db.Column(db.DateTime, default=datetime.utcnow)
+
+    changer = db.relationship('User', foreign_keys=[changed_by])
+
+
 class Lead(db.Model):
     __tablename__ = 'leads'
     id = db.Column(db.Integer, primary_key=True)
@@ -115,6 +172,7 @@ class Lead(db.Model):
     assigned_at = db.Column(db.DateTime)
     imported_at = db.Column(db.DateTime, default=datetime.utcnow)
     batch_ref = db.Column(db.String(100))
+    campaign_id = db.Column(db.Integer, db.ForeignKey('campaigns.id'))
     notes = db.Column(db.Text)
     # ML model output — updated by /admin/ml/train, None = use rule-based score
     ml_score = db.Column(db.Float)

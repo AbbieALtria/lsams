@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% block title %}Campaign Dashboard{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title"><i class="bi bi-bar-chart-fill me-2" style="color:#1F3864"></i>Campaign Dashboard</div>
+    <div style="color:#9aabc5;font-size:12px">Live metrics per campaign — updated on every page load</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('campaign_manage') }}" class="btn btn-sm" style="background:#EEF2FF;color:#4338ca;font-weight:700">
+      <i class="bi bi-flag me-1"></i>Manage Priorities
+    </a>
+    <a href="{{ url_for('import_leads') }}" class="btn btn-sm" style="background:#1F3864;color:white;font-weight:700">
+      <i class="bi bi-upload me-1"></i>Import Leads
+    </a>
+  </div>
+</div>
+
+{% if campaign_data %}
+  {% for row in campaign_data %}
+  {% set c = row.campaign %}
+  {% set m = row.metrics %}
+  {% set pct_done = ((m.completed / m.total * 100) | round(1)) if m.total > 0 else 0 %}
+  {% set pct_active = ((m.in_progress / m.total * 100) | round(1)) if m.total > 0 else 0 %}
+
+  <div class="card mb-4" style="border-left:4px solid {% if c.priority == 1 %}#f59e0b{% elif c.priority <= 3 %}#3b82f6{% else %}#9aabc5{% endif %}">
+    <div class="card-header d-flex align-items-center justify-content-between py-2">
+      <div class="d-flex align-items-center gap-3">
+        <span style="font-size:11px;font-weight:800;padding:2px 10px;border-radius:10px;
+          background:{% if c.priority == 1 %}#FEF3C7;color:#D97706{% elif c.priority <= 3 %}#DBEAFE;color:#1D4ED8{% else %}#F1F5F9;color:#64748B{% endif %}">
+          P{{ c.priority }}
+        </span>
+        <div>
+          <div style="font-weight:800;color:#1F3864;font-size:15px">{{ c.name }}</div>
+          {% if c.description %}<div style="font-size:11px;color:#9aabc5">{{ c.description }}</div>{% endif %}
+        </div>
+      </div>
+      <div style="font-size:11px;color:#9aabc5">
+        Created {{ c.created_at.strftime('%b %d, %Y') }}
+        {% if c.creator %} · {{ c.creator.full_name }}{% endif %}
+        &nbsp;·&nbsp;
+        <span style="color:{% if c.status == 'active' %}#15803d{% else %}#94a3b8{% endif %};font-weight:700">
+          {{ c.status.title() }}
+        </span>
+      </div>
+    </div>
+
+    <div class="card-body">
+      <!-- Progress bar -->
+      <div class="mb-3">
+        <div style="font-size:11px;color:#9aabc5;font-weight:700;margin-bottom:4px">
+          Completion — {{ pct_done }}% done ({{ m.completed }} of {{ m.total }} leads)
+        </div>
+        <div style="height:8px;background:#f1f5f9;border-radius:4px;overflow:hidden">
+          <div style="height:100%;border-radius:4px;
+            background:linear-gradient(90deg,#15803d,#4ade80);
+            width:{{ pct_done }}%"></div>
+        </div>
+      </div>
+
+      <!-- Metric tiles -->
+      <div class="row g-2 mb-3">
+        <div class="col-6 col-md-2">
+          <div style="background:#F8FAFD;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#1F3864">{{ m.total }}</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Total</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div style="background:#FFF7ED;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#d97706">{{ m.unvisited }}</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Unvisited</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div style="background:#EFF6FF;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#2563eb">{{ m.in_progress }}</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">In Progress</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div style="background:#F0FDF4;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#15803d">{{ m.completed }}</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Completed</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div style="background:#FEF2F2;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#b91c1c">{{ m.closed }}</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Closed</div>
+          </div>
+        </div>
+        <div class="col-6 col-md-2">
+          <div style="background:#F8FAFD;border-radius:8px;padding:10px 12px;text-align:center">
+            <div style="font-size:22px;font-weight:800;color:#7c3aed">{{ m.avg_age_days }}d</div>
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Avg Age</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Gabay team breakdown -->
+      {% if row.gabay_stats %}
+      <div>
+        <div style="font-size:11px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px">
+          Gabay Team Productivity
+        </div>
+        <table class="table table-sm mb-0" style="font-size:12px">
+          <thead>
+            <tr style="background:#F8FAFD">
+              <th>Gabay Agent</th>
+              <th class="text-center">Assigned</th>
+              <th class="text-center">Completed</th>
+              <th class="text-center">Unvisited</th>
+              <th class="text-center">Completion %</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for g in row.gabay_stats %}
+            {% set g_pct = ((g.completed or 0) / g.assigned * 100) | round(1) if g.assigned > 0 else 0 %}
+            <tr>
+              <td style="font-weight:600;color:#1F3864">{{ g.full_name }}</td>
+              <td class="text-center">{{ g.assigned }}</td>
+              <td class="text-center" style="color:#15803d;font-weight:700">{{ g.completed or 0 }}</td>
+              <td class="text-center" style="color:#9aabc5">{{ g.unvisited or 0 }}</td>
+              <td class="text-center">
+                <div style="display:flex;align-items:center;gap:6px">
+                  <div style="flex:1;height:5px;background:#f1f5f9;border-radius:3px;overflow:hidden">
+                    <div style="height:100%;background:#15803d;width:{{ g_pct }}%;border-radius:3px"></div>
+                  </div>
+                  <span style="font-size:11px;font-weight:700;color:#374151;min-width:34px">{{ g_pct }}%</span>
+                </div>
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div style="font-size:12px;color:#9aabc5;font-style:italic">No Gabay assignments yet for this campaign.</div>
+      {% endif %}
+    </div>
+  </div>
+  {% endfor %}
+
+{% else %}
+<div class="card">
+  <div class="card-body text-center py-5">
+    <i class="bi bi-bar-chart" style="font-size:48px;color:#9aabc5"></i>
+    <div style="font-weight:700;color:#1F3864;margin-top:12px">No campaigns found</div>
+    <a href="{{ url_for('import_leads') }}" class="btn mt-3" style="background:#1F3864;color:white;font-weight:700">
+      <i class="bi bi-upload me-2"></i>Import Leads to Get Started
+    </a>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

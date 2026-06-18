@@ -265,7 +265,14 @@
     </div>
     <div class="lead-info">
       <div class="lead-name">{{ lead.seller_name }}</div>
-      <div class="lead-sub"><i class="bi bi-geo-alt me-1"></i>{{ lead.city or '—' }}</div>
+      <div class="lead-sub">
+        <i class="bi bi-geo-alt me-1"></i>{{ lead.city or '—' }}
+        {% if lead.campaign and lead.campaign.name != 'Legacy' %}
+        · <span style="color:{% if lead.campaign.priority == 1 %}#d97706{% elif lead.campaign.priority <= 3 %}#2563eb{% else %}#6b7280{% endif %};font-weight:700;font-size:10px">
+          P{{ lead.campaign.priority }} {{ lead.campaign.name[:18] }}{% if lead.campaign.name|length > 18 %}…{% endif %}
+        </span>
+        {% endif %}
+      </div>
     </div>
     <span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span>
     <i class="bi bi-chevron-right lead-arrow"></i>

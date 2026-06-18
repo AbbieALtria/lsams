@@ -422,8 +422,8 @@
   <a href="{{ url_for('admin_health') }}" class="nav-link {% if request.endpoint == 'admin_health' %}active{% endif %}">
     <i class="bi bi-shield-check" style="color:#15803d"></i> Lead Health
   </a>
-  <a href="{{ url_for('campaigns') }}" class="nav-link {% if 'campaign' in request.endpoint %}active{% endif %}">
-    <i class="bi bi-collection"></i> Campaigns
+  <a href="{{ url_for('campaign_manage') }}" class="nav-link {% if request.endpoint in ('campaign_manage','campaign_dashboard','campaign_audit_log') %}active{% endif %}">
+    <i class="bi bi-flag-fill"></i> Campaigns
   </a>
   <a href="{{ url_for('export_leads') }}" class="nav-link">
     <i class="bi bi-download"></i> Export Data

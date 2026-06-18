@@ -10,11 +10,69 @@
 
   <!-- Upload Form -->
   <div class="col-md-5">
-    <div class="card h-100">
+    <div class="card">
       <div class="card-header fw-bold"><i class="bi bi-cloud-upload me-2"></i>Upload File</div>
       <div class="card-body">
-        <form method="POST" enctype="multipart/form-data">
-          <div class="mb-4 p-4 rounded text-center" style="background:#F0F4FA;border:2px dashed #2E75B6">
+        <form method="POST" enctype="multipart/form-data" id="importForm">
+
+          <!-- Campaign Selection -->
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px">Campaign</label>
+            <div class="d-flex gap-2 mb-2">
+              <button type="button" class="btn btn-sm fw-bold px-3" id="btnNew"
+                style="background:#1F3864;color:white" onclick="setCampaignMode('new')">
+                + New Campaign
+              </button>
+              <button type="button" class="btn btn-sm fw-bold px-3" id="btnExist"
+                style="background:#EEF2FF;color:#4338ca" onclick="setCampaignMode('existing')">
+                Add to Existing
+              </button>
+            </div>
+            <input type="hidden" name="campaign_mode" id="campaignMode" value="new">
+
+            <!-- New Campaign Fields -->
+            <div id="newCampaignFields">
+              <div class="mb-2">
+                <input type="text" name="new_campaign_name" class="form-control" id="newCampName"
+                  placeholder="Campaign name (e.g. June 2026 – Lazada Wave 3)" style="font-size:13px">
+              </div>
+              <div class="mb-2">
+                <input type="text" name="new_campaign_desc" class="form-control"
+                  placeholder="Description (optional)" style="font-size:12px">
+              </div>
+              <div class="d-flex align-items-center gap-2">
+                <label style="font-size:12px;font-weight:700;white-space:nowrap">Priority Level:</label>
+                <input type="number" name="new_campaign_priority" class="form-control" value="1"
+                  min="1" max="99" style="font-size:13px;width:80px">
+                <span style="font-size:11px;color:#9aabc5">1 = highest, 99 = lowest</span>
+              </div>
+            </div>
+
+            <!-- Existing Campaign Dropdown -->
+            <div id="existingCampaignFields" style="display:none">
+              {% if campaigns %}
+              <select name="existing_campaign_id" class="form-select" style="font-size:13px">
+                <option value="">— Select existing campaign —</option>
+                {% for c in campaigns %}
+                <option value="{{ c.id }}">
+                  [P{{ c.priority }}] {{ c.name }}
+                  ({{ c.lead_count }} leads)
+                </option>
+                {% endfor %}
+              </select>
+              <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+                New leads will be appended. Existing leads and their statuses are not affected.
+              </div>
+              {% else %}
+              <div class="alert alert-warning py-2 px-3" style="font-size:12px">
+                No active campaigns yet. Create a new one.
+              </div>
+              {% endif %}
+            </div>
+          </div>
+
+          <!-- File Upload -->
+          <div class="mb-3 p-4 rounded text-center" style="background:#F0F4FA;border:2px dashed #2E75B6">
             <i class="bi bi-file-earmark-spreadsheet" style="font-size:48px;color:#2E75B6"></i>
             <p class="mt-2 mb-1 fw-bold" style="color:#1F3864">Click to select your Excel file</p>
             <small class="text-muted">Supports .xlsx, .xls, .csv — Max 16MB</small>
@@ -23,8 +81,8 @@
 
           <div class="alert alert-info py-2 px-3" style="font-size:13px">
             <i class="bi bi-info-circle me-1"></i>
-            <strong>No duplicates</strong> — existing leads (matched by Leads ID or phone number) are automatically skipped.
-            New leads are added to the <strong>Pool</strong> for assignment.
+            <strong>No duplicates</strong> — existing leads (matched by Leads ID or phone) are skipped.
+            New leads go to <strong>Pool</strong> under the selected campaign.
           </div>
 
           <button type="submit" class="btn w-100 fw-bold py-3" style="background:#1F3864;color:white;font-size:16px">
@@ -52,108 +110,47 @@
             </tr>
           </thead>
           <tbody>
-            <tr style="background:#fff8f0">
-              <td class="text-center fw-bold text-danger">1</td>
-              <td><code>Shop Name</code></td>
-              <td>Seller / store name</td>
-              <td class="text-center"><span class="badge bg-danger">Required</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">2</td>
-              <td><code>Leads ID</code></td>
-              <td>UUID from Lazada — used to prevent duplicates</td>
-              <td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">3</td>
-              <td><code>Priority</code></td>
-              <td>P0, P1, P2, P3</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">4</td>
-              <td><code>Project</code></td>
-              <td>e.g. TIKTOK (TTS), TOP COFFEE (TCS), RRLD</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">5</td>
-              <td><code>Cluster</code></td>
-              <td>FMCG, FA, EL, GM…</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">6</td>
-              <td><code>Category</code></td>
-              <td>Product category (Beauty, Automotive, etc.)</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">7</td>
-              <td><code>Link</code></td>
-              <td>TikTok or Shopee shop URL</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">8</td>
-              <td><code>Barangay</code></td>
-              <td>Barangay of the seller</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">9</td>
-              <td><code>City</code></td>
-              <td>City / municipality</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">10</td>
-              <td><code>Province</code></td>
-              <td>Province or region (e.g. Metro Manila)</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">11</td>
-              <td><code>Complete Address</code></td>
-              <td>Full street address of the seller</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">12</td>
-              <td><code>Sender Name</code></td>
-              <td>Contact person / PIC name</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">13</td>
-              <td><code>Contact Number</code></td>
-              <td>Mobile number — also used for duplicate check</td>
-              <td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td>
-            </tr>
-            <tr>
-              <td class="text-center fw-bold">14</td>
-              <td><code>Email Address</code></td>
-              <td>Seller email</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
-            <tr style="background:#f8fafc">
-              <td class="text-center fw-bold">15</td>
-              <td><code>Social Media Link</code></td>
-              <td>Facebook, Instagram, or other social page URL</td>
-              <td class="text-center"><span class="badge bg-secondary">Optional</span></td>
-            </tr>
+            <tr style="background:#fff8f0"><td class="text-center fw-bold text-danger">1</td><td><code>Shop Name</code></td><td>Seller / store name</td><td class="text-center"><span class="badge bg-danger">Required</span></td></tr>
+            <tr><td class="text-center fw-bold">2</td><td><code>Leads ID</code></td><td>UUID from Lazada — prevents duplicates</td><td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">3</td><td><code>Priority</code></td><td>P0, P1, P2, P3</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr><td class="text-center fw-bold">4</td><td><code>Project</code></td><td>e.g. TIKTOK (TTS), TOP COFFEE (TCS)</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">5</td><td><code>Cluster</code></td><td>FMCG, FA, EL, GM…</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr><td class="text-center fw-bold">6</td><td><code>Category</code></td><td>Product category</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">7</td><td><code>Link</code></td><td>TikTok or Shopee shop URL</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr><td class="text-center fw-bold">8</td><td><code>Barangay</code></td><td>Barangay of the seller</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">9</td><td><code>City</code></td><td>City / municipality</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr><td class="text-center fw-bold">10</td><td><code>Province</code></td><td>Province or region</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">11</td><td><code>Complete Address</code></td><td>Full street address</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr><td class="text-center fw-bold">12</td><td><code>Sender Name</code></td><td>Contact person / PIC name</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">13</td><td><code>Contact Number</code></td><td>Mobile — also used for duplicate check</td><td class="text-center"><span class="badge bg-warning text-dark">Recommended</span></td></tr>
+            <tr><td class="text-center fw-bold">14</td><td><code>Email Address</code></td><td>Seller email</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">15</td><td><code>Social Media Link</code></td><td>Facebook, Instagram, or other social URL</td><td class="text-center"><span class="badge bg-secondary">Optional</span></td></tr>
           </tbody>
         </table>
       </div>
       <div class="card-footer" style="background:#fffbeb;border-top:2px solid #fcd34d;font-size:12px;color:#92400e">
         <i class="bi bi-lightbulb-fill me-1 text-warning"></i>
-        <strong>Tips:</strong>
-        Column names must match exactly (case-insensitive). The merged header row at the top
-        (<em>PIC / Seller Details / Leads Status Update…</em>) is <strong>automatically skipped</strong> —
-        upload the file exactly as exported from Lazada. Rows missing <code>Shop Name</code> are skipped.
+        <strong>Tips:</strong> Column names must match exactly (case-insensitive). The merged header row
+        (<em>PIC / Seller Details / Leads Status Update…</em>) is <strong>automatically skipped</strong>.
+        Upload the file exactly as exported from Lazada.
       </div>
     </div>
   </div>
 
 </div>
+{% endblock %}
+{% block scripts %}
+<script>
+function setCampaignMode(mode) {
+  document.getElementById('campaignMode').value = mode;
+  const isNew = mode === 'new';
+  document.getElementById('newCampaignFields').style.display = isNew ? 'block' : 'none';
+  document.getElementById('existingCampaignFields').style.display = isNew ? 'none' : 'block';
+  document.getElementById('btnNew').style.background = isNew ? '#1F3864' : '#EEF2FF';
+  document.getElementById('btnNew').style.color = isNew ? 'white' : '#4338ca';
+  document.getElementById('btnExist').style.background = isNew ? '#EEF2FF' : '#1F3864';
+  document.getElementById('btnExist').style.color = isNew ? '#4338ca' : 'white';
+  if (isNew) document.getElementById('newCampName').focus();
+}
+</script>
 {% endblock %}
