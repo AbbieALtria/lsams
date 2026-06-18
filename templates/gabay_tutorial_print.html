@@ -1,0 +1,281 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSAMS — Gabay Agent Tutorial Guide</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+
+.doc-header { background: linear-gradient(135deg,#1F3864,#2E75B6); color: white; padding: 28px 36px; display: flex; align-items: center; justify-content: space-between; }
+.doc-logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+.doc-logo span { color: #f59e0b; }
+.doc-title { font-size: 17px; font-weight: 800; margin-top: 4px; }
+.doc-sub { font-size: 11px; opacity: .65; margin-top: 3px; }
+.doc-meta { text-align: right; font-size: 11px; opacity: .6; }
+
+.print-bar { background: #F8FAFD; border-bottom: 1px solid #E2E8F0; padding: 12px 36px; display: flex; align-items: center; gap: 12px; }
+.print-btn { background: #1F3864; color: white; border: none; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.print-btn:hover { background: #2E75B6; }
+.print-hint { font-size: 12px; color: #9aabc5; }
+
+.scenes { padding: 24px 36px; }
+.scene-card { border: 1px solid #E2E8F0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; page-break-inside: avoid; }
+.scene-header { background: linear-gradient(90deg,#1F3864,#2E75B6); color: white; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+.scene-num { background: #f59e0b; color: #1F3864; font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; white-space: nowrap; }
+.scene-module { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .8px; }
+.scene-title-text { font-size: 14px; font-weight: 800; color: white; }
+.scene-body { padding: 14px 16px; background: white; }
+.narration { font-size: 13px; color: #374151; line-height: 1.75; }
+.key-points { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.kp { background: #EEF2FF; color: #4338ca; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
+.kp.green { background: #F0FDF4; color: #15803d; }
+.kp.orange { background: #FFF7ED; color: #d97706; }
+.kp.purple { background: #F5F3FF; color: #7c3aed; }
+.kp.teal { background: #F0FDFA; color: #0f766e; }
+.kp.red { background: #FEF2F2; color: #b91c1c; }
+
+.steps { margin-top: 10px; counter-reset: step; }
+.step { display: flex; align-items: flex-start; gap: 10px; padding: 6px 0; border-bottom: 1px dashed #E2E8F0; font-size: 12px; color: #374151; }
+.step:last-child { border-bottom: none; }
+.step-num { background: #1F3864; color: white; font-size: 10px; font-weight: 900; width: 20px; height: 20px; border-radius: 50%; display: flex; align-items: center; justify-content: center; flex-shrink: 0; }
+
+.tip-box { background: #FFFBEB; border-left: 3px solid #f59e0b; border-radius: 0 8px 8px 0; padding: 10px 14px; margin-top: 10px; font-size: 12px; color: #92400e; }
+.tip-box strong { color: #d97706; }
+
+.doc-footer { background: #F8FAFD; border-top: 1px solid #E2E8F0; padding: 14px 36px; display: flex; justify-content: space-between; font-size: 11px; color: #9aabc5; }
+
+@media print {
+  .print-bar { display: none !important; }
+  body { font-size: 12px; }
+  .scenes { padding: 16px 20px; }
+  .scene-card { margin-bottom: 12px; }
+  .doc-header { padding: 20px 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div>
+    <div class="doc-logo">LSAMS <span>●</span></div>
+    <div class="doc-title">Gabay Field Agent Tutorial Guide</div>
+    <div class="doc-sub">Complete step-by-step guide for field operations</div>
+  </div>
+  <div class="doc-meta">
+    Altria Call Center<br>
+    LSAMS v2026<br>
+    Confidential
+  </div>
+</div>
+
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">In the print dialog, choose "Save as PDF" as the destination · Set Paper to A4 · Enable Background Graphics</span>
+</div>
+
+<div class="scenes">
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 1</span>
+      <div><div class="scene-module">Introduction</div><div class="scene-title-text">Welcome to Gabay</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Gabay is your field companion. It tells you exactly where to go, who to visit, and how to log every interaction — all from your phone. Your supervisor can see your progress in real time, so keep the app updated as you work through the day.</div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 2</span>
+      <div><div class="scene-module">Your Queue</div><div class="scene-title-text">Your Lead Queue — Campaign Priority</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Your home screen shows the lead queue. Leads from the highest-priority campaign appear first — marked with a gold P1 badge. Blue P2/P3 badges are next. Always work from top to bottom. Your supervisor controls which campaign is most urgent and the queue updates automatically — you don't need to do anything special.</div>
+      <div class="key-points">
+        <span class="kp orange">P1 gold badge = highest priority</span>
+        <span class="kp" style="background:#dbeafe;color:#1d4ed8">P2/P3 blue = next</span>
+        <span class="kp green">Always work top to bottom</span>
+      </div>
+      <div class="tip-box"><strong>Tip:</strong> If you see a P1 badge, that campaign's leads must be visited first — your supervisor has marked it urgent.</div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 3</span>
+      <div><div class="scene-module">Navigation</div><div class="scene-title-text">Getting to the Seller's Location</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Tap any lead card to see the seller's full details — name, address, phone, and Lazada ID. Tap the Map button to open navigation directly in Google Maps. The system also shows you sellers who are physically close to each other so you can group your visits efficiently and save travel time.</div>
+      <div class="key-points">
+        <span class="kp teal">📍 Map button → Google Maps</span>
+        <span class="kp green">Group nearby sellers</span>
+        <span class="kp">Full seller details on card</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 4</span>
+      <div><div class="scene-module">Radar</div><div class="scene-title-text">Radar — Sellers Near You Right Now</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Radar screen shows all sellers within a few kilometers of your current GPS location. Unvisited sellers appear as orange dots. If you finish your assigned leads early, use Radar to find nearby unassigned sellers you can visit as bonus calls. Tap any dot to see details and navigate there.</div>
+      <div class="key-points">
+        <span class="kp orange">🟠 Orange dot = unvisited</span>
+        <span class="kp green">Use for bonus visits</span>
+        <span class="kp teal">Based on your live GPS</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 5</span>
+      <div><div class="scene-module">Check In</div><div class="scene-title-text">Logging a Visit — Step by Step</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">When you arrive at the seller's location, tap Check In on the lead card. The system captures your GPS location automatically — you must be within range of the address. Then choose the outcome of the visit.</div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Tap the lead card to open seller details</div>
+        <div class="step"><span class="step-num">2</span>Tap <strong>Check In</strong> — GPS is captured</div>
+        <div class="step"><span class="step-num">3</span>Choose the outcome from the list</div>
+        <div class="step"><span class="step-num">4</span>Add your notes in the text box</div>
+        <div class="step"><span class="step-num">5</span>Upload photos (if required)</div>
+        <div class="step"><span class="step-num">6</span>Tap <strong>Submit</strong></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 6</span>
+      <div><div class="scene-module">Outcomes</div><div class="scene-title-text">Choosing the Right Outcome</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Always choose the most accurate outcome. This data goes directly to your supervisor and to Lazada. Use the correct code — wrong outcomes affect your conversion rate score.</div>
+      <div class="steps">
+        <div class="step"><span class="step-num">✓</span><strong>Interested</strong> — seller wants to register, follow-up scheduled</div>
+        <div class="step"><span class="step-num">✓</span><strong>Already Registered</strong> — seller is already live on Lazada</div>
+        <div class="step"><span class="step-num">✓</span><strong>Not Interested</strong> — seller declined, explain why in notes</div>
+        <div class="step"><span class="step-num">✓</span><strong>No Contact</strong> — store closed or number not responding</div>
+        <div class="step"><span class="step-num">✓</span><strong>Follow Up</strong> — needs another visit, pick a date</div>
+        <div class="step"><span class="step-num">✓</span><strong>Invalid Address</strong> — address does not exist or is wrong</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 7</span>
+      <div><div class="scene-module">Photos</div><div class="scene-title-text">Uploading Visit Photos</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">For Interested and Follow-Up outcomes, photos are required. Take a photo of the seller's storefront and any products they sell. Tap the camera icon to open your phone camera, take the photo, and it uploads instantly. Photos prove the visit happened and help your supervisor verify quality. Missing photos will be flagged in the Daily Digest.</div>
+      <div class="key-points">
+        <span class="kp orange">Required for Interested / Follow Up</span>
+        <span class="kp">Storefront + products</span>
+        <span class="kp red">Missing = flagged by supervisor</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 8</span>
+      <div><div class="scene-module">WhatsApp Bot</div><div class="scene-title-text">WhatsApp Bot — Automatic Notifications</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">When you log in to Gabay, your supervisor receives a WhatsApp message automatically saying you are online. When you complete a visit and mark a seller as Interested, another alert is sent. You do not need to send any messages yourself — the bot handles it. Make sure your WhatsApp number matches what is registered in your user account, otherwise alerts will not reach your supervisor.</div>
+      <div class="key-points">
+        <span class="kp green">Auto-login alert</span>
+        <span class="kp orange">Auto-visit alert on Interested</span>
+        <span class="kp purple">No action needed from you</span>
+        <span class="kp red">Number must match your account</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 9</span>
+      <div><div class="scene-module">Reports</div><div class="scene-title-text">Your Personal Performance Report</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Reports tab shows your personal performance for the current month: total visits logged, sellers marked Interested, registrations confirmed, and your conversion rate. Your supervisor can also see this. Tap any day in the calendar to review what you submitted that day. Keep your daily visit count above your target — shown at the top of the screen.</div>
+      <div class="key-points">
+        <span class="kp">Monthly summary</span>
+        <span class="kp green">Daily calendar view</span>
+        <span class="kp orange">Target shown at top</span>
+        <span class="kp purple">Supervisor can see this too</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 10</span>
+      <div><div class="scene-module">Registration</div><div class="scene-title-text">Submitting a Registration</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">When a seller agrees to register on Lazada, open the registration form from the lead card. Fill in their full name, shop name, national ID number, and email. Take a photo of their ID document. Submit the form — it goes directly to the Lazada onboarding team. The lead status updates to Registration Submitted automatically.</div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Open lead → tap <strong>Submit Registration</strong></div>
+        <div class="step"><span class="step-num">2</span>Fill seller details + shop name</div>
+        <div class="step"><span class="step-num">3</span>Photo of National ID</div>
+        <div class="step"><span class="step-num">4</span>Submit → status updates automatically</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 11</span>
+      <div><div class="scene-module">Daily Tips</div><div class="scene-title-text">Best Practices for Field Work</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Follow these habits every day to keep your numbers strong and your supervisor happy.</div>
+      <div class="steps">
+        <div class="step"><span class="step-num">☀️</span>Log in to Gabay first thing every morning — triggers your supervisor's online alert</div>
+        <div class="step"><span class="step-num">🗺️</span>Check your queue before leaving — plan your route for the day</div>
+        <div class="step"><span class="step-num">📍</span>Check In the moment you arrive — don't do it before or after the visit</div>
+        <div class="step"><span class="step-num">📷</span>Always take photos — even for No Contact (photo of closed shop)</div>
+        <div class="step"><span class="step-num">📝</span>Add real notes — "spoke to owner, interested in electronics category" is good; "visited" is not</div>
+        <div class="step"><span class="step-num">🕐</span>Log visits immediately — don't batch them at the end of the day</div>
+        <div class="step"><span class="step-num">🏆</span>Hit your daily target before 5 PM</div>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card" style="border-color:#f59e0b">
+    <div class="scene-header" style="background:linear-gradient(90deg,#d97706,#f59e0b)">
+      <span class="scene-num" style="background:#1F3864;color:white">Scene 12</span>
+      <div><div class="scene-module" style="color:rgba(255,255,255,.7)">Summary</div><div class="scene-title-text">You're Ready — Go!</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">You now know everything you need to be a great Gabay field agent. Start at the top of your queue, work the P1 leads first, log every visit honestly, upload your photos, and keep your notes detailed. Your supervisor is watching your real-time progress and is there to help. Good luck!</div>
+      <div class="key-points">
+        <span class="kp orange">P1 campaign leads first</span>
+        <span class="kp green">Log every visit</span>
+        <span class="kp purple">Real notes + photos</span>
+        <span class="kp teal">Supervisor sees you live</span>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="doc-footer">
+  <span>© 2026 Altria Call Center · LSAMS Gabay Field Agent Guide · Confidential</span>
+  <span>12 scenes · web-production-c9ec2.up.railway.app</span>
+</div>
+
+<script>
+if (new URLSearchParams(window.location.search).get('print') === '1') window.print();
+</script>
+</body>
+</html>

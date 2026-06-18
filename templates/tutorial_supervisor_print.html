@@ -1,0 +1,362 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>LSAMS — Supervisor & Admin Tutorial Guide</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+
+/* ── Print header ── */
+.doc-header { background: #1F3864; color: white; padding: 28px 36px; display: flex; align-items: center; justify-content: space-between; }
+.doc-logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+.doc-logo span { color: #f59e0b; }
+.doc-title { font-size: 17px; font-weight: 800; margin-top: 4px; }
+.doc-sub { font-size: 11px; opacity: .65; margin-top: 3px; }
+.doc-meta { text-align: right; font-size: 11px; opacity: .6; }
+
+/* ── Print button (hidden when printing) ── */
+.print-bar { background: #F8FAFD; border-bottom: 1px solid #E2E8F0; padding: 12px 36px; display: flex; align-items: center; gap: 12px; }
+.print-btn { background: #1F3864; color: white; border: none; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.print-btn:hover { background: #2E75B6; }
+.print-hint { font-size: 12px; color: #9aabc5; }
+
+/* ── Scene cards ── */
+.scenes { padding: 24px 36px; }
+.scene-card { border: 1px solid #E2E8F0; border-radius: 12px; margin-bottom: 16px; overflow: hidden; page-break-inside: avoid; }
+.scene-header { background: #1F3864; color: white; padding: 10px 16px; display: flex; align-items: center; gap: 12px; }
+.scene-num { background: #f59e0b; color: #1F3864; font-size: 11px; font-weight: 900; padding: 2px 10px; border-radius: 10px; white-space: nowrap; }
+.scene-module { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .8px; }
+.scene-title-text { font-size: 14px; font-weight: 800; color: white; }
+.scene-body { padding: 14px 16px; background: white; }
+.narration { font-size: 13px; color: #374151; line-height: 1.75; }
+.key-points { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.kp { background: #EEF2FF; color: #4338ca; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
+.kp.green { background: #F0FDF4; color: #15803d; }
+.kp.orange { background: #FFF7ED; color: #d97706; }
+.kp.purple { background: #F5F3FF; color: #7c3aed; }
+.kp.red { background: #FEF2F2; color: #b91c1c; }
+
+/* ── Checklist section ── */
+.checklist-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 10px; }
+.checklist-box { background: #F8FAFD; border-radius: 8px; padding: 12px 14px; }
+.cl-label { font-size: 10px; font-weight: 800; color: #f59e0b; text-transform: uppercase; letter-spacing: .5px; margin-bottom: 6px; }
+.cl-item { font-size: 12px; color: #374151; padding: 2px 0; border-bottom: 1px dashed #E2E8F0; }
+.cl-item:last-child { border-bottom: none; }
+
+/* ── Footer ── */
+.doc-footer { background: #F8FAFD; border-top: 1px solid #E2E8F0; padding: 14px 36px; display: flex; justify-content: space-between; font-size: 11px; color: #9aabc5; }
+
+@media print {
+  .print-bar { display: none !important; }
+  body { font-size: 12px; }
+  .scenes { padding: 16px 20px; }
+  .scene-card { margin-bottom: 12px; }
+  .doc-header { padding: 20px 24px; }
+}
+</style>
+</head>
+<body>
+
+<div class="doc-header">
+  <div>
+    <div class="doc-logo">LSAMS <span>●</span></div>
+    <div class="doc-title">Supervisor & Admin Complete Guide</div>
+    <div class="doc-sub">19 scenes · Campaign Management · WhatsApp Alerts · AI Tools</div>
+  </div>
+  <div class="doc-meta">
+    Altria Call Center<br>
+    LSAMS v2026<br>
+    Confidential
+  </div>
+</div>
+
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">In the print dialog, choose "Save as PDF" as the destination · Set Paper to A4 · Enable Background Graphics</span>
+</div>
+
+<div class="scenes">
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 1</span>
+      <div><div class="scene-module">Introduction</div><div class="scene-title-text">Welcome — Supervisor & Admin Guide</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Welcome, Admin! This guide covers everything you manage in LSAMS — from adding Gabay agents and uploading lead campaigns, to monitoring visits, correcting data entries, running AI health checks on your leads, and exporting reports for management.</div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 2</span>
+      <div><div class="scene-module">Dashboard</div><div class="scene-title-text">Dashboard — Real-Time Command Center</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Your dashboard shows the live state of the entire operation: total leads in the pipeline, how many sellers are now live, how many visits are logged today, and how many pool leads still need assignment. Gabay agent performance is ranked live — you can see who is hitting their target right now.</div>
+      <div class="key-points">
+        <span class="kp">Total leads</span><span class="kp green">Live sellers</span><span class="kp orange">Pool leads to assign</span><span class="kp">Agent performance ranking</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 3</span>
+      <div><div class="scene-module">User Management</div><div class="scene-title-text">User Management — All System Users</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Go to User Management to see every account in the system — Gabay agents, supervisors, and admins. Each row shows their role, WhatsApp mobile number (used by the bot), online status (🟢 green = active now), and assigned territory. Click Edit to update any user at any time.</div>
+      <div class="key-points">
+        <span class="kp">All roles visible</span><span class="kp green">🟢 Online status dot</span><span class="kp orange">WhatsApp number</span><span class="kp">Latest GPS per agent</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 4</span>
+      <div><div class="scene-module">User Management</div><div class="scene-title-text">Adding a New Gabay Agent</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Click Add New User to create a Gabay agent account. Fill in their full name, choose a username they will use to log in, set a password, and assign their role as Gabay Agent. The WhatsApp number field is critical — this is how the bot identifies who is sending messages. Also set their territory so Smart Assignment routes the right leads to them.</div>
+      <div class="key-points">
+        <span class="kp">Username + password</span><span class="kp orange">WhatsApp number required for bot</span><span class="kp green">Assigned city/territory</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 5</span>
+      <div><div class="scene-module">Lead Assignment</div><div class="scene-title-text">Assign Leads to Agents</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Assign Leads page shows all pool leads with no agent yet. You can manually select which agent gets each lead, or use Smart Auto-Assign which automatically distributes leads based on each agent's territory. Tick multiple leads and assign them in one click. Pool leads shown in orange on the dashboard need to be cleared daily.</div>
+      <div class="key-points">
+        <span class="kp orange">Pool leads need clearing</span><span class="kp green">Smart Auto-Assign by territory</span><span class="kp">Bulk selection</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 6</span>
+      <div><div class="scene-module">Campaign Upload</div><div class="scene-title-text">Import Leads — Choose Your Campaign First</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Before uploading, choose the campaign. Click New Campaign to create one with a name and priority level — Priority 1 means Gabay agents will work on these leads first. Or click Add to Existing to append the new leads to a campaign already in the system. The same seller can appear in two campaigns — each tracks its own status independently. After upload, leads go to the pool ready for assignment.</div>
+      <div class="key-points">
+        <span class="kp orange">New Campaign = name + priority</span><span class="kp">Add to Existing = append only</span><span class="kp green">Same seller allowed in 2 campaigns</span><span class="kp purple">Each campaign = independent status</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 7</span>
+      <div><div class="scene-module">Visits Monitor</div><div class="scene-title-text">Visits — Monitor All Agent Activity</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Visits page shows every check-in from all agents in real time. You can see the time, agent name, seller visited, outcome selected, whether GPS was captured, how many photos were uploaded, and the agent's notes. Use the Filter button to narrow by agent, date range, or outcome. Export to Excel for reporting.</div>
+      <div class="key-points">
+        <span class="kp">Real-time check-ins</span><span class="kp green">GPS + photos</span><span class="kp orange">Filter by agent/date/outcome</span><span class="kp">Export to Excel</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 8</span>
+      <div><div class="scene-module">Data Entry</div><div class="scene-title-text">Data Entry — Correct & Update Transactions</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Data Entry allows you to edit visit records logged by Gabay agents. You can correct the outcome, update the follow-up date, add supervisor notes, or override the lead status. This is important when an agent logged the wrong outcome or missed adding notes. Every change you make is recorded in the Activity Log with your name and timestamp — full audit trail.</div>
+      <div class="key-points">
+        <span class="kp">Edit outcomes</span><span class="kp orange">Update follow-up dates</span><span class="kp green">Override lead status</span><span class="kp purple">Audit trail — every change logged</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 9</span>
+      <div><div class="scene-module">Lead Health</div><div class="scene-title-text">Lead Health — AI Quality Check</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Lead Health runs an AI analysis across your entire lead database and scores each seller from 0 to 100. It flags issues like duplicate addresses, missing contact numbers, warehouse addresses, and sellers already registered. Leads in red need immediate attention — fix them before sending agents to visit. Run this weekly to keep your data clean.</div>
+      <div class="key-points">
+        <span class="kp red">Duplicate addresses</span><span class="kp red">Missing contacts</span><span class="kp orange">Warehouse flags</span><span class="kp green">Run weekly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 10</span>
+      <div><div class="scene-module">AI Scoring</div><div class="scene-title-text">AI Scoring — Priority Prediction</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">AI Scoring uses machine learning to rank which sellers are most likely to convert to live sellers. The model learns from your team's past visit history — which seller types, cities, and follow-up patterns lead to successful registrations. Leads with high scores should be visited first. Click Retrain Model monthly to keep the AI learning from new data.</div>
+      <div class="key-points">
+        <span class="kp purple">ML model</span><span class="kp green">High score = visit first</span><span class="kp orange">Retrain monthly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 11</span>
+      <div><div class="scene-module">Reports</div><div class="scene-title-text">Reports — Team Performance Analytics</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Reports gives you a full breakdown of team performance for any date range. Total visits, interested count, registrations, live sellers, and conversion rate per agent. Use Export Excel to send this to your manager or Lazada account team. You can filter by individual agent to review their month.</div>
+      <div class="key-points">
+        <span class="kp">Any date range</span><span class="kp green">Per-agent breakdown</span><span class="kp orange">Export to Excel</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 12</span>
+      <div><div class="scene-module">Daily Digest</div><div class="scene-title-text">Daily Digest — End-of-Day Summary</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Daily Digest is your automatic end-of-day report — total visits today, interested sellers, registrations, and the top performing agent. It also alerts you to problems: agents with pending photo uploads, unassigned pool leads, and agents who did not log any visits today. You can email this digest directly to your manager.</div>
+      <div class="key-points">
+        <span class="kp">Daily summary</span><span class="kp red">Inactive agent alerts</span><span class="kp orange">Pending photo alerts</span><span class="kp green">Email to manager</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 13</span>
+      <div><div class="scene-module">Targets</div><div class="scene-title-text">Targets — Set & Track Monthly Goals</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Use Targets to set monthly visit targets, live seller goals, and registration quotas for each agent. The progress bars update in real time as agents log visits. If an agent falls behind — shown in red — you know to follow up with them. Targets reset at the start of each month.</div>
+      <div class="key-points">
+        <span class="kp">Per-agent targets</span><span class="kp green">Live progress bars</span><span class="kp red">Behind = flagged red</span><span class="kp orange">Resets monthly</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 14</span>
+      <div><div class="scene-module">Export</div><div class="scene-title-text">Export Data — Reports for Management</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Export page lets you download four key datasets: All Leads with their full status, Visit Logs with GPS and photo records, Registrations for the period, and Agent Performance summaries. These Excel files are ready to submit directly to Lazada or your company management without any manual formatting.</div>
+      <div class="key-points">
+        <span class="kp">All Leads export</span><span class="kp green">Visit Logs with GPS</span><span class="kp orange">Registrations</span><span class="kp purple">Agent Performance</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 15</span>
+      <div><div class="scene-module">Activity Log</div><div class="scene-title-text">Activity Log — Full Audit Trail</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Activity Log records every action in the system — agent check-ins, data entry corrections you made, lead assignments, new user creation, and campaign uploads. If you ever need to verify what happened on a specific date or investigate a discrepancy, this is your source of truth. All entries show the user, timestamp, and exact change made.</div>
+      <div class="key-points">
+        <span class="kp">Every action recorded</span><span class="kp purple">Who + when + what</span><span class="kp green">Investigate discrepancies</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 16</span>
+      <div><div class="scene-module">Campaign Priority</div><div class="scene-title-text">Campaign Management — Set Who Works First</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Go to Campaigns in the sidebar to manage all your campaigns. Each campaign has a Priority number — change it and click Save. A reason box will appear for the audit log. Priority 1 campaigns appear first in every Gabay agent's queue automatically — no manual action needed from agents. Archived campaigns stay in the system forever; their data and history are never deleted.</div>
+      <div class="key-points">
+        <span class="kp orange">Priority 1 = Gabay sees these first</span><span class="kp">Change any time</span><span class="kp green">Archive = data kept forever</span><span class="kp purple">Reason saved to audit log</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 17</span>
+      <div><div class="scene-module">Campaign Dashboard</div><div class="scene-title-text">Campaign Dashboard — Live Metrics Per Campaign</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">The Campaign Dashboard shows you every campaign at a glance: total leads, how many are unvisited, in progress, completed, and closed. A progress bar shows completion percentage. Below each campaign is a Gabay team table — who has how many leads, how many they completed, and their completion rate. Use this to spot which agent or campaign needs attention.</div>
+      <div class="key-points">
+        <span class="kp">Total / Unvisited / Active / Done</span><span class="kp orange">Progress bar per campaign</span><span class="kp green">Gabay team productivity table</span><span class="kp">Avg age in days</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 18</span>
+      <div><div class="scene-module">WA Alert Control</div><div class="scene-title-text">WhatsApp Alerts — Mute or Enable Per Manager</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">As Super Admin you can control exactly who receives WhatsApp alert messages. On the User Management screen, each manager and supervisor with a mobile number has a green WA On button. Click it to mute that person — it turns grey and shows WA Off. Click again to re-enable. Alerts include: when a Gabay agent logs in, when a visit is logged, and when a seller status changes. Gabay agents are never affected by this toggle.</div>
+      <div class="key-points">
+        <span class="kp green">🔔 WA On = receiving alerts</span><span class="kp">🔕 WA Off = muted</span><span class="kp orange">Superadmin only</span><span class="kp purple">Login · Visit · Status change alerts</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="scene-card" style="border-color:#f59e0b">
+    <div class="scene-header" style="background:#d97706">
+      <span class="scene-num" style="background:#1F3864;color:white">Scene 19</span>
+      <div><div class="scene-module">Daily Workflow</div><div class="scene-title-text">Admin Daily Workflow Checklist</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration" style="margin-bottom:12px">Follow this routine to keep your team running at peak performance.</div>
+      <div class="checklist-grid">
+        <div class="checklist-box">
+          <div class="cl-label">☀️ Morning</div>
+          <div class="cl-item">📊 Check Dashboard</div>
+          <div class="cl-item">📤 Assign pool leads</div>
+          <div class="cl-item">🚩 Review campaign priorities</div>
+          <div class="cl-item">🎯 Review agent targets</div>
+        </div>
+        <div class="checklist-box">
+          <div class="cl-label">🕐 During Day</div>
+          <div class="cl-item">📍 Monitor visits live</div>
+          <div class="cl-item">📂 Data entry corrections</div>
+          <div class="cl-item">🏥 Fix health issues</div>
+          <div class="cl-item">💬 WA alerts check</div>
+        </div>
+        <div class="checklist-box">
+          <div class="cl-label">🌙 End of Day</div>
+          <div class="cl-item">📅 Review Daily Digest</div>
+          <div class="cl-item">📤 Export for reporting</div>
+          <div class="cl-item">🔍 Check activity log</div>
+        </div>
+        <div class="checklist-box">
+          <div class="cl-label">📅 Weekly</div>
+          <div class="cl-item">🚩 Upload & prioritize campaigns</div>
+          <div class="cl-item">🤖 Retrain AI model</div>
+          <div class="cl-item">🏥 Run Lead Health check</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="doc-footer">
+  <span>© 2026 Altria Call Center · LSAMS Supervisor & Admin Guide · Confidential</span>
+  <span>19 scenes · web-production-c9ec2.up.railway.app</span>
+</div>
+
+<script>
+// Auto-trigger print dialog if ?print=1 in URL
+if (new URLSearchParams(window.location.search).get('print') === '1') window.print();
+</script>
+</body>
+</html>

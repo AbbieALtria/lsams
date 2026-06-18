@@ -7,11 +7,18 @@
     <div style="font-size:17px;font-weight:800;color:#1F3864">🎓 Gabay Tutorial</div>
     <div style="font-size:11px;color:#9aabc5">Step-by-step guide for field agents</div>
   </div>
-  <a href="{{ url_for('gabay_home') }}"
-     style="background:#f1f5f9;color:#4a5568;border:none;border-radius:12px;
-            padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
-    <i class="bi bi-arrow-left me-1"></i>Home
-  </a>
+  <div style="display:flex;gap:8px;align-items:center">
+    <a href="{{ url_for('gabay_tutorial_print') }}" target="_blank"
+       style="background:#f59e0b;color:#1F3864;border:none;border-radius:12px;
+              padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
+      <i class="bi bi-download me-1"></i>Download PDF
+    </a>
+    <a href="{{ url_for('gabay_home') }}"
+       style="background:#f1f5f9;color:#4a5568;border:none;border-radius:12px;
+              padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
+      <i class="bi bi-arrow-left me-1"></i>Home
+    </a>
+  </div>
 </div>
 
 <!-- Quick topic pills -->

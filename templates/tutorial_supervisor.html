@@ -7,9 +7,15 @@
     <h4 class="fw-bold mb-0" style="color:#1F3864">🎓 Supervisor & Admin Tutorial</h4>
     <small class="text-muted">Complete guide for supervisors and administrators</small>
   </div>
-  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
-    <i class="bi bi-arrow-left me-1"></i>Dashboard
-  </a>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('supervisor_tutorial_print') }}" target="_blank"
+       class="btn btn-sm" style="background:#f59e0b;color:#1F3864;font-weight:700">
+      <i class="bi bi-download me-1"></i>Download PDF
+    </a>
+    <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+      <i class="bi bi-arrow-left me-1"></i>Dashboard
+    </a>
+  </div>
 </div>
 
 <!-- Topic pills -->

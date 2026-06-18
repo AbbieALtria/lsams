@@ -4536,6 +4536,23 @@ def supervisor_tutorial():
     return render_template('tutorial_supervisor.html')
 
 
+@app.route('/admin/tutorial/print')
+@login_required
+def supervisor_tutorial_print():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('tutorial_supervisor_print.html')
+
+
+@app.route('/gabay/app/tutorial/print')
+@login_required
+def gabay_tutorial_print():
+    if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
+        return redirect(url_for('dashboard'))
+    return render_template('gabay_tutorial_print.html')
+
+
 @app.route('/uploads/visits/<path:filename>')
 @login_required
 def visit_photo(filename):
