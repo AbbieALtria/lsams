@@ -4522,7 +4522,7 @@ def gabay_upload_photo(visit_id):
 @app.route('/gabay/app/tutorial')
 @login_required
 def gabay_tutorial():
-    if current_user.role != 'gabay':
+    if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
         return redirect(url_for('dashboard'))
     return render_template('gabay_app/tutorial.html')
 
