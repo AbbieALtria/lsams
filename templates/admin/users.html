@@ -102,6 +102,15 @@
                   {{ 'Deactivate' if u.is_active else 'Activate' }}
                 </button>
                 {% endif %}
+                {% if role in ('manager','admin','supervisor','superadmin') and u.mobile %}
+                <button onclick="toggleWA({{ u.id }}, this)"
+                  class="btn btn-sm" id="wa-btn-{{ u.id }}"
+                  title="{% if u.whatsapp_alerts_enabled %}WhatsApp alerts ON — click to mute{% else %}WhatsApp alerts OFF — click to enable{% endif %}"
+                  style="font-size:11px;
+                    background:{% if u.whatsapp_alerts_enabled %}#DCFCE7;color:#15803d{% else %}#F1F5F9;color:#94a3b8{% endif %}">
+                  {% if u.whatsapp_alerts_enabled %}🔔 WA On{% else %}🔕 WA Off{% endif %}
+                </button>
+                {% endif %}
                 {% if role == 'gabay' %}
                 <a href="{{ url_for('gabay_scorecard', gabay_id=u.id) }}"
                    class="btn btn-sm" style="background:#F5F0FF;color:#7c3aed;font-size:11px">Scorecard</a>
@@ -132,6 +141,16 @@ function toggleUser(id, btn) {
       btn.textContent = d.active ? 'Deactivate' : 'Activate';
       btn.style.background = d.active ? '#FEF2F2' : '#F0FDF4';
       btn.style.color = d.active ? '#b91c1c' : '#15803d';
+    });
+}
+function toggleWA(id, btn) {
+  fetch(`/admin/users/${id}/toggle-wa-alerts`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      btn.textContent = d.enabled ? '🔔 WA On' : '🔕 WA Off';
+      btn.style.background = d.enabled ? '#DCFCE7' : '#F1F5F9';
+      btn.style.color = d.enabled ? '#15803d' : '#94a3b8';
+      btn.title = d.enabled ? 'WhatsApp alerts ON — click to mute' : 'WhatsApp alerts OFF — click to enable';
     });
 }
 </script>

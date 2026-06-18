@@ -27,6 +27,7 @@ with app.app_context():
     db.create_all()
     # Add new User columns if they don't exist (safe for existing Railway DB)
     _new_user_cols = [
+        ("whatsapp_alerts_enabled", "BOOLEAN DEFAULT TRUE"),
         ("mobile",         "VARCHAR(20)"),
         ("mobile2",        "VARCHAR(20)"),
         ("viber",          "VARCHAR(20)"),
@@ -187,9 +188,10 @@ def _notify_managers_whatsapp(message: str):
     from whatsapp import send_message
     managers = User.query.filter(
         User.is_active == True,
-        User.role.in_(['manager', 'admin', 'power_user', 'supervisor']),
+        User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
         User.mobile.isnot(None),
-        User.mobile != ''
+        User.mobile != '',
+        User.whatsapp_alerts_enabled == True
     ).all()
     def _send():
         with app.app_context():
@@ -3836,6 +3838,17 @@ def admin_toggle_user(user_id):
     u.is_active = not u.is_active
     db.session.commit()
     return jsonify({'active': u.is_active, 'name': u.full_name})
+
+
+@app.route('/admin/users/<int:user_id>/toggle-wa-alerts', methods=['POST'])
+@login_required
+def admin_toggle_wa_alerts(user_id):
+    if not current_user.is_superadmin:
+        return jsonify({'error': 'forbidden'}), 403
+    u = User.query.get_or_404(user_id)
+    u.whatsapp_alerts_enabled = not u.whatsapp_alerts_enabled
+    db.session.commit()
+    return jsonify({'enabled': u.whatsapp_alerts_enabled, 'name': u.full_name})
 
 
 # ─── LAZADA READ-ONLY PORTAL ──────────────────────────────────────────────────

@@ -22,6 +22,9 @@ class User(UserMixin, db.Model):
     # Gabay territory — city or cities this agent covers (comma-separated for multi-city)
     assigned_city = db.Column(db.String(300))
 
+    # WhatsApp alert preference (manager/admin only — superadmin can toggle per user)
+    whatsapp_alerts_enabled = db.Column(db.Boolean, default=True)
+
     # Contact info
     mobile = db.Column(db.String(20))
     mobile2 = db.Column(db.String(20))

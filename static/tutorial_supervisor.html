@@ -389,38 +389,198 @@ body {
 </div>
 
 <!-- ══════════════════════════════════════════════════ -->
-<!-- SCENE 5 — CAMPAIGN / LEADS UPLOAD -->
+<!-- SCENE 5 — CAMPAIGN UPLOAD (UPDATED) -->
 <!-- ══════════════════════════════════════════════════ -->
 <div class="screen-inner" id="scr5">
  <div class="app">
   <div class="sidebar">
     <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
     <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
-    <div class="nav-item active" style="margin:4px 0">📂 Campaigns</div>
+    <div class="nav-item active" style="margin:4px 0">🚩 Campaigns</div>
   </div>
   <div class="main">
     <div class="top-bar">
-      <div><div class="page-title">📂 Campaign Lead Upload</div><div class="page-sub">Upload seller lists from Excel or CSV</div></div>
-      <div class="btn btn-outline">📥 Download Template</div>
+      <div><div class="page-title">📤 Import Leads</div><div class="page-sub">Assign to campaign before uploading</div></div>
     </div>
     <div class="content">
-      <div class="card" style="margin-bottom:10px">
-        <div class="card-title">📤 Upload New Lead List</div>
-        <div class="upload-zone tap-me">
-          <div style="font-size:32px;margin-bottom:8px">📊</div>
-          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">Drop your Excel or CSV file here</div>
-          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">Required columns: Seller Name, Address, City, Contact Number</div>
-          <div class="btn btn-primary">Browse File</div>
+      <div class="card" style="margin-bottom:8px">
+        <div class="card-title">🚩 Step 1 — Select Campaign</div>
+        <div style="display:flex;gap:6px;margin-bottom:8px">
+          <div style="background:#1F3864;color:white;border-radius:6px;padding:5px 12px;font-size:9px;font-weight:800">+ New Campaign</div>
+          <div style="background:#EEF2FF;color:#4338ca;border-radius:6px;padding:5px 12px;font-size:9px;font-weight:800">Add to Existing</div>
+        </div>
+        <div style="background:#F8FAFD;border-radius:8px;padding:8px 10px;margin-bottom:6px">
+          <div style="font-size:9px;font-weight:700;color:#1F3864;margin-bottom:4px">Campaign Name</div>
+          <div style="background:white;border:1px solid #E2E8F0;border-radius:5px;padding:4px 8px;font-size:9px;color:#4a5568">June 2026 — Lazada Wave 3</div>
+        </div>
+        <div style="display:flex;gap:6px;align-items:center">
+          <div style="font-size:9px;font-weight:700;color:#1F3864">Priority Level:</div>
+          <div style="background:white;border:2px solid #f59e0b;border-radius:5px;padding:3px 10px;font-size:11px;font-weight:900;color:#d97706">1</div>
+          <div style="font-size:8px;color:#9aabc5">1 = highest priority for Gabay agents</div>
         </div>
       </div>
       <div class="card">
-        <div class="card-title">📋 Recent Campaign Uploads</div>
+        <div class="card-title">📊 Step 2 — Upload Excel File</div>
+        <div class="upload-zone tap-me" style="padding:10px">
+          <div style="font-size:24px;margin-bottom:4px">📊</div>
+          <div style="font-size:9px;font-weight:800;color:#1F3864;margin-bottom:3px">Drop Excel / CSV file here</div>
+          <div style="font-size:8px;color:#9aabc5;margin-bottom:6px">Supports .xlsx, .xls, .csv · Max 16MB</div>
+          <div class="btn btn-primary" style="font-size:9px;padding:4px 12px">Browse File</div>
+        </div>
+        <div style="background:#EFF6FF;border-radius:6px;padding:5px 8px;margin-top:6px;font-size:8px;color:#1d4ed8">
+          ℹ️ Same seller in a different campaign is <b>allowed</b> — each campaign tracks status independently.
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 16 — CAMPAIGN MANAGEMENT (PRIORITY) -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr16">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🚩 Campaigns</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">🚩 Campaign Management</div><div class="page-sub">Set priorities · Archive campaigns · View metrics</div></div>
+      <div class="btn btn-primary" style="font-size:9px">📤 Import Leads</div>
+    </div>
+    <div class="content">
+      <div style="background:#FFF7ED;border-left:3px solid #F59E0B;border-radius:6px;padding:6px 10px;font-size:8px;color:#92400e;margin-bottom:8px">
+        ⚡ Priority 1 = highest priority. Gabay agents see P1 campaign leads first. Changing priorities never deletes any data.
+      </div>
+      <div class="card" style="padding:0">
         <table class="tbl">
-          <tr><th>Campaign Name</th><th>Uploaded</th><th>Leads</th><th>Assigned</th><th>Status</th></tr>
-          <tr><td><b>June 2026 Batch</b></td><td style="color:#9aabc5">Jun 1, 2026</td><td><b>120</b></td><td><span class="badge badge-green">112</span></td><td><span class="badge badge-green">Active</span></td></tr>
-          <tr><td><b>May Backfill</b></td><td style="color:#9aabc5">May 15, 2026</td><td><b>85</b></td><td><span class="badge badge-green">85</span></td><td><span class="badge badge-blue">Completed</span></td></tr>
-          <tr><td><b>Metro Manila Q2</b></td><td style="color:#9aabc5">Apr 2, 2026</td><td><b>200</b></td><td><span class="badge badge-green">198</span></td><td><span class="badge badge-blue">Completed</span></td></tr>
+          <tr><th>Priority</th><th>Campaign</th><th>Total</th><th>Active</th><th>Done</th><th>Status</th><th>Action</th></tr>
+          <tr>
+            <td><div style="background:white;border:2px solid #f59e0b;border-radius:5px;width:28px;text-align:center;font-size:11px;font-weight:900;color:#d97706">1</div></td>
+            <td><b style="font-size:9px">June 2026 – Wave 3</b><br><span style="font-size:8px;color:#9aabc5">Created Jun 10, 2026</span></td>
+            <td><b>150</b></td><td style="color:#2563eb;font-weight:700">98</td><td style="color:#15803d;font-weight:700">12</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="badge badge-blue tap-me">Save</span></td>
+          </tr>
+          <tr>
+            <td><div style="background:white;border:2px solid #3b82f6;border-radius:5px;width:28px;text-align:center;font-size:11px;font-weight:900;color:#1d4ed8">2</div></td>
+            <td><b style="font-size:9px">May 2026 – Wave 2</b><br><span style="font-size:8px;color:#9aabc5">Created May 5, 2026</span></td>
+            <td><b>120</b></td><td style="color:#2563eb;font-weight:700">45</td><td style="color:#15803d;font-weight:700">70</td>
+            <td><span class="badge badge-green">Active</span></td>
+            <td><span class="badge badge-blue tap-me">Save</span></td>
+          </tr>
+          <tr style="opacity:.5">
+            <td><div style="background:#f1f5f9;border:1px solid #e2e8f0;border-radius:5px;width:28px;text-align:center;font-size:11px;font-weight:700;color:#94a3b8">99</div></td>
+            <td><b style="font-size:9px">Legacy</b><br><span style="font-size:8px;color:#9aabc5">Pre-campaign leads</span></td>
+            <td><b>85</b></td><td style="color:#9aabc5">10</td><td style="color:#9aabc5">65</td>
+            <td><span class="badge" style="background:#f1f5f9;color:#64748b">Archived</span></td>
+            <td><span class="badge tap-me" style="background:#F0FDF4;color:#15803d">Restore</span></td>
+          </tr>
         </table>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 17 — CAMPAIGN DASHBOARD -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr17">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🚩 Campaigns</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📊 Campaign Dashboard</div><div class="page-sub">Live metrics per campaign</div></div>
+    </div>
+    <div class="content" style="overflow-y:auto">
+      <!-- Campaign card -->
+      <div class="card" style="margin-bottom:8px;border-left:4px solid #f59e0b">
+        <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+          <span style="background:#FEF3C7;color:#D97706;font-size:8px;font-weight:800;padding:2px 8px;border-radius:8px">P1</span>
+          <b style="font-size:11px;color:#1F3864">June 2026 – Wave 3</b>
+          <span style="margin-left:auto;font-size:8px;color:#9aabc5">150 leads · Avg 8d</span>
+        </div>
+        <div style="height:5px;background:#f1f5f9;border-radius:3px;margin-bottom:8px">
+          <div style="height:100%;width:8%;background:linear-gradient(90deg,#15803d,#4ade80);border-radius:3px"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(5,1fr);gap:4px;margin-bottom:8px">
+          <div style="text-align:center;background:#F8FAFD;border-radius:6px;padding:5px 2px"><div style="font-size:14px;font-weight:900;color:#1F3864">150</div><div style="font-size:7px;color:#9aabc5">TOTAL</div></div>
+          <div style="text-align:center;background:#FFF7ED;border-radius:6px;padding:5px 2px"><div style="font-size:14px;font-weight:900;color:#d97706">40</div><div style="font-size:7px;color:#9aabc5">UNVISITED</div></div>
+          <div style="text-align:center;background:#EFF6FF;border-radius:6px;padding:5px 2px"><div style="font-size:14px;font-weight:900;color:#2563eb">98</div><div style="font-size:7px;color:#9aabc5">ACTIVE</div></div>
+          <div style="text-align:center;background:#F0FDF4;border-radius:6px;padding:5px 2px"><div style="font-size:14px;font-weight:900;color:#15803d">12</div><div style="font-size:7px;color:#9aabc5">DONE</div></div>
+          <div style="text-align:center;background:#FEF2F2;border-radius:6px;padding:5px 2px"><div style="font-size:14px;font-weight:900;color:#b91c1c">0</div><div style="font-size:7px;color:#9aabc5">CLOSED</div></div>
+        </div>
+        <div style="font-size:8px;font-weight:800;color:#9aabc5;text-transform:uppercase;margin-bottom:4px">Gabay Team</div>
+        <table class="tbl" style="font-size:8px">
+          <tr><th>Agent</th><th>Assigned</th><th>Done</th><th>%</th></tr>
+          <tr><td>Karen V.</td><td>52</td><td style="color:#15803d;font-weight:700">5</td><td>9.6%</td></tr>
+          <tr><td>Karl M.</td><td>48</td><td style="color:#15803d;font-weight:700">4</td><td>8.3%</td></tr>
+          <tr><td>Mariecris T.</td><td>50</td><td style="color:#15803d;font-weight:700">3</td><td>6.0%</td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 18 — WHATSAPP ALERT CONTROL -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr18">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">👤 User Mgmt</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">👤 User Management</div><div class="page-sub">Manage users · Control WhatsApp alerts</div></div>
+    </div>
+    <div class="content">
+      <div class="card">
+        <div class="card-title">Manager / Admin Accounts — WhatsApp Alert Control</div>
+        <table class="tbl">
+          <tr><th>Name</th><th>Role</th><th>Mobile</th><th>WA Alerts</th><th>Actions</th></tr>
+          <tr>
+            <td><b>Anna Santos</b></td><td><span class="badge badge-blue">Manager</span></td>
+            <td style="color:#9aabc5;font-size:8px">+639171234567</td>
+            <td><span style="background:#DCFCE7;color:#15803d;font-size:8px;font-weight:800;padding:2px 8px;border-radius:8px">🔔 WA On</span></td>
+            <td style="display:flex;gap:4px">
+              <span class="badge badge-blue tap-me">Edit</span>
+              <span class="badge" style="background:#FEF2F2;color:#b91c1c">Deactivate</span>
+            </td>
+          </tr>
+          <tr>
+            <td><b>Jose Reyes</b></td><td><span class="badge badge-blue">Supervisor</span></td>
+            <td style="color:#9aabc5;font-size:8px">+639281234567</td>
+            <td><span style="background:#F1F5F9;color:#94a3b8;font-size:8px;font-weight:800;padding:2px 8px;border-radius:8px;cursor:pointer" class="tap-me">🔕 WA Off</span></td>
+            <td style="display:flex;gap:4px">
+              <span class="badge badge-blue tap-me">Edit</span>
+              <span class="badge" style="background:#FEF2F2;color:#b91c1c">Deactivate</span>
+            </td>
+          </tr>
+          <tr>
+            <td><b>Maria Cruz</b></td><td><span class="badge badge-blue">Manager</span></td>
+            <td style="color:#9aabc5;font-size:8px">+639351234567</td>
+            <td><span style="background:#DCFCE7;color:#15803d;font-size:8px;font-weight:800;padding:2px 8px;border-radius:8px">🔔 WA On</span></td>
+            <td style="display:flex;gap:4px">
+              <span class="badge badge-blue tap-me">Edit</span>
+              <span class="badge" style="background:#FEF2F2;color:#b91c1c">Deactivate</span>
+            </td>
+          </tr>
+        </table>
+        <div style="background:#EFF6FF;border-radius:6px;padding:6px 10px;margin-top:8px;font-size:8px;color:#1d4ed8">
+          ℹ️ Only <b>Super Admin</b> can enable or disable WhatsApp alerts per manager. Alerts include: Gabay login, visit logged, seller status change.
+        </div>
       </div>
     </div>
   </div>
@@ -833,7 +993,7 @@ body {
         </div>
         <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px">
           <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:6px">WEEKLY</div>
-          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">📂 Upload new campaigns<br>🤖 Retrain AI model<br>🏥 Run Lead Health check</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">🚩 Upload & prioritize campaigns<br>🤖 Retrain AI model<br>🏥 Run Lead Health check</div>
         </div>
       </div>
       <div style="margin-top:16px;font-size:9px;color:rgba(255,255,255,0.3)">© 2026 Altria Call Center · LSAMS Admin Guide</div>
@@ -857,7 +1017,7 @@ body {
       <button class="ctrl-btn" onclick="prevScene()">⏮</button>
       <button class="ctrl-btn play-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
       <button class="ctrl-btn" onclick="nextScene()">⏭</button>
-      <span class="scene-counter" id="sceneCounterEl">1 / 16</span>
+      <span class="scene-counter" id="sceneCounterEl">1 / 19</span>
     </div>
   </div>
 
@@ -871,7 +1031,7 @@ const urlMap = {
   2: 'web-production-c9ec2.up.railway.app/admin/users',
   3: 'web-production-c9ec2.up.railway.app/admin/users/new',
   4: 'web-production-c9ec2.up.railway.app/admin/assign-leads',
-  5: 'web-production-c9ec2.up.railway.app/admin/campaigns',
+  5: 'web-production-c9ec2.up.railway.app/leads/import',
   6: 'web-production-c9ec2.up.railway.app/visits',
   7: 'web-production-c9ec2.up.railway.app/admin/data-entry',
   8: 'web-production-c9ec2.up.railway.app/admin/lead-health',
@@ -882,6 +1042,10 @@ const urlMap = {
   13:'web-production-c9ec2.up.railway.app/admin/export',
   14:'web-production-c9ec2.up.railway.app/admin/activity-log',
   15:'web-production-c9ec2.up.railway.app/dashboard',
+  16:'web-production-c9ec2.up.railway.app/campaigns/manage',
+  17:'web-production-c9ec2.up.railway.app/campaigns/dashboard',
+  18:'web-production-c9ec2.up.railway.app/admin/users',
+  19:'web-production-c9ec2.up.railway.app/dashboard',
 };
 
 const scenes = [
@@ -895,8 +1059,8 @@ const scenes = [
     narration:'Click Add New User to create a Gabay agent account. Fill in their full name, choose a username they will use to log in, set a password, and assign their role as Gabay Agent. The WhatsApp number field is critical — this is how the bot identifies who is sending messages. Also set their territory so Smart Assignment routes the right leads to them.' },
   { screen:4,  label:'Lead Assignment',  title:'Assign Leads to Agents', duration:8000,
     narration:'The Assign Leads page shows all pool leads with no agent yet. You can manually select which agent gets each lead, or use Smart Auto-Assign which automatically distributes leads based on each agent\'s territory. Tick multiple leads and assign them in one click. Pool leads shown in orange on the dashboard need to be cleared daily.' },
-  { screen:5,  label:'Campaigns',        title:'Campaign Lead Upload — Excel & CSV', duration:8000,
-    narration:'When you receive a new batch of seller leads from the Lazada campaign team, go to Campaigns and upload the Excel or CSV file. Download the template first to make sure your columns match — Seller Name, Address, City, and Contact Number are required. After upload, leads go into the pool and are ready to assign to your Gabay agents.' },
+  { screen:5,  label:'Campaign Upload',   title:'Import Leads — Choose Your Campaign First', duration:9000,
+    narration:'Before uploading, choose the campaign. Click New Campaign to create one with a name and priority level — Priority 1 means Gabay agents will work on these leads first. Or click Add to Existing to append the new leads to a campaign already in the system. The same seller can appear in two campaigns — each tracks its own status independently. After upload, leads go to the pool ready for assignment.' },
   { screen:6,  label:'Visits Monitor',   title:'Visits — Monitor All Agent Activity', duration:7000,
     narration:'The Visits page shows every check-in from all agents in real time. You can see the time, agent name, seller visited, outcome selected, whether GPS was captured, how many photos were uploaded, and the agent\'s notes. Use the Filter button to narrow by agent, date range, or outcome. Export to Excel for reporting.' },
   { screen:7,  label:'Data Entry',       title:'Data Entry — Correct & Update Transactions', duration:9000,
@@ -915,8 +1079,14 @@ const scenes = [
     narration:'The Export page lets you download four key datasets: All Leads with their full status, Visit Logs with GPS and photo records, Registrations for the period, and Agent Performance summaries. These Excel files are ready to submit directly to Lazada or your company management without any manual formatting.' },
   { screen:14, label:'Activity Log',     title:'Activity Log — Full Audit Trail', duration:7000,
     narration:'The Activity Log records every action in the system — agent check-ins, data entry corrections you made, lead assignments, new user creation, and campaign uploads. If you ever need to verify what happened on a specific date or investigate a discrepancy, this is your source of truth. All entries show the user, timestamp, and exact change made.' },
+  { screen:16, label:'Campaign Priority', title:'Campaign Management — Set Who Works First', duration:9000,
+    narration:'Go to Campaigns in the sidebar to manage all your campaigns. Each campaign has a Priority number — change it and click Save. A reason box will appear for the audit log. Priority 1 campaigns appear first in every Gabay agent\'s queue automatically — no manual action needed from agents. Archived campaigns stay in the system forever; their data and history are never deleted.' },
+  { screen:17, label:'Campaign Dashboard',title:'Campaign Dashboard — Live Metrics Per Campaign', duration:9000,
+    narration:'The Campaign Dashboard shows you every campaign at a glance: total leads, how many are unvisited, in progress, completed, and closed. A progress bar shows completion percentage. Below each campaign is a Gabay team table — who has how many leads, how many they completed, and their completion rate. Use this to spot which agent or campaign needs attention.' },
+  { screen:18, label:'WA Alert Control',  title:'WhatsApp Alerts — Mute or Enable Per Manager', duration:8000,
+    narration:'As Super Admin you can control exactly who receives WhatsApp alert messages. On the User Management screen, each manager and supervisor with a mobile number has a green WA On button. Click it to mute that person — it turns grey and shows WA Off. Click again to re-enable. Alerts include: when a Gabay agent logs in, when a visit is logged, and when a seller status changes. Gabay agents are never affected by this toggle.' },
   { screen:15, label:'Complete!',        title:'Admin Daily Workflow Checklist', duration:8000,
-    narration:'You now have full command of LSAMS. Morning: check the dashboard and assign pool leads. During the day: monitor visits live and fix any data entry errors. End of day: review the Daily Digest and export your report. Weekly: upload new campaigns, retrain the AI model, and run a Lead Health check. Your team runs best when you stay on top of these routines.' },
+    narration:'You now have full command of LSAMS. Morning: check the dashboard, assign pool leads, and review campaign priorities. During the day: monitor visits live and fix data entry errors. End of day: review the Daily Digest and export your report. Weekly: upload new campaigns, set priorities, retrain the AI model, and run a Lead Health check. Your team runs best when you stay on top of these routines.' },
 ];
 
 let current = 0, playing = false, timer = null;
