@@ -1,0 +1,347 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>Campaign Priority Management — LSAMS</title>
+<style>
+@page { size: A4 landscape; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #fff;
+  width: 297mm;
+  height: 210mm;
+  overflow: hidden;
+  position: relative;
+}
+
+/* ── Print bar ── */
+.print-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: #1F3864; color: white;
+  padding: 8px 20px; display: flex; align-items: center; gap: 12px;
+  font-size: 12px;
+}
+.print-btn {
+  background: #f59e0b; color: #1F3864; border: none; border-radius: 6px;
+  padding: 6px 16px; font-size: 12px; font-weight: 800; cursor: pointer;
+}
+.print-hint { opacity: .6; font-size: 11px; }
+
+/* ── Slide ── */
+.slide {
+  width: 297mm; height: 210mm;
+  display: grid;
+  grid-template-columns: 62mm 1fr;
+  grid-template-rows: 100%;
+}
+
+/* LEFT panel */
+.left {
+  background: #1F3864;
+  color: white;
+  padding: 22mm 8mm 10mm 10mm;
+  display: flex; flex-direction: column; justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+.left::before {
+  content: '';
+  position: absolute; bottom: -20mm; right: -20mm;
+  width: 55mm; height: 55mm;
+  border-radius: 50%;
+  background: rgba(245,158,11,.12);
+}
+.left::after {
+  content: '';
+  position: absolute; top: -10mm; right: -15mm;
+  width: 35mm; height: 35mm;
+  border-radius: 50%;
+  background: rgba(255,255,255,.05);
+}
+.lsams-badge {
+  font-size: 11px; font-weight: 900; letter-spacing: 2px; color: #f59e0b;
+  text-transform: uppercase; margin-bottom: 6mm;
+}
+.slide-title {
+  font-size: 18px; font-weight: 900; line-height: 1.2;
+  color: white; margin-bottom: 3mm;
+}
+.slide-subtitle {
+  font-size: 10px; color: rgba(255,255,255,.55); line-height: 1.5; margin-bottom: 6mm;
+}
+.divider { width: 20mm; height: 2px; background: #f59e0b; margin-bottom: 6mm; }
+
+.key-concept {
+  background: rgba(255,255,255,.07);
+  border-left: 3px solid #f59e0b;
+  border-radius: 0 6px 6px 0;
+  padding: 7px 10px;
+  margin-bottom: 4mm;
+  font-size: 9px; color: rgba(255,255,255,.8); line-height: 1.5;
+}
+.key-concept strong { color: #f59e0b; font-size: 10px; display: block; margin-bottom: 2px; }
+
+.left-footer { font-size: 8px; color: rgba(255,255,255,.3); }
+
+/* RIGHT panel */
+.right {
+  background: #F8FAFD;
+  padding: 10mm 10mm 8mm 10mm;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 5mm;
+}
+.right-top-label {
+  font-size: 8px; font-weight: 800; color: #9aabc5;
+  text-transform: uppercase; letter-spacing: 1px;
+}
+
+/* Flow diagram */
+.flow {
+  display: flex; align-items: center; gap: 0; height: 100%;
+}
+.flow-step {
+  flex: 1; display: flex; flex-direction: column; align-items: center;
+  text-align: center; position: relative;
+}
+.flow-step::after {
+  content: '→';
+  position: absolute; right: -5mm; top: 50%; transform: translateY(-50%);
+  font-size: 18px; color: #CBD5E1; font-weight: 300;
+}
+.flow-step:last-child::after { display: none; }
+
+.step-icon {
+  width: 13mm; height: 13mm; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 18px; margin-bottom: 3mm;
+}
+.step-num {
+  font-size: 8px; font-weight: 900; color: #9aabc5;
+  text-transform: uppercase; letter-spacing: .5px; margin-bottom: 1.5mm;
+}
+.step-title { font-size: 10.5px; font-weight: 800; color: #1F3864; margin-bottom: 1.5mm; }
+.step-desc { font-size: 8.5px; color: #64748b; line-height: 1.4; max-width: 38mm; }
+
+/* Priority table */
+.prio-section {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 4mm;
+}
+.prio-card {
+  background: white; border-radius: 8px; padding: 5mm 5mm;
+  border: 1px solid #E2E8F0;
+}
+.prio-card-title {
+  font-size: 8px; font-weight: 800; color: #9aabc5;
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 3mm;
+}
+.prio-row {
+  display: flex; align-items: center; gap: 6px;
+  padding: 3px 0; border-bottom: 1px dashed #F1F5F9; font-size: 9px;
+}
+.prio-row:last-child { border-bottom: none; }
+.prio-badge {
+  font-size: 9px; font-weight: 900; padding: 1px 7px; border-radius: 8px;
+  white-space: nowrap; min-width: 22px; text-align: center;
+}
+.p1 { background: #FEF3C7; color: #d97706; }
+.p2 { background: #DBEAFE; color: #1d4ed8; }
+.p3 { background: #DBEAFE; color: #1d4ed8; }
+.pnone { background: #F1F5F9; color: #94a3b8; }
+.prio-label { color: #374151; font-weight: 600; flex: 1; }
+.prio-sub { color: #94a3b8; font-size: 8px; }
+
+.rule-list { list-style: none; }
+.rule-list li {
+  font-size: 8.5px; color: #374151; padding: 2.5px 0;
+  border-bottom: 1px dashed #F1F5F9; display: flex; gap: 5px;
+}
+.rule-list li:last-child { border-bottom: none; }
+.rule-list li span { color: #f59e0b; font-weight: 900; flex-shrink: 0; }
+
+/* Metrics strip */
+.metrics-strip {
+  display: flex; gap: 3mm;
+}
+.metric-box {
+  flex: 1; background: white; border-radius: 8px; padding: 4mm;
+  border: 1px solid #E2E8F0; text-align: center;
+}
+.metric-icon { font-size: 14px; margin-bottom: 1mm; }
+.metric-val { font-size: 11px; font-weight: 900; color: #1F3864; }
+.metric-label { font-size: 7.5px; color: #94a3b8; margin-top: 1px; }
+
+@media print {
+  .print-bar { display: none !important; }
+  body { margin: 0; }
+}
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">Print dialog → Save as PDF · Paper: A4 Landscape · Enable Background Graphics</span>
+</div>
+
+<div class="slide">
+
+  <!-- LEFT -->
+  <div class="left">
+    <div>
+      <div class="lsams-badge">LSAMS · 2026</div>
+      <div class="slide-title">Campaign<br>Priority<br>Management</div>
+      <div class="divider"></div>
+      <div class="slide-subtitle">
+        Upload campaigns, set priority order,<br>
+        and Gabay agents work the most<br>
+        urgent leads automatically.
+      </div>
+
+      <div class="key-concept">
+        <strong>🚩 What is a Campaign?</strong>
+        A batch of Lazada seller leads with a shared goal — e.g. "Ramadan Wave 1" or "Klang Valley Q3". Each campaign has its own status tracking and metrics.
+      </div>
+
+      <div class="key-concept">
+        <strong>♾️ Nothing is Ever Deleted</strong>
+        Archiving a campaign keeps all data and history. Every priority change is logged with a reason and timestamp.
+      </div>
+
+      <div class="key-concept">
+        <strong>🔁 Same Seller, Two Campaigns</strong>
+        A seller can appear in multiple campaigns — each tracks its own status independently.
+      </div>
+    </div>
+    <div class="left-footer">© 2026 Altria Call Center · Confidential</div>
+  </div>
+
+  <!-- RIGHT -->
+  <div class="right">
+    <div class="right-top-label">How It Works — End to End</div>
+
+    <!-- Flow -->
+    <div class="flow">
+
+      <div class="flow-step">
+        <div class="step-icon" style="background:#EEF2FF">📂</div>
+        <div class="step-num">Step 1</div>
+        <div class="step-title">Upload CSV</div>
+        <div class="step-desc">Admin uploads seller list. Choose <em>New Campaign</em> (name + priority) or <em>Add to Existing</em>. Duplicate sellers within the same campaign are auto-skipped.</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-icon" style="background:#FEF3C7">🚩</div>
+        <div class="step-num">Step 2</div>
+        <div class="step-title">Set Priority</div>
+        <div class="step-desc">On the Campaign Management page, set each campaign's priority number. <strong style="color:#d97706">P1 = worked first</strong>. Change any time — reason is saved to audit log.</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-icon" style="background:#F0FDF4">📤</div>
+        <div class="step-num">Step 3</div>
+        <div class="step-title">Assign Leads</div>
+        <div class="step-desc">Leads land in the Pool. Supervisor assigns them to Gabay agents manually or via Smart Auto-Assign by territory.</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-icon" style="background:#F5F3FF">📱</div>
+        <div class="step-num">Step 4</div>
+        <div class="step-title">Gabay Auto-Queue</div>
+        <div class="step-desc">Each agent's home screen shows P1 leads at the top automatically. No agent action needed — priority order is applied by the system.</div>
+      </div>
+
+      <div class="flow-step">
+        <div class="step-icon" style="background:#FFF7ED">📊</div>
+        <div class="step-num">Step 5</div>
+        <div class="step-title">Track Progress</div>
+        <div class="step-desc">Campaign Dashboard shows live metrics per campaign: total, unvisited, active, completed, and per-agent productivity table.</div>
+      </div>
+
+    </div>
+
+    <!-- Bottom: Priority table + Rules + Metrics -->
+    <div>
+      <div class="prio-section" style="margin-bottom:4mm">
+
+        <div class="prio-card">
+          <div class="prio-card-title">Priority Levels</div>
+          <div class="prio-row">
+            <span class="prio-badge p1">P1</span>
+            <span class="prio-label">Highest Priority</span>
+            <span class="prio-sub">Gabay sees first</span>
+          </div>
+          <div class="prio-row">
+            <span class="prio-badge p2">P2</span>
+            <span class="prio-label">High Priority</span>
+            <span class="prio-sub">After P1 done</span>
+          </div>
+          <div class="prio-row">
+            <span class="prio-badge p3">P3</span>
+            <span class="prio-label">Normal Priority</span>
+            <span class="prio-sub">After P2 done</span>
+          </div>
+          <div class="prio-row">
+            <span class="prio-badge pnone">—</span>
+            <span class="prio-label">No Priority</span>
+            <span class="prio-sub">Bottom of queue</span>
+          </div>
+        </div>
+
+        <div class="prio-card">
+          <div class="prio-card-title">Key Rules</div>
+          <ul class="rule-list">
+            <li><span>✓</span> Priority changes take effect immediately</li>
+            <li><span>✓</span> Every change logged with reason + timestamp</li>
+            <li><span>✓</span> Archived campaigns: data kept forever</li>
+            <li><span>✓</span> Same seller can be in multiple campaigns</li>
+            <li><span>✓</span> Per-campaign status — independent tracking</li>
+            <li><span>✓</span> WA alert sent to managers on key events</li>
+          </ul>
+        </div>
+
+      </div>
+
+      <div class="metrics-strip">
+        <div class="metric-box">
+          <div class="metric-icon">📦</div>
+          <div class="metric-val">Total Leads</div>
+          <div class="metric-label">All leads in campaign</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-icon">🔵</div>
+          <div class="metric-val">Unvisited</div>
+          <div class="metric-label">Not yet checked in</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-icon">🟡</div>
+          <div class="metric-val">Active</div>
+          <div class="metric-label">In-progress / follow-up</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-icon">✅</div>
+          <div class="metric-val">Completed</div>
+          <div class="metric-label">Registered or closed</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-icon">📅</div>
+          <div class="metric-val">Avg Age</div>
+          <div class="metric-label">Days since upload</div>
+        </div>
+        <div class="metric-box">
+          <div class="metric-icon">📈</div>
+          <div class="metric-val">Progress %</div>
+          <div class="metric-label">Completion rate</div>
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+if (new URLSearchParams(window.location.search).get('print') === '1') window.print();
+</script>
+</body>
+</html>

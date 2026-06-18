@@ -4553,6 +4553,15 @@ def gabay_tutorial_print():
     return render_template('gabay_tutorial_print.html')
 
 
+@app.route('/campaigns/slide')
+@login_required
+def campaign_slide():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('campaign_slide.html')
+
+
 @app.route('/uploads/visits/<path:filename>')
 @login_required
 def visit_photo(filename):
