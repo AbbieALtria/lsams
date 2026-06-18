@@ -60,6 +60,17 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
+    # Drop the old global unique constraint on leads.lazada_id so the same seller
+    # can appear in multiple campaigns (Option A: per-campaign uniqueness only).
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text(
+                "ALTER TABLE leads DROP CONSTRAINT IF EXISTS leads_lazada_id_key"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Add ML scoring + health inspection columns to leads
     _new_lead_cols = [
         ("ml_score",          "FLOAT"),
@@ -412,8 +423,16 @@ def import_leads():
             added, skipped, errors = 0, 0, 0
             duplicates = []
 
-            existing_ids = {r[0] for r in db.session.query(Lead.lazada_id).filter(Lead.lazada_id.isnot(None)).all()}
-            existing_phones = {r[0] for r in db.session.query(Lead.contact_number).filter(Lead.contact_number.isnot(None)).all()}
+            # Duplicate check is per-campaign: same lazada_id in the SAME campaign = skip.
+            # Same seller in a different campaign = allowed (Option A: each campaign is independent).
+            existing_ids_in_campaign = {
+                r[0] for r in db.session.query(Lead.lazada_id)
+                .filter(Lead.campaign_id == campaign_id, Lead.lazada_id.isnot(None)).all()
+            }
+            existing_phones_in_campaign = {
+                r[0] for r in db.session.query(Lead.contact_number)
+                .filter(Lead.campaign_id == campaign_id, Lead.contact_number.isnot(None)).all()
+            }
 
             def val(row, *keys):
                 for k in keys:
@@ -433,12 +452,12 @@ def import_leads():
                     phone = val(row, 'Contact Number', 'contact_number', 'Mobile', 'Phone')
                     email = val(row, 'Email Address', 'email_address', 'Email', 'email')
 
-                    if lazada_id and lazada_id in existing_ids:
-                        duplicates.append({'seller': seller, 'reason': 'Leads ID already exists'})
+                    if lazada_id and lazada_id in existing_ids_in_campaign:
+                        duplicates.append({'seller': seller, 'reason': 'Already in this campaign'})
                         skipped += 1
                         continue
-                    if phone and phone in existing_phones:
-                        duplicates.append({'seller': seller, 'reason': f'Phone {phone} already exists'})
+                    if phone and phone in existing_phones_in_campaign:
+                        duplicates.append({'seller': seller, 'reason': f'Phone {phone} already in this campaign'})
                         skipped += 1
                         continue
 
