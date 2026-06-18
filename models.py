@@ -18,6 +18,7 @@ class User(UserMixin, db.Model):
     is_active = db.Column(db.Boolean, default=True)
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     last_login = db.Column(db.DateTime)
+    last_seen  = db.Column(db.DateTime)   # updated on every page load
     # Gabay territory — city or cities this agent covers (comma-separated for multi-city)
     assigned_city = db.Column(db.String(300))
 

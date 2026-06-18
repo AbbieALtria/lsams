@@ -38,6 +38,7 @@ with app.app_context():
         ("profile_photo",  "VARCHAR(200)"),
         ("deactivated_at", "TIMESTAMP"),
         ("gabay_name",     "VARCHAR(100)"),
+        ("last_seen",      "TIMESTAMP"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_user_cols:
@@ -82,6 +83,16 @@ with app.app_context():
 @login_manager.user_loader
 def load_user(user_id):
     return User.query.get(int(user_id))
+
+
+@app.before_request
+def update_last_seen():
+    if current_user.is_authenticated:
+        # Update at most once per minute to avoid DB spam
+        now = datetime.utcnow()
+        if not current_user.last_seen or (now - current_user.last_seen).total_seconds() > 60:
+            current_user.last_seen = now
+            db.session.commit()
 
 
 @app.context_processor
@@ -3653,7 +3664,16 @@ def admin_users():
     for u in users:
         u.lead_count = Lead.query.filter_by(gabay_id=u.id).count() if u.role == 'gabay' else 0
         u.visit_count = Visit.query.filter_by(gabay_id=u.id).count() if u.role == 'gabay' else 0
-    return render_template('admin/users.html', users=users)
+        if u.role == 'gabay':
+            gv = (Visit.query
+                  .filter(Visit.gabay_id == u.id, Visit.gps_address.isnot(None), Visit.gps_address != '')
+                  .order_by(Visit.visited_at.desc())
+                  .first())
+            u.latest_gps = gv.gps_address if gv else None
+        else:
+            u.latest_gps = None
+    now_utc = datetime.utcnow()
+    return render_template('admin/users.html', users=users, now_utc=now_utc)
 
 
 @app.route('/admin/users/new', methods=['GET', 'POST'])
