@@ -110,6 +110,28 @@ def setup():
     return 'Superadmin created! Username: superadmin  Password: Super@2026 — Go to /login now.'
 
 
+# ─── MANAGER WHATSAPP NOTIFICATIONS ─────────────────────────────────────────
+
+def _notify_managers_whatsapp(message: str):
+    """Send a WhatsApp message to all active managers/admins who have a mobile number."""
+    import threading
+    from whatsapp import send_message
+    managers = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['manager', 'admin', 'power_user', 'supervisor']),
+        User.mobile.isnot(None),
+        User.mobile != ''
+    ).all()
+    def _send():
+        with app.app_context():
+            for m in managers:
+                try:
+                    send_message(m.mobile, message)
+                except Exception as e:
+                    app.logger.error(f'[WA Notify] Failed to notify {m.username}: {e}')
+    threading.Thread(target=_send, daemon=True).start()
+
+
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
 @app.route('/', methods=['GET', 'POST'])
@@ -125,6 +147,14 @@ def login():
             login_user(user, remember=request.form.get('remember'))
             user.last_login = datetime.utcnow()
             db.session.commit()
+            # Notify managers when a Gabay agent logs in
+            if user.role == 'gabay':
+                from datetime import datetime as _dt
+                _notify_managers_whatsapp(
+                    f"📱 *Gabay Login*\n"
+                    f"👤 {user.full_name} just logged in to LSAMS\n"
+                    f"🕐 {_dt.now().strftime('%b %d, %Y at %I:%M %p')}"
+                )
             dest = request.args.get('next')
             if not dest:
                 if user.role == 'gabay':
@@ -4212,6 +4242,23 @@ def gabay_quick_checkin():
                     )
                     db.session.add(notif)
         db.session.commit()
+
+        # Notify managers via WhatsApp on every Gabay visit
+        if lead:
+            outcome_emoji = {
+                'interested':'🟢','not_interested':'🔴','callback':'🔵',
+                'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅',
+            }.get(outcome,'📋')
+            status_line = f"\n📊 Lead status → *{lead.status_label}*" if new_status else ''
+            _notify_managers_whatsapp(
+                f"{outcome_emoji} *Visit Logged*\n"
+                f"👤 Agent: {current_user.full_name}\n"
+                f"🏪 Seller: {lead.seller_name}\n"
+                f"📋 Outcome: {(outcome or '').replace('_',' ').title()}"
+                f"{status_line}\n"
+                f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
+            )
+
         if visit.photo_pending:
             flash('Visit logged! 📷 Don\'t forget to upload your selfie proof photo when you\'re back online.', 'warning')
         else:

@@ -425,6 +425,22 @@ def handle_incoming(data: dict):
 
         db.session.commit()
 
+        # Notify managers via WhatsApp
+        try:
+            from app import _notify_managers_whatsapp
+            oc_emoji = {'interested':'🟢','not_interested':'🔴','callback':'🔵',
+                        'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅'}.get(outcome,'📋')
+            status_line = f"\n📊 Lead status → *{lead.status_label}*" if new_status else ''
+            _notify_managers_whatsapp(
+                f"{oc_emoji} *Visit via WhatsApp*\n"
+                f"👤 Agent: {gabay.full_name}\n"
+                f"🏪 Seller: {lead.seller_name}\n"
+                f"📋 Outcome: {outcome.replace('_',' ').title()}"
+                f"{status_line}"
+            )
+        except Exception as _e:
+            logger.warning(f'[WA] Manager notify failed: {_e}')
+
         # 7. Build confirmation reply
         outcome_emoji = {
             'interested': '🟢', 'not_interested': '🔴', 'callback': '🔵',

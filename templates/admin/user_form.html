@@ -52,19 +52,19 @@
               <strong>Power User</strong> = full system override
             </div>
           </div>
-          <!-- WhatsApp / Mobile — shown for Gabay role -->
-          <div class="mb-3" id="mobileField" style="display:{{ 'block' if (not user or user.role == 'gabay') else 'none' }}">
+          <!-- WhatsApp / Mobile — shown for all roles -->
+          <div class="mb-3" id="mobileField">
             <label class="form-label fw-bold" style="font-size:12px">
               <i class="bi bi-whatsapp me-1" style="color:#25D366"></i>
               WhatsApp / Mobile Number
-              <span style="font-weight:400;color:#9aabc5">(for WhatsApp bot)</span>
+              <span style="font-weight:400;color:#9aabc5" id="mobilePurposeLabel">(for WhatsApp bot &amp; notifications)</span>
             </label>
             <input type="text" name="mobile" class="form-control"
               value="{{ user.mobile if user and user.mobile else '' }}"
               placeholder="+639171234567  or  09171234567">
             <div style="font-size:11px;color:#9aabc5;margin-top:4px">
               <i class="bi bi-info-circle me-1"></i>
-              Used to identify the gabay when they message the LSAMS WhatsApp bot.
+              <span id="mobileHint">Gabay: identifies them for the bot. Managers/Admins: receive WhatsApp alerts on seller status changes and agent logins.</span>
             </div>
           </div>
 
@@ -147,9 +147,14 @@ function togglePw() {
   eye.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
 }
 function toggleCityField(role) {
-  const show = (role === 'gabay') ? 'block' : 'none';
-  document.getElementById('cityField').style.display = show;
-  document.getElementById('mobileField').style.display = show;
+  document.getElementById('cityField').style.display = (role === 'gabay') ? 'block' : 'none';
+  // mobile always visible — hint text changes per role
+  const hint = document.getElementById('mobileHint');
+  if (role === 'gabay') {
+    hint.textContent = 'Used to identify the Gabay when they message the LSAMS WhatsApp bot.';
+  } else {
+    hint.textContent = 'Managers and Admins receive WhatsApp alerts on seller status changes and Gabay logins.';
+  }
 }
 // Run on page load in case role is pre-selected (edit mode)
 document.addEventListener('DOMContentLoaded', function() {
