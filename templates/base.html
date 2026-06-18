@@ -445,6 +445,11 @@
   <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active{% endif %}">
     <i class="bi bi-play-circle"></i> Presentation
   </a>
+  {% if current_user.is_supervisor %}
+  <a href="{{ url_for('supervisor_tutorial') }}" class="nav-link {% if request.endpoint == 'supervisor_tutorial' %}active{% endif %}">
+    <i class="bi bi-mortarboard"></i> Admin Tutorial
+  </a>
+  {% endif %}
 
   <div class="nav-section">Support</div>
   <a href="{{ url_for('notifications') }}" class="nav-link {% if 'notification' in request.endpoint %}active{% endif %}">

@@ -1,0 +1,39 @@
+{% extends "base.html" %}
+{% block title %}Supervisor Tutorial{% endblock %}
+{% block content %}
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="fw-bold mb-0" style="color:#1F3864">🎓 Supervisor & Admin Tutorial</h4>
+    <small class="text-muted">Complete guide for supervisors and administrators</small>
+  </div>
+  <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary btn-sm">
+    <i class="bi bi-arrow-left me-1"></i>Dashboard
+  </a>
+</div>
+
+<!-- Topic pills -->
+<div class="d-flex flex-wrap gap-2 mb-3" style="font-size:12px;font-weight:700">
+  <span style="background:#EEF2FF;color:#4338ca;border-radius:20px;padding:4px 12px">👤 User Management</span>
+  <span style="background:#f0fdf4;color:#15803d;border-radius:20px;padding:4px 12px">📤 Assign Leads</span>
+  <span style="background:#fef3c7;color:#d97706;border-radius:20px;padding:4px 12px">📂 Campaign Upload</span>
+  <span style="background:#f0fdfa;color:#0f766e;border-radius:20px;padding:4px 12px">📂 Data Entry</span>
+  <span style="background:#fee2e2;color:#b91c1c;border-radius:20px;padding:4px 12px">🏥 Lead Health</span>
+  <span style="background:#ede9fe;color:#7c3aed;border-radius:20px;padding:4px 12px">🤖 AI Scoring</span>
+  <span style="background:#dbeafe;color:#2563eb;border-radius:20px;padding:4px 12px">📈 Reports & Export</span>
+</div>
+
+<!-- Embedded tutorial -->
+<div style="border-radius:14px;overflow:hidden;border:2px solid #e2e8f0;
+            box-shadow:0 4px 24px rgba(0,0,0,0.08);margin-bottom:12px">
+  <iframe src="{{ url_for('static', filename='tutorial_supervisor.html') }}"
+          style="width:100%;height:80vh;border:none;display:block"
+          allowfullscreen></iframe>
+</div>
+
+<div class="text-center text-muted" style="font-size:12px">
+  <i class="bi bi-info-circle me-1"></i>
+  Press ▶ to play · Arrow keys or click ⏮ ⏭ to navigate · 16 scenes total
+</div>
+
+{% endblock %}

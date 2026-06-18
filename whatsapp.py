@@ -22,6 +22,8 @@ GRAPH_URL         = f'https://graph.facebook.com/v25.0/{WHATSAPP_PHONE_ID}/messa
 
 def send_message(to: str, text: str):
     """Send a plain text WhatsApp message to `to` (E.164 format, e.g. +639XXXXXXXXX)."""
+    if not to.startswith('+'):
+        to = '+' + to
     payload = {
         'messaging_product': 'whatsapp',
         'to': to,

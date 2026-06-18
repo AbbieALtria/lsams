@@ -1,0 +1,964 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>LSAMS — Supervisor & Admin Tutorial</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0a0f1e;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* ── Layout ── */
+.stage { width:100vw; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; }
+.layout { display:flex; gap:28px; align-items:center; width:100%; max-width:1100px; padding:0 24px; }
+
+/* ── Screen panel (desktop browser) ── */
+.browser-wrap { flex-shrink:0; }
+.browser {
+  width:640px; height:420px;
+  background:#fff;
+  border-radius:12px;
+  border:3px solid #1a1a2e;
+  box-shadow:0 0 0 1px #333, 0 20px 60px rgba(0,0,0,0.7);
+  overflow:hidden;
+  display:flex;
+  flex-direction:column;
+}
+.browser-bar {
+  background:#1a1a2e;
+  padding:6px 12px;
+  display:flex;
+  align-items:center;
+  gap:8px;
+  flex-shrink:0;
+}
+.browser-dots { display:flex; gap:5px; }
+.browser-dot { width:10px; height:10px; border-radius:50%; }
+.browser-url { flex:1; background:#0d1117; border-radius:6px; padding:4px 10px; font-size:10px; color:#6b7280; font-family:monospace; }
+.browser-screen { flex:1; overflow:hidden; position:relative; }
+.screen-inner { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity 0.4s; }
+.screen-inner.visible { opacity:1; }
+
+/* ── Narration panel ── */
+.narration-panel { flex:1; min-width:0; }
+.scene-module { font-size:10px; font-weight:800; color:#6366f1; letter-spacing:1px; text-transform:uppercase; margin-bottom:4px; }
+.scene-title { font-size:18px; font-weight:900; color:#f59e0b; margin-bottom:10px; line-height:1.3; }
+.narration-text { font-size:13px; color:rgba(255,255,255,0.85); line-height:1.7; margin-bottom:14px; min-height:100px; }
+
+/* ── Progress ── */
+.progress-bar-wrap { background:rgba(255,255,255,0.1); border-radius:4px; height:4px; margin-bottom:14px; }
+.progress-bar-fill { height:100%; border-radius:4px; background:#f59e0b; transition:width 0.3s; }
+
+/* ── Controls ── */
+.controls { display:flex; gap:12px; align-items:center; }
+.ctrl-btn { background:rgba(255,255,255,0.1); border:none; color:white; border-radius:50%; width:38px; height:38px; font-size:15px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+.ctrl-btn:hover { background:rgba(255,255,255,0.2); }
+.ctrl-btn.play-btn { width:50px; height:50px; font-size:20px; background:#f59e0b; border-radius:50%; }
+.ctrl-btn.play-btn:hover { background:#d97706; }
+.scene-counter { font-size:11px; color:rgba(255,255,255,0.4); font-weight:700; }
+
+/* ══ LSAMS APP STYLES ══ */
+.app { display:flex; flex:1; overflow:hidden; background:#f1f5f9; }
+
+/* Sidebar */
+.sidebar { width:160px; background:#1F3864; display:flex; flex-direction:column; flex-shrink:0; padding-top:8px; }
+.sidebar-logo { padding:10px 12px 8px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:6px; }
+.sidebar-logo-text { font-size:14px; font-weight:900; color:white; }
+.sidebar-sub { font-size:8px; color:rgba(255,255,255,0.4); margin-top:1px; }
+.sidebar-user { padding:6px 10px; border-bottom:1px solid rgba(255,255,255,0.1); margin-bottom:6px; }
+.sidebar-role { font-size:8px; font-weight:800; color:#f59e0b; text-transform:uppercase; }
+.sidebar-name { font-size:9px; color:rgba(255,255,255,0.7); }
+.nav-section { font-size:8px; font-weight:800; color:rgba(255,255,255,0.3); padding:4px 10px 3px; text-transform:uppercase; letter-spacing:.5px; }
+.nav-item { display:flex; align-items:center; gap:6px; padding:5px 10px; font-size:9px; color:rgba(255,255,255,0.65); cursor:pointer; border-radius:0; }
+.nav-item:hover, .nav-item.active { background:rgba(255,255,255,0.12); color:white; }
+.nav-item.active { border-left:3px solid #f59e0b; }
+.nav-badge { background:#ef4444; color:white; border-radius:10px; padding:1px 5px; font-size:7px; font-weight:800; margin-left:auto; }
+
+/* Main content */
+.main { flex:1; overflow:hidden; display:flex; flex-direction:column; }
+.top-bar { background:white; border-bottom:1px solid #e2e8f0; padding:8px 14px; display:flex; align-items:center; justify-content:space-between; flex-shrink:0; }
+.page-title { font-size:14px; font-weight:800; color:#1F3864; }
+.page-sub { font-size:9px; color:#9aabc5; margin-top:1px; }
+.content { flex:1; overflow:hidden; padding:12px 14px; }
+
+/* Cards */
+.card { background:white; border-radius:10px; padding:12px 14px; margin-bottom:10px; }
+.card-title { font-size:11px; font-weight:800; color:#1F3864; margin-bottom:8px; }
+
+/* KPI grid */
+.kpi-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:8px; margin-bottom:10px; }
+.kpi-card { background:white; border-radius:10px; padding:10px 12px; border-top:3px solid #ddd; }
+.kpi-val { font-size:22px; font-weight:900; }
+.kpi-lbl { font-size:8px; color:#9aabc5; font-weight:700; margin-top:2px; }
+.kpi-trend { font-size:8px; margin-top:2px; }
+
+/* Table */
+.tbl { width:100%; font-size:9px; border-collapse:collapse; }
+.tbl th { background:#f8fafc; color:#9aabc5; font-weight:700; padding:5px 8px; text-align:left; border-bottom:1px solid #e2e8f0; }
+.tbl td { padding:5px 8px; border-bottom:1px solid #f1f5f9; color:#374151; vertical-align:middle; }
+.tbl tr:last-child td { border-bottom:none; }
+
+/* Badges */
+.badge { font-size:8px; font-weight:700; padding:2px 7px; border-radius:10px; display:inline-block; }
+.badge-green { background:#dcfce7; color:#15803d; }
+.badge-blue { background:#dbeafe; color:#2563eb; }
+.badge-purple { background:#ede9fe; color:#7c3aed; }
+.badge-amber { background:#fef3c7; color:#d97706; }
+.badge-red { background:#fee2e2; color:#b91c1c; }
+.badge-gray { background:#f1f5f9; color:#6b7280; }
+
+/* Buttons */
+.btn { display:inline-flex; align-items:center; gap:4px; padding:5px 10px; border-radius:7px; font-size:9px; font-weight:700; cursor:pointer; border:none; }
+.btn-primary { background:#1F3864; color:white; }
+.btn-success { background:#15803d; color:white; }
+.btn-danger { background:#b91c1c; color:white; }
+.btn-outline { background:white; color:#1F3864; border:1px solid #e2e8f0; }
+.btn-teal { background:#0f766e; color:white; }
+
+/* Form fields */
+.form-row { display:grid; grid-template-columns:1fr 1fr; gap:8px; margin-bottom:8px; }
+.form-group { display:flex; flex-direction:column; gap:3px; }
+.form-label { font-size:8px; font-weight:700; color:#9aabc5; text-transform:uppercase; }
+.form-input { background:#f8fafc; border:1px solid #e2e8f0; border-radius:7px; padding:6px 9px; font-size:9px; color:#374151; }
+.form-input.filled { border-color:#4338ca; background:white; }
+
+/* Health score */
+.health-bar { height:8px; border-radius:4px; background:#e2e8f0; overflow:hidden; margin:3px 0; }
+.health-fill { height:100%; border-radius:4px; }
+
+/* Progress circle */
+.prog-circle { width:40px; height:40px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:11px; font-weight:900; color:white; flex-shrink:0; }
+
+/* Animations */
+@keyframes tap-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.7)} 50%{box-shadow:0 0 0 8px rgba(245,158,11,0)} }
+.tap-me { animation:tap-pulse 1.2s infinite; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0} }
+.blink { animation:blink 1s infinite; }
+
+/* Intro/Outro */
+.intro-full { background:linear-gradient(135deg,#1F3864,#0f766e); display:flex; align-items:center; justify-content:center; height:100%; }
+
+/* Alert banners */
+.alert { border-radius:8px; padding:8px 12px; margin-bottom:8px; font-size:9px; display:flex; align-items:flex-start; gap:8px; }
+.alert-info { background:#EEF2FF; border-left:3px solid #4338ca; color:#312e81; }
+.alert-success { background:#f0fdf4; border-left:3px solid #15803d; color:#166534; }
+.alert-warn { background:#fef3c7; border-left:3px solid #d97706; color:#78350f; }
+
+/* Upload zone */
+.upload-zone { border:2px dashed #CBD5E1; border-radius:10px; padding:20px; text-align:center; background:#f8fafc; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+ <div class="layout">
+
+  <!-- ── Browser Frame ── -->
+  <div class="browser-wrap">
+   <div class="browser">
+    <div class="browser-bar">
+      <div class="browser-dots">
+        <div class="browser-dot" style="background:#ff5f57"></div>
+        <div class="browser-dot" style="background:#febc2e"></div>
+        <div class="browser-dot" style="background:#28c840"></div>
+      </div>
+      <div class="browser-url" id="browserUrl">web-production-c9ec2.up.railway.app/dashboard</div>
+    </div>
+    <div class="browser-screen" id="browserScreen">
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 0 — INTRO -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner visible" id="scr0">
+  <div class="intro-full">
+    <div style="text-align:center;padding:30px">
+      <div style="font-size:52px;margin-bottom:14px">🖥️</div>
+      <div style="font-size:26px;font-weight:900;color:white">LSAMS <span style="color:#f59e0b">●</span></div>
+      <div style="font-size:11px;color:rgba(255,255,255,0.5);margin-top:4px">Supervisor & Admin Complete Guide</div>
+      <div style="width:50px;height:3px;background:#f59e0b;margin:16px auto"></div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:380px;margin:0 auto;text-align:left">
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:4px">USER MANAGEMENT</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.7);line-height:1.8">Add Gabay agents<br>Set territory &amp; mobile<br>Activate / deactivate</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:4px">LEADS & CAMPAIGNS</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.7);line-height:1.8">Upload CSV/Excel<br>Assign to agents<br>Track pipeline</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:4px">DATA ENTRY</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.7);line-height:1.8">Update transactions<br>Bulk edit visits<br>Add notes &amp; outcomes</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:8px 12px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:4px">ANALYTICS</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.7);line-height:1.8">Lead Health scores<br>AI Scoring<br>Reports &amp; export</div>
+        </div>
+      </div>
+      <div style="margin-top:18px;font-size:9px;color:rgba(255,255,255,0.3)">Altria Call Center · 2026</div>
+    </div>
+  </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 1 — DASHBOARD -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr1">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div><div class="sidebar-sub">Altria Call Center</div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div><div class="sidebar-name">Sir Abbie</div></div>
+    <div class="nav-section">Main</div>
+    <div class="nav-item active">📊 Dashboard</div>
+    <div class="nav-item">📋 Leads <span class="nav-badge">12</span></div>
+    <div class="nav-item">👥 Gabay Agents</div>
+    <div class="nav-item">📍 Visits</div>
+    <div class="nav-section">Management</div>
+    <div class="nav-item">👤 User Management</div>
+    <div class="nav-item">📤 Assign Leads</div>
+    <div class="nav-item">📂 Data Entry</div>
+    <div class="nav-section">Analytics</div>
+    <div class="nav-item">📈 Reports</div>
+    <div class="nav-item">🤖 AI Scoring</div>
+    <div class="nav-item">🏥 Lead Health</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📊 Dashboard</div><div class="page-sub">Thursday, June 17, 2026 · Real-time overview</div></div>
+      <div style="display:flex;gap:6px"><div class="btn btn-outline">📅 Daily Digest</div><div class="btn btn-primary">📤 Export</div></div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid">
+        <div class="kpi-card" style="border-color:#2E75B6"><div class="kpi-val" style="color:#2E75B6">248</div><div class="kpi-lbl">TOTAL LEADS</div><div class="kpi-trend" style="color:#15803d">↑ 12 this week</div></div>
+        <div class="kpi-card" style="border-color:#15803d"><div class="kpi-val" style="color:#15803d">47</div><div class="kpi-lbl">LIVE SELLERS</div><div class="kpi-trend" style="color:#15803d">↑ 3 this week</div></div>
+        <div class="kpi-card" style="border-color:#f59e0b"><div class="kpi-val" style="color:#d97706">32</div><div class="kpi-lbl">VISITS TODAY</div><div class="kpi-trend" style="color:#9aabc5">6 agents active</div></div>
+        <div class="kpi-card" style="border-color:#7c3aed"><div class="kpi-val" style="color:#7c3aed">18</div><div class="kpi-lbl">POOL LEADS</div><div class="kpi-trend" style="color:#b91c1c">Needs assignment</div></div>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card">
+          <div class="card-title">Gabay Performance Today</div>
+          <table class="tbl">
+            <tr><th>Agent</th><th>Visits</th><th>Interested</th></tr>
+            <tr><td>Juan dela Cruz</td><td><b>7</b></td><td><span class="badge badge-green">5</span></td></tr>
+            <tr><td>Marie Cris Nicolas</td><td><b>5</b></td><td><span class="badge badge-green">3</span></td></tr>
+            <tr><td>Karen Santos</td><td><b>6</b></td><td><span class="badge badge-green">4</span></td></tr>
+            <tr><td>Pedro Reyes</td><td><b>4</b></td><td><span class="badge badge-amber">2</span></td></tr>
+          </table>
+        </div>
+        <div class="card">
+          <div class="card-title">Pipeline Status</div>
+          <div style="space-y:4px">
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:9px;width:80px;color:#374151">Assigned</span><div style="flex:1;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden"><div style="width:55%;height:100%;background:#2E75B6;border-radius:4px"></div></div><span style="font-size:9px;font-weight:800;color:#2E75B6">136</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:9px;width:80px;color:#374151">Attempting</span><div style="flex:1;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden"><div style="width:30%;height:100%;background:#d97706;border-radius:4px"></div></div><span style="font-size:9px;font-weight:800;color:#d97706">74</span></div>
+            <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px"><span style="font-size:9px;width:80px;color:#374151">Negotiation</span><div style="flex:1;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden"><div style="width:18%;height:100%;background:#7c3aed;border-radius:4px"></div></div><span style="font-size:9px;font-weight:800;color:#7c3aed">45</span></div>
+            <div style="display:flex;align-items:center;gap:6px"><span style="font-size:9px;width:80px;color:#374151">Live ✅</span><div style="flex:1;background:#e2e8f0;height:8px;border-radius:4px;overflow:hidden"><div style="width:19%;height:100%;background:#15803d;border-radius:4px"></div></div><span style="font-size:9px;font-weight:800;color:#15803d">47</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 2 — USER MANAGEMENT LIST -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr2">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div><div class="sidebar-name">Sir Abbie</div></div>
+    <div class="nav-section">Management</div>
+    <div class="nav-item active">👤 User Management</div>
+    <div class="nav-item">📤 Assign Leads</div>
+    <div class="nav-item">📂 Data Entry</div>
+    <div class="nav-section">Analytics</div>
+    <div class="nav-item">📈 Reports</div>
+    <div class="nav-item">🤖 AI Scoring</div>
+    <div class="nav-item">🏥 Lead Health</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">👤 User Management</div><div class="page-sub">Manage all system users and Gabay agents</div></div>
+      <div class="btn btn-primary tap-me">➕ Add New User</div>
+    </div>
+    <div class="content">
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th>Name</th><th>Username</th><th>Role</th><th>Mobile (WhatsApp)</th><th>Territory</th><th>Status</th><th>Actions</th></tr>
+        <tr><td><b>Juan dela Cruz</b></td><td style="color:#9aabc5">gabay.juan</td><td><span class="badge badge-blue">Gabay Agent</span></td><td>+63 917 178 7366</td><td>Pasig</td><td><span class="badge badge-green">Active</span></td><td><span style="color:#2563eb;cursor:pointer;font-size:9px">✏️ Edit</span></td></tr>
+        <tr><td><b>Marie Cris Nicolas</b></td><td style="color:#9aabc5">mariecris</td><td><span class="badge badge-blue">Gabay Agent</span></td><td>+63 956 133 1809</td><td>Marikina</td><td><span class="badge badge-green">Active</span></td><td><span style="color:#2563eb;cursor:pointer;font-size:9px">✏️ Edit</span></td></tr>
+        <tr><td><b>Karen Santos</b></td><td style="color:#9aabc5">karen.santos</td><td><span class="badge badge-blue">Gabay Agent</span></td><td>+63 977 497 1090</td><td>Quezon City</td><td><span class="badge badge-green">Active</span></td><td><span style="color:#2563eb;cursor:pointer;font-size:9px">✏️ Edit</span></td></tr>
+        <tr><td><b>Lance Supervisor</b></td><td style="color:#9aabc5">lance</td><td><span class="badge badge-purple">Supervisor</span></td><td>+63 918 000 1234</td><td>All</td><td><span class="badge badge-green">Active</span></td><td><span style="color:#2563eb;cursor:pointer;font-size:9px">✏️ Edit</span></td></tr>
+        <tr><td><b>Grace Admin</b></td><td style="color:#9aabc5">grace.admin</td><td><span class="badge badge-amber">Admin</span></td><td>—</td><td>—</td><td><span class="badge badge-green">Active</span></td><td><span style="color:#2563eb;cursor:pointer;font-size:9px">✏️ Edit</span></td></tr>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 3 — ADD NEW GABAY USER -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr3">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div><div class="sidebar-name">Sir Abbie</div></div>
+    <div class="nav-item active" style="margin:4px 0">👤 User Management</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">➕ Add New User</div><div class="page-sub">Create a Gabay agent account</div></div>
+      <div class="btn btn-outline">← Back</div>
+    </div>
+    <div class="content" style="overflow-y:auto">
+      <div class="card">
+        <div class="card-title">👤 User Details</div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">Full Name *</div><div class="form-input filled">Pedro Reyes<span class="blink">|</span></div></div>
+          <div class="form-group"><div class="form-label">Username *</div><div class="form-input filled">pedro.reyes</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">Email *</div><div class="form-input filled">pedro@lsams.local</div></div>
+          <div class="form-group"><div class="form-label">Role *</div><div class="form-input filled">Gabay Agent ▾</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">📱 WhatsApp / Mobile Number</div><div class="form-input filled">+63 955 123 6940</div></div>
+          <div class="form-group"><div class="form-label">📍 Territory / City</div><div class="form-input filled">Mandaluyong, San Juan</div></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">Password *</div><div class="form-input">••••••••</div></div>
+          <div class="form-group" style="justify-content:flex-end;align-items:flex-end">
+            <div style="display:flex;gap:8px">
+              <div class="btn btn-outline">Cancel</div>
+              <div class="btn btn-primary tap-me">✅ Save User</div>
+            </div>
+          </div>
+        </div>
+        <div class="alert alert-info">
+          <span>ℹ️</span>
+          <div><b>WhatsApp number</b> is required for the bot to identify this agent when they send messages. Enter their personal number with country code (+63...).</div>
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 4 — ASSIGN LEADS -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr4">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📤 Assign Leads</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📤 Assign Leads</div><div class="page-sub">18 pool leads waiting for assignment</div></div>
+      <div class="btn btn-teal tap-me">⚡ Smart Auto-Assign</div>
+    </div>
+    <div class="content">
+      <div class="alert alert-warn" style="margin-bottom:10px">
+        <span>⚠️</span><div><b>18 leads</b> are in the pool with no agent assigned. Use Smart Auto-Assign to distribute by territory automatically, or assign manually below.</div>
+      </div>
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th><input type="checkbox" style="accent-color:#1F3864"> All</th><th>Seller</th><th>City</th><th>Phone</th><th>Assign To</th><th>Action</th></tr>
+        <tr><td><input type="checkbox" checked style="accent-color:#1F3864"></td><td><b>Craftopya Arts</b></td><td>Pasig</td><td>0917-111-2222</td><td><div class="form-input" style="padding:3px 6px;font-size:8px">Karen Santos ▾</div></td><td><span class="btn btn-success" style="font-size:8px;padding:3px 7px">Assign</span></td></tr>
+        <tr><td><input type="checkbox" checked style="accent-color:#1F3864"></td><td><b>Seoul Eats PH</b></td><td>Pasig</td><td>0918-222-3333</td><td><div class="form-input" style="padding:3px 6px;font-size:8px">Juan dela Cruz ▾</div></td><td><span class="btn btn-success" style="font-size:8px;padding:3px 7px">Assign</span></td></tr>
+        <tr><td><input type="checkbox" style="accent-color:#1F3864"></td><td><b>Pinoy Gadgets Hub</b></td><td>Marikina</td><td>0919-333-4444</td><td><div class="form-input" style="padding:3px 6px;font-size:8px">Marie Cris ▾</div></td><td><span class="btn btn-success" style="font-size:8px;padding:3px 7px">Assign</span></td></tr>
+        <tr><td><input type="checkbox" style="accent-color:#1F3864"></td><td><b>Bloom Crafts PH</b></td><td>Quezon City</td><td>0920-444-5555</td><td><div class="form-input" style="padding:3px 6px;font-size:8px">Select agent ▾</div></td><td><span class="btn btn-success" style="font-size:8px;padding:3px 7px">Assign</span></td></tr>
+      </table>
+      <div style="margin-top:10px;display:flex;gap:8px">
+        <div class="btn btn-primary tap-me">✅ Assign Selected (2)</div>
+        <div class="btn btn-outline">Select All 18</div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 5 — CAMPAIGN / LEADS UPLOAD -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr5">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📂 Campaigns</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📂 Campaign Lead Upload</div><div class="page-sub">Upload seller lists from Excel or CSV</div></div>
+      <div class="btn btn-outline">📥 Download Template</div>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-title">📤 Upload New Lead List</div>
+        <div class="upload-zone tap-me">
+          <div style="font-size:32px;margin-bottom:8px">📊</div>
+          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">Drop your Excel or CSV file here</div>
+          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">Required columns: Seller Name, Address, City, Contact Number</div>
+          <div class="btn btn-primary">Browse File</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">📋 Recent Campaign Uploads</div>
+        <table class="tbl">
+          <tr><th>Campaign Name</th><th>Uploaded</th><th>Leads</th><th>Assigned</th><th>Status</th></tr>
+          <tr><td><b>June 2026 Batch</b></td><td style="color:#9aabc5">Jun 1, 2026</td><td><b>120</b></td><td><span class="badge badge-green">112</span></td><td><span class="badge badge-green">Active</span></td></tr>
+          <tr><td><b>May Backfill</b></td><td style="color:#9aabc5">May 15, 2026</td><td><b>85</b></td><td><span class="badge badge-green">85</span></td><td><span class="badge badge-blue">Completed</span></td></tr>
+          <tr><td><b>Metro Manila Q2</b></td><td style="color:#9aabc5">Apr 2, 2026</td><td><b>200</b></td><td><span class="badge badge-green">198</span></td><td><span class="badge badge-blue">Completed</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 6 — VISITS LIST -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr6">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📍 Visits</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📍 All Visits</div><div class="page-sub">Today — 32 visits logged across all agents</div></div>
+      <div style="display:flex;gap:6px"><div class="btn btn-outline">Filter ▾</div><div class="btn btn-primary">📤 Export</div></div>
+    </div>
+    <div class="content">
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th>Time</th><th>Agent</th><th>Seller</th><th>Outcome</th><th>GPS</th><th>Photos</th><th>Notes</th></tr>
+        <tr><td style="color:#9aabc5">10:05 AM</td><td><b>Juan</b></td><td>BVS Online Shop</td><td><span class="badge badge-green">Interested</span></td><td>✅</td><td>📷 2</td><td style="color:#9aabc5;font-size:8px">Wants to register next week</td></tr>
+        <tr><td style="color:#9aabc5">10:30 AM</td><td><b>Karen</b></td><td>Craftopya Arts</td><td><span class="badge badge-blue">Callback</span></td><td>✅</td><td>📷 2</td><td style="color:#9aabc5;font-size:8px">Call Thursday 2PM</td></tr>
+        <tr><td style="color:#9aabc5">11:00 AM</td><td><b>Marie Cris</b></td><td>Seoul Eats PH</td><td><span class="badge badge-green">Interested</span></td><td>✅</td><td>⏳ Pending</td><td style="color:#9aabc5;font-size:8px">No internet at location</td></tr>
+        <tr><td style="color:#9aabc5">11:45 AM</td><td><b>Juan</b></td><td>Nano Shop PH</td><td><span class="badge badge-gray">Not Home</span></td><td>✅</td><td>📷 1</td><td style="color:#9aabc5;font-size:8px">Will retry tomorrow</td></tr>
+        <tr><td style="color:#9aabc5">12:10 PM</td><td><b>Karen</b></td><td>Pinoy Gadgets</td><td><span class="badge badge-red">Rejected</span></td><td>✅</td><td>📷 2</td><td style="color:#9aabc5;font-size:8px">Already registered elsewhere</td></tr>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 7 — DATA ENTRY (UPDATE TRANSACTIONS) -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr7">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📂 Data Entry</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📂 Data Entry</div><div class="page-sub">Update and correct Gabay visit transactions</div></div>
+      <div class="btn btn-outline">🔍 Search Visit</div>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-title">✏️ Edit Visit Transaction — BVS Online Shop</div>
+        <div class="alert alert-info" style="margin-bottom:10px"><span>ℹ️</span><div>Logged by <b>Juan dela Cruz</b> · Jun 17, 2026 · 10:05 AM · GPS ✅</div></div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">Outcome</div><div class="form-input filled">Interested ▾</div></div>
+          <div class="form-group"><div class="form-label">Follow-up Date</div><div class="form-input filled">Jun 24, 2026</div></div>
+        </div>
+        <div class="form-group" style="margin-bottom:8px">
+          <div class="form-label">Notes / Remarks</div>
+          <div class="form-input filled" style="min-height:50px">Seller is interested. Needs to coordinate with husband. Will call back Thursday. Has laptop ready for registration.<span class="blink">|</span></div>
+        </div>
+        <div class="form-row">
+          <div class="form-group"><div class="form-label">Lead Status Override</div><div class="form-input filled">Negotiation ▾</div></div>
+          <div class="form-group" style="justify-content:flex-end;align-items:flex-end">
+            <div style="display:flex;gap:6px"><div class="btn btn-outline">Cancel</div><div class="btn btn-primary tap-me">💾 Save Changes</div></div>
+          </div>
+        </div>
+      </div>
+      <div class="alert alert-warn">
+        <span>⚠️</span><div>Data Entry changes are <b>logged with your name and timestamp</b> for audit purposes. Only correct genuine errors or add supervisor notes.</div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 8 — LEAD HEALTH -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr8">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🏥 Lead Health</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">🏥 Lead Health Check</div><div class="page-sub">AI-powered quality analysis of your lead database</div></div>
+      <div class="btn btn-teal tap-me">🔄 Run Health Check</div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid" style="grid-template-columns:repeat(3,1fr);margin-bottom:10px">
+        <div class="kpi-card" style="border-color:#15803d"><div class="kpi-val" style="color:#15803d;font-size:18px">183</div><div class="kpi-lbl">HEALTHY LEADS</div></div>
+        <div class="kpi-card" style="border-color:#d97706"><div class="kpi-val" style="color:#d97706;font-size:18px">48</div><div class="kpi-lbl">NEEDS ATTENTION</div></div>
+        <div class="kpi-card" style="border-color:#b91c1c"><div class="kpi-val" style="color:#b91c1c;font-size:18px">17</div><div class="kpi-lbl">CRITICAL ISSUES</div></div>
+      </div>
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th>Seller</th><th>Health Score</th><th>Issues Found</th><th>Action</th></tr>
+        <tr>
+          <td><b>Bloom Crafts PH</b></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:60px"><div class="health-bar"><div class="health-fill" style="width:85%;background:#15803d"></div></div></div>
+              <span style="font-size:9px;font-weight:800;color:#15803d">85%</span>
+            </div>
+          </td>
+          <td><span class="badge badge-green">✅ Healthy</span></td>
+          <td style="font-size:9px;color:#2563eb">View</td>
+        </tr>
+        <tr>
+          <td><b>ABC Trading Co.</b></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:60px"><div class="health-bar"><div class="health-fill" style="width:52%;background:#d97706"></div></div></div>
+              <span style="font-size:9px;font-weight:800;color:#d97706">52%</span>
+            </div>
+          </td>
+          <td><span class="badge badge-amber">⚠️ Duplicate address</span></td>
+          <td style="font-size:9px;color:#2563eb">Fix</td>
+        </tr>
+        <tr>
+          <td><b>XYZ Online Store</b></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:60px"><div class="health-bar"><div class="health-fill" style="width:28%;background:#b91c1c"></div></div></div>
+              <span style="font-size:9px;font-weight:800;color:#b91c1c">28%</span>
+            </div>
+          </td>
+          <td><span class="badge badge-red">🚨 No contact, warehouse</span></td>
+          <td style="font-size:9px;color:#2563eb">Fix</td>
+        </tr>
+        <tr>
+          <td><b>Pinoy Gadgets Hub</b></td>
+          <td>
+            <div style="display:flex;align-items:center;gap:6px">
+              <div style="width:60px"><div class="health-bar"><div class="health-fill" style="width:70%;background:#2563eb"></div></div></div>
+              <span style="font-size:9px;font-weight:800;color:#2563eb">70%</span>
+            </div>
+          </td>
+          <td><span class="badge badge-blue">ℹ️ Missing city</span></td>
+          <td style="font-size:9px;color:#2563eb">Fix</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 9 — AI SCORING -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr9">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🤖 AI Scoring</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">🤖 AI Scoring</div><div class="page-sub">Machine learning lead priority scores</div></div>
+      <div class="btn btn-teal tap-me">🧠 Retrain Model</div>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-title">How AI Scoring Works</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;font-size:9px;color:#374151">
+          <div style="background:#EEF2FF;border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;margin-bottom:4px">📊</div><b>Visit History</b><br><span style="color:#9aabc5">Past outcomes per seller type</span></div>
+          <div style="background:#f0fdf4;border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;margin-bottom:4px">📍</div><b>Location</b><br><span style="color:#9aabc5">City, barangay success rate</span></div>
+          <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center"><div style="font-size:18px;margin-bottom:4px">⏰</div><b>Timing</b><br><span style="color:#9aabc5">Days since last contact</span></div>
+        </div>
+      </div>
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th>Seller</th><th>AI Score</th><th>Priority</th><th>Reason</th></tr>
+        <tr><td><b>BVS Online Shop</b></td><td><span style="font-size:13px;font-weight:900;color:#15803d">⭐ 92</span></td><td><span class="badge badge-green">🔥 High</span></td><td style="font-size:8px;color:#9aabc5">4 interested visits, active seller</td></tr>
+        <tr><td><b>Chokorean Online</b></td><td><span style="font-size:13px;font-weight:900;color:#2E75B6">⭐ 78</span></td><td><span class="badge badge-blue">📈 Medium-High</span></td><td style="font-size:8px;color:#9aabc5">2 callbacks, follow-up pending</td></tr>
+        <tr><td><b>Nano Shop PH</b></td><td><span style="font-size:13px;font-weight:900;color:#d97706">⭐ 55</span></td><td><span class="badge badge-amber">⚡ Medium</span></td><td style="font-size:8px;color:#9aabc5">Not home 2x, try different time</td></tr>
+        <tr><td><b>ABC Trading</b></td><td><span style="font-size:13px;font-weight:900;color:#b91c1c">⭐ 22</span></td><td><span class="badge badge-red">❄️ Low</span></td><td style="font-size:8px;color:#9aabc5">Rejected, no contact info</td></tr>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 10 — REPORTS -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr10">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📈 Reports</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📈 Reports</div><div class="page-sub">June 2026 · All agents</div></div>
+      <div style="display:flex;gap:6px"><div class="btn btn-outline">📅 Date Range</div><div class="btn btn-primary">📤 Export Excel</div></div>
+    </div>
+    <div class="content">
+      <div class="kpi-grid" style="margin-bottom:10px">
+        <div class="kpi-card" style="border-color:#2E75B6"><div class="kpi-val" style="color:#2E75B6">312</div><div class="kpi-lbl">TOTAL VISITS</div></div>
+        <div class="kpi-card" style="border-color:#15803d"><div class="kpi-val" style="color:#15803d">47</div><div class="kpi-lbl">LIVE THIS MONTH</div></div>
+        <div class="kpi-card" style="border-color:#7c3aed"><div class="kpi-val" style="color:#7c3aed">89</div><div class="kpi-lbl">INTERESTED</div></div>
+        <div class="kpi-card" style="border-color:#f59e0b"><div class="kpi-val" style="color:#d97706">15%</div><div class="kpi-lbl">CONVERSION RATE</div></div>
+      </div>
+      <div class="card">
+        <div class="card-title">Agent Performance — June 2026</div>
+        <table class="tbl">
+          <tr><th>Agent</th><th>Visits</th><th>Interested</th><th>Registered</th><th>Live</th><th>Rate</th></tr>
+          <tr><td><b>Juan dela Cruz</b></td><td>87</td><td>26</td><td>12</td><td><b style="color:#15803d">14</b></td><td><span class="badge badge-green">16%</span></td></tr>
+          <tr><td><b>Karen Santos</b></td><td>79</td><td>22</td><td>10</td><td><b style="color:#15803d">12</b></td><td><span class="badge badge-green">15%</span></td></tr>
+          <tr><td><b>Marie Cris</b></td><td>74</td><td>19</td><td>9</td><td><b style="color:#15803d">11</b></td><td><span class="badge badge-green">15%</span></td></tr>
+          <tr><td><b>Pedro Reyes</b></td><td>72</td><td>22</td><td>7</td><td><b style="color:#d97706">10</b></td><td><span class="badge badge-amber">14%</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 11 — DAILY DIGEST -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr11">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📅 Daily Digest</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📅 Daily Digest</div><div class="page-sub">Thursday, June 17, 2026 — End of day summary</div></div>
+      <div class="btn btn-primary">📤 Send to Email</div>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:8px">
+        <div style="font-size:12px;font-weight:800;color:#1F3864;margin-bottom:8px">📊 Today's Highlights</div>
+        <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:10px">
+          <div style="background:#f0fdf4;border-radius:8px;padding:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#15803d">32</div><div style="font-size:8px;color:#9aabc5">Visits Logged</div></div>
+          <div style="background:#EEF2FF;border-radius:8px;padding:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#2563eb">14</div><div style="font-size:8px;color:#9aabc5">Interested</div></div>
+          <div style="background:#fef3c7;border-radius:8px;padding:8px;text-align:center"><div style="font-size:20px;font-weight:900;color:#d97706">3</div><div style="font-size:8px;color:#9aabc5">Registered</div></div>
+        </div>
+        <div style="font-size:10px;font-weight:800;color:#1F3864;margin-bottom:5px">⭐ Top Performer</div>
+        <div style="background:#f8fafc;border-radius:8px;padding:8px;display:flex;align-items:center;gap:10px">
+          <div style="width:36px;height:36px;border-radius:50%;background:#1F3864;color:#f59e0b;display:flex;align-items:center;justify-content:center;font-size:18px">🏆</div>
+          <div><div style="font-size:11px;font-weight:800;color:#1F3864">Juan dela Cruz</div><div style="font-size:9px;color:#9aabc5">7 visits · 5 interested · 1 registered today</div></div>
+        </div>
+      </div>
+      <div class="alert alert-warn">
+        <span>⚠️</span><div><b>3 agents</b> have visits with pending photo uploads. <span style="color:#2563eb;cursor:pointer">View list →</span></div>
+      </div>
+      <div class="alert alert-info">
+        <span>ℹ️</span><div><b>18 pool leads</b> still unassigned. <span style="color:#2563eb;cursor:pointer">Assign now →</span></div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 12 — TARGETS -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr12">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🎯 Targets</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">🎯 Monthly Targets</div><div class="page-sub">June 2026 · Set and track team goals</div></div>
+      <div class="btn btn-primary tap-me">✏️ Edit Targets</div>
+    </div>
+    <div class="content">
+      <div class="card" style="margin-bottom:10px">
+        <div class="card-title">Team Target vs Actual</div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span style="font-weight:700;color:#1F3864">📍 Visits</span><span style="color:#9aabc5">312 / 400</span></div>
+          <div class="health-bar"><div class="health-fill" style="width:78%;background:#2E75B6"></div></div>
+          <div style="font-size:8px;color:#9aabc5;margin-top:2px">78% achieved · 88 visits remaining</div>
+        </div>
+        <div style="margin-bottom:8px">
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span style="font-weight:700;color:#1F3864">✅ Live Sellers</span><span style="color:#9aabc5">47 / 60</span></div>
+          <div class="health-bar"><div class="health-fill" style="width:78%;background:#15803d"></div></div>
+          <div style="font-size:8px;color:#9aabc5;margin-top:2px">78% achieved · 13 more needed</div>
+        </div>
+        <div>
+          <div style="display:flex;justify-content:space-between;font-size:9px;margin-bottom:3px"><span style="font-weight:700;color:#1F3864">💬 Registrations</span><span style="color:#9aabc5">38 / 50</span></div>
+          <div class="health-bar"><div class="health-fill" style="width:76%;background:#7c3aed"></div></div>
+          <div style="font-size:8px;color:#9aabc5;margin-top:2px">76% achieved · 12 more needed</div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-title">Individual Agent Targets — June</div>
+        <table class="tbl">
+          <tr><th>Agent</th><th>Visit Target</th><th>Actual</th><th>Live Target</th><th>Actual Live</th><th>Status</th></tr>
+          <tr><td><b>Juan</b></td><td>100</td><td>87</td><td>15</td><td style="color:#15803d;font-weight:800">14</td><td><span class="badge badge-amber">87%</span></td></tr>
+          <tr><td><b>Karen</b></td><td>100</td><td>79</td><td>15</td><td style="color:#15803d;font-weight:800">12</td><td><span class="badge badge-amber">79%</span></td></tr>
+          <tr><td><b>Marie Cris</b></td><td>100</td><td>74</td><td>15</td><td style="color:#d97706;font-weight:800">11</td><td><span class="badge badge-red">74%</span></td></tr>
+          <tr><td><b>Pedro</b></td><td>100</td><td>72</td><td>15</td><td style="color:#d97706;font-weight:800">10</td><td><span class="badge badge-red">72%</span></td></tr>
+        </table>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 13 — EXPORT DATA -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr13">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">📤 Export Data</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">📤 Export Data</div><div class="page-sub">Download reports for Lazada / management review</div></div>
+    </div>
+    <div class="content">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px">
+        <div class="card" style="cursor:pointer;border:2px solid transparent" onmouseover="this.style.borderColor='#1F3864'" onmouseout="this.style.borderColor='transparent'">
+          <div style="font-size:28px;margin-bottom:8px">📊</div>
+          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">All Leads</div>
+          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">Full lead database with status, agent, city, contact info</div>
+          <div class="btn btn-primary" style="width:100%;justify-content:center">📥 Export Excel</div>
+        </div>
+        <div class="card tap-me" style="cursor:pointer;border:2px solid #1F3864">
+          <div style="font-size:28px;margin-bottom:8px">📍</div>
+          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">Visit Logs</div>
+          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">All visits with GPS, photos, outcomes, timestamps</div>
+          <div class="btn btn-primary" style="width:100%;justify-content:center">📥 Export Excel</div>
+        </div>
+        <div class="card" style="cursor:pointer;border:2px solid transparent">
+          <div style="font-size:28px;margin-bottom:8px">✅</div>
+          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">Registrations</div>
+          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">Sellers who registered on Lazada this period</div>
+          <div class="btn btn-primary" style="width:100%;justify-content:center">📥 Export Excel</div>
+        </div>
+        <div class="card" style="cursor:pointer;border:2px solid transparent">
+          <div style="font-size:28px;margin-bottom:8px">👥</div>
+          <div style="font-size:11px;font-weight:800;color:#1F3864;margin-bottom:4px">Agent Performance</div>
+          <div style="font-size:9px;color:#9aabc5;margin-bottom:10px">Per-agent summary for payroll or evaluation</div>
+          <div class="btn btn-primary" style="width:100%;justify-content:center">📥 Export Excel</div>
+        </div>
+      </div>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 14 — ACTIVITY LOG -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr14">
+ <div class="app">
+  <div class="sidebar">
+    <div class="sidebar-logo"><div class="sidebar-logo-text">LSAMS <span style="color:#f59e0b">●</span></div></div>
+    <div class="sidebar-user"><div class="sidebar-role">⚡ Super Admin</div></div>
+    <div class="nav-item active" style="margin:4px 0">🔍 Activity Log</div>
+  </div>
+  <div class="main">
+    <div class="top-bar">
+      <div><div class="page-title">🔍 Activity Log</div><div class="page-sub">Full audit trail — who did what and when</div></div>
+      <div class="btn btn-outline">Filter ▾</div>
+    </div>
+    <div class="content">
+      <table class="tbl" style="background:white;border-radius:10px;overflow:hidden">
+        <tr><th>Time</th><th>User</th><th>Action</th><th>Details</th></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">5:30 PM</td><td><b>Sir Abbie</b></td><td><span class="badge badge-purple">Data Entry</span></td><td style="font-size:8px;color:#374151">Edited visit: BVS Online Shop — changed outcome to Interested</td></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">4:15 PM</td><td><b>Sir Abbie</b></td><td><span class="badge badge-blue">Assigned Lead</span></td><td style="font-size:8px;color:#374151">Craftopya Arts → Karen Santos</td></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">3:00 PM</td><td><b>Juan</b></td><td><span class="badge badge-green">Check In</span></td><td style="font-size:8px;color:#374151">Visited Nano Shop PH — Not Home · GPS ✅</td></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">2:30 PM</td><td><b>Karen</b></td><td><span class="badge badge-green">Check In</span></td><td style="font-size:8px;color:#374151">Visited Craftopya Arts — Callback · GPS ✅ · 2 photos</td></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">10:00 AM</td><td><b>Sir Abbie</b></td><td><span class="badge badge-amber">User Created</span></td><td style="font-size:8px;color:#374151">New Gabay Agent: Pedro Reyes (pedro.reyes)</td></tr>
+        <tr><td style="color:#9aabc5;font-size:8px">9:00 AM</td><td><b>Sir Abbie</b></td><td><span class="badge badge-blue">Leads Uploaded</span></td><td style="font-size:8px;color:#374151">Campaign: June 2026 Batch · 120 leads imported</td></tr>
+      </table>
+    </div>
+  </div>
+ </div>
+</div>
+
+<!-- ══════════════════════════════════════════════════ -->
+<!-- SCENE 15 — OUTRO -->
+<!-- ══════════════════════════════════════════════════ -->
+<div class="screen-inner" id="scr15">
+  <div class="intro-full">
+    <div style="text-align:center;padding:30px">
+      <div style="font-size:48px;margin-bottom:12px">✅</div>
+      <div style="font-size:22px;font-weight:900;color:white;margin-bottom:6px">Admin Mastery Complete!</div>
+      <div style="font-size:10px;color:rgba(255,255,255,0.6);margin-bottom:18px">Your daily workflow as Supervisor / Admin</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:400px;margin:0 auto;text-align:left">
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:6px">MORNING</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">📊 Check Dashboard<br>📤 Assign pool leads<br>🎯 Review targets</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:6px">DURING DAY</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">📍 Monitor visits live<br>📂 Data entry corrections<br>🏥 Fix health issues</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:6px">END OF DAY</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">📅 Review Daily Digest<br>📤 Export for reporting<br>🔍 Check activity log</div>
+        </div>
+        <div style="background:rgba(255,255,255,0.1);border-radius:8px;padding:10px">
+          <div style="font-size:9px;font-weight:800;color:#f59e0b;margin-bottom:6px">WEEKLY</div>
+          <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">📂 Upload new campaigns<br>🤖 Retrain AI model<br>🏥 Run Lead Health check</div>
+        </div>
+      </div>
+      <div style="margin-top:16px;font-size:9px;color:rgba(255,255,255,0.3)">© 2026 Altria Call Center · LSAMS Admin Guide</div>
+    </div>
+  </div>
+</div>
+
+    </div><!-- /browser-screen -->
+   </div><!-- /browser -->
+  </div><!-- /browser-wrap -->
+
+  <!-- ── Narration Panel ── -->
+  <div class="narration-panel">
+    <div class="scene-module" id="sceneLabelEl"></div>
+    <div class="scene-title" id="sceneTitleEl"></div>
+    <div class="narration-text" id="narrationEl"></div>
+    <div class="progress-bar-wrap">
+      <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+    </div>
+    <div class="controls">
+      <button class="ctrl-btn" onclick="prevScene()">⏮</button>
+      <button class="ctrl-btn play-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
+      <button class="ctrl-btn" onclick="nextScene()">⏭</button>
+      <span class="scene-counter" id="sceneCounterEl">1 / 16</span>
+    </div>
+  </div>
+
+ </div><!-- /layout -->
+</div><!-- /stage -->
+
+<script>
+const urlMap = {
+  0: 'web-production-c9ec2.up.railway.app/dashboard',
+  1: 'web-production-c9ec2.up.railway.app/dashboard',
+  2: 'web-production-c9ec2.up.railway.app/admin/users',
+  3: 'web-production-c9ec2.up.railway.app/admin/users/new',
+  4: 'web-production-c9ec2.up.railway.app/admin/assign-leads',
+  5: 'web-production-c9ec2.up.railway.app/admin/campaigns',
+  6: 'web-production-c9ec2.up.railway.app/visits',
+  7: 'web-production-c9ec2.up.railway.app/admin/data-entry',
+  8: 'web-production-c9ec2.up.railway.app/admin/lead-health',
+  9: 'web-production-c9ec2.up.railway.app/admin/ai-scoring',
+  10:'web-production-c9ec2.up.railway.app/reports',
+  11:'web-production-c9ec2.up.railway.app/daily-digest',
+  12:'web-production-c9ec2.up.railway.app/targets',
+  13:'web-production-c9ec2.up.railway.app/admin/export',
+  14:'web-production-c9ec2.up.railway.app/admin/activity-log',
+  15:'web-production-c9ec2.up.railway.app/dashboard',
+};
+
+const scenes = [
+  { screen:0,  label:'Introduction',     title:'Welcome — Supervisor & Admin Guide', duration:7000,
+    narration:'Welcome, Admin! This guide covers everything you manage in LSAMS — from adding Gabay agents and uploading lead campaigns, to monitoring visits, correcting data entries, running AI health checks on your leads, and exporting reports for management.' },
+  { screen:1,  label:'Dashboard',        title:'Dashboard — Real-Time Command Center', duration:8000,
+    narration:'Your dashboard shows the live state of the entire operation: total leads in the pipeline, how many sellers are now live, how many visits are logged today, and how many pool leads still need assignment. Gabay agent performance is ranked live — you can see who is hitting their target right now.' },
+  { screen:2,  label:'User Management',  title:'User Management — All System Users', duration:7000,
+    narration:'Go to User Management to see every account in the system — Gabay agents, supervisors, and admins. Each row shows their role, WhatsApp mobile number (used by the bot), and assigned territory. Click Edit to update any user at any time.' },
+  { screen:3,  label:'User Management',  title:'Adding a New Gabay Agent', duration:8000,
+    narration:'Click Add New User to create a Gabay agent account. Fill in their full name, choose a username they will use to log in, set a password, and assign their role as Gabay Agent. The WhatsApp number field is critical — this is how the bot identifies who is sending messages. Also set their territory so Smart Assignment routes the right leads to them.' },
+  { screen:4,  label:'Lead Assignment',  title:'Assign Leads to Agents', duration:8000,
+    narration:'The Assign Leads page shows all pool leads with no agent yet. You can manually select which agent gets each lead, or use Smart Auto-Assign which automatically distributes leads based on each agent\'s territory. Tick multiple leads and assign them in one click. Pool leads shown in orange on the dashboard need to be cleared daily.' },
+  { screen:5,  label:'Campaigns',        title:'Campaign Lead Upload — Excel & CSV', duration:8000,
+    narration:'When you receive a new batch of seller leads from the Lazada campaign team, go to Campaigns and upload the Excel or CSV file. Download the template first to make sure your columns match — Seller Name, Address, City, and Contact Number are required. After upload, leads go into the pool and are ready to assign to your Gabay agents.' },
+  { screen:6,  label:'Visits Monitor',   title:'Visits — Monitor All Agent Activity', duration:7000,
+    narration:'The Visits page shows every check-in from all agents in real time. You can see the time, agent name, seller visited, outcome selected, whether GPS was captured, how many photos were uploaded, and the agent\'s notes. Use the Filter button to narrow by agent, date range, or outcome. Export to Excel for reporting.' },
+  { screen:7,  label:'Data Entry',       title:'Data Entry — Correct & Update Transactions', duration:9000,
+    narration:'Data Entry allows you to edit visit records logged by Gabay agents. You can correct the outcome, update the follow-up date, add supervisor notes, or override the lead status. This is important when an agent logged the wrong outcome or missed adding notes. Every change you make is recorded in the Activity Log with your name and timestamp — full audit trail.' },
+  { screen:8,  label:'Lead Health',      title:'Lead Health — AI Quality Check', duration:8000,
+    narration:'Lead Health runs an AI analysis across your entire lead database and scores each seller from 0 to 100. It flags issues like duplicate addresses, missing contact numbers, warehouse addresses, and sellers already registered. Leads in red need immediate attention — fix them before sending agents to visit. Run this weekly to keep your data clean.' },
+  { screen:9,  label:'AI Scoring',       title:'AI Scoring — Priority Prediction', duration:8000,
+    narration:'AI Scoring uses machine learning to rank which sellers are most likely to convert to live sellers. The model learns from your team\'s past visit history — which seller types, cities, and follow-up patterns lead to successful registrations. Leads with high scores should be visited first. Click Retrain Model monthly to keep the AI learning from new data.' },
+  { screen:10, label:'Reports',          title:'Reports — Team Performance Analytics', duration:7000,
+    narration:'Reports gives you a full breakdown of team performance for any date range. Total visits, interested count, registrations, live sellers, and conversion rate per agent. Use Export Excel to send this to your manager or Lazada account team. You can filter by individual agent to review their month.' },
+  { screen:11, label:'Daily Digest',     title:'Daily Digest — End-of-Day Summary', duration:7000,
+    narration:'The Daily Digest is your automatic end-of-day report — total visits today, interested sellers, registrations, and the top performing agent. It also alerts you to problems: agents with pending photo uploads, unassigned pool leads, and agents who did not log any visits today. You can email this digest directly to your manager.' },
+  { screen:12, label:'Targets',          title:'Targets — Set & Track Monthly Goals', duration:7000,
+    narration:'Use Targets to set monthly visit targets, live seller goals, and registration quotas for each agent. The progress bars update in real time as agents log visits. If an agent falls behind — shown in red — you know to follow up with them. Targets reset at the start of each month.' },
+  { screen:13, label:'Export',           title:'Export Data — Reports for Management', duration:6000,
+    narration:'The Export page lets you download four key datasets: All Leads with their full status, Visit Logs with GPS and photo records, Registrations for the period, and Agent Performance summaries. These Excel files are ready to submit directly to Lazada or your company management without any manual formatting.' },
+  { screen:14, label:'Activity Log',     title:'Activity Log — Full Audit Trail', duration:7000,
+    narration:'The Activity Log records every action in the system — agent check-ins, data entry corrections you made, lead assignments, new user creation, and campaign uploads. If you ever need to verify what happened on a specific date or investigate a discrepancy, this is your source of truth. All entries show the user, timestamp, and exact change made.' },
+  { screen:15, label:'Complete!',        title:'Admin Daily Workflow Checklist', duration:8000,
+    narration:'You now have full command of LSAMS. Morning: check the dashboard and assign pool leads. During the day: monitor visits live and fix any data entry errors. End of day: review the Daily Digest and export your report. Weekly: upload new campaigns, retrain the AI model, and run a Lead Health check. Your team runs best when you stay on top of these routines.' },
+];
+
+let current = 0, playing = false, timer = null;
+
+function showScene(idx) {
+  document.querySelectorAll('.screen-inner').forEach(s => s.classList.remove('visible'));
+  document.getElementById('scr' + scenes[idx].screen).classList.add('visible');
+  document.getElementById('sceneLabelEl').textContent = scenes[idx].label;
+  document.getElementById('sceneTitleEl').textContent = scenes[idx].title;
+  document.getElementById('narrationEl').textContent = scenes[idx].narration;
+  document.getElementById('sceneCounterEl').textContent = (idx+1) + ' / ' + scenes.length;
+  document.getElementById('progressFill').style.width = ((idx / (scenes.length-1)) * 100) + '%';
+  if (urlMap[idx]) document.getElementById('browserUrl').textContent = urlMap[idx];
+}
+
+function goTo(idx) {
+  if (idx < 0 || idx >= scenes.length) return;
+  if (timer) { clearTimeout(timer); timer = null; }
+  current = idx;
+  showScene(current);
+  if (playing) timer = setTimeout(() => { if (current < scenes.length-1) goTo(current+1); else { playing=false; updatePlayBtn(); }}, scenes[current].duration);
+}
+
+function nextScene() { goTo(Math.min(current+1, scenes.length-1)); }
+function prevScene() { goTo(Math.max(current-1, 0)); }
+function togglePlay() {
+  playing = !playing;
+  updatePlayBtn();
+  if (playing) {
+    if (current === scenes.length-1) { current=0; showScene(0); }
+    timer = setTimeout(() => { if (current < scenes.length-1) goTo(current+1); else { playing=false; updatePlayBtn(); }}, scenes[current].duration);
+  } else { if (timer) { clearTimeout(timer); timer=null; } }
+}
+function updatePlayBtn() { document.getElementById('playPauseBtn').textContent = playing ? '⏸' : '▶'; }
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key===' ') { e.preventDefault(); nextScene(); }
+  if (e.key==='ArrowLeft') prevScene();
+  if (e.key==='p'||e.key==='P') togglePlay();
+});
+
+showScene(0);
+</script>
+</body>
+</html>

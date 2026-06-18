@@ -4255,6 +4255,23 @@ def gabay_upload_photo(visit_id):
     return render_template('gabay_app/upload_photo.html', visit=visit, lead=lead)
 
 
+@app.route('/gabay/app/tutorial')
+@login_required
+def gabay_tutorial():
+    if current_user.role != 'gabay':
+        return redirect(url_for('dashboard'))
+    return render_template('gabay_app/tutorial.html')
+
+
+@app.route('/admin/tutorial')
+@login_required
+def supervisor_tutorial():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('tutorial_supervisor.html')
+
+
 @app.route('/uploads/visits/<path:filename>')
 @login_required
 def visit_photo(filename):

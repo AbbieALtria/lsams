@@ -1,0 +1,894 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
+<title>LSAMS — Gabay Agent Tutorial v2</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: #0a0f1e;
+  color: #fff;
+  height: 100vh;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.stage { width:100vw; height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; position:relative; }
+.layout { display:flex; flex-direction:column; align-items:center; gap:14px; width:100%; height:100%; justify-content:center; padding:16px 0 8px; }
+
+/* Phone */
+.phone-wrap { position:relative; flex-shrink:0; }
+.phone { width:270px; height:490px; background:#fff; border-radius:36px; border:8px solid #1a1a2e; box-shadow:0 0 0 2px #333,0 30px 80px rgba(0,0,0,0.7); overflow:hidden; position:relative; }
+.phone-notch { position:absolute; top:0; left:50%; transform:translateX(-50%); width:90px; height:22px; background:#1a1a2e; border-radius:0 0 14px 14px; z-index:10; }
+.phone-screen { width:100%; height:100%; position:relative; overflow:hidden; }
+.screen-inner { position:absolute; inset:0; display:flex; flex-direction:column; opacity:0; transition:opacity 0.5s; }
+.screen-inner.visible { opacity:1; }
+
+/* Narration */
+.narration-area { width:100%; max-width:500px; text-align:center; padding:0 20px; flex-shrink:0; }
+.scene-label { font-size:10px; font-weight:800; color:#6366f1; letter-spacing:1px; text-transform:uppercase; margin-bottom:3px; }
+.scene-title { font-size:15px; font-weight:800; color:#f59e0b; letter-spacing:.5px; margin-bottom:5px; min-height:20px; }
+.narration-text { font-size:13px; color:rgba(255,255,255,0.85); line-height:1.6; min-height:56px; }
+
+/* Progress */
+.progress-bar-wrap { width:100%; max-width:440px; background:rgba(255,255,255,0.1); border-radius:4px; height:4px; margin:10px 20px 0; }
+.progress-bar-fill { height:100%; border-radius:4px; background:#f59e0b; transition:width 0.3s; }
+
+/* Controls */
+.controls { display:flex; gap:14px; align-items:center; margin-top:10px; }
+.ctrl-btn { background:rgba(255,255,255,0.1); border:none; color:white; border-radius:50%; width:40px; height:40px; font-size:16px; cursor:pointer; display:flex; align-items:center; justify-content:center; transition:background .2s; }
+.ctrl-btn:hover { background:rgba(255,255,255,0.2); }
+.ctrl-btn.play-btn { width:52px; height:52px; font-size:22px; background:#f59e0b; border-radius:50%; }
+.ctrl-btn.play-btn:hover { background:#d97706; }
+.scene-counter { font-size:11px; color:rgba(255,255,255,0.4); font-weight:700; }
+
+/* ══ SCREEN STYLES ══ */
+.status-bar { height:28px; background:#1F3864; display:flex; align-items:center; justify-content:space-between; padding:0 12px; font-size:9px; color:rgba(255,255,255,0.7); flex-shrink:0; }
+.bottom-nav { height:52px; background:white; border-top:1px solid #e2e8f0; display:flex; align-items:center; justify-content:space-around; flex-shrink:0; }
+.bnav-item { text-align:center; font-size:9px; color:#9aabc5; }
+.bnav-item.active { color:#1F3864; }
+.bnav-icon { font-size:18px; display:block; }
+.sc { background:white; height:100%; display:flex; flex-direction:column; }
+.sc-body { flex:1; overflow:hidden; padding:10px 12px; background:#f1f5f9; }
+.sec-hdr { background:#1F3864; padding:8px 10px; display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.sec-hdr-title { font-size:13px; font-weight:800; color:white; }
+.back-btn { font-size:10px; color:rgba(255,255,255,0.7); margin-left:auto; }
+
+/* KPI */
+.kpi-row-s { display:grid; grid-template-columns:1fr 1fr; gap:6px; margin-bottom:8px; }
+.kpi-tile-s { background:white; border-radius:12px; padding:8px 10px; text-align:center; border-top:3px solid #ddd; }
+.kpi-val-s { font-size:20px; font-weight:900; }
+.kpi-lbl-s { font-size:8px; color:#9aabc5; font-weight:700; }
+
+/* Lead row */
+.lead-row { background:white; border-radius:10px; padding:8px 10px; margin-bottom:6px; display:flex; align-items:center; gap:8px; }
+.lead-avatar { width:32px; height:32px; border-radius:8px; display:flex; align-items:center; justify-content:center; font-size:14px; font-weight:800; color:white; flex-shrink:0; }
+.lead-name { font-size:11px; font-weight:800; color:#1F3864; }
+.lead-city { font-size:9px; color:#9aabc5; }
+.lead-badge { font-size:8px; font-weight:700; padding:2px 6px; border-radius:8px; }
+
+/* Outcome buttons */
+.oc-grid { display:grid; grid-template-columns:1fr 1fr 1fr; gap:5px; }
+.oc-btn { border:2px solid #e2e8f0; border-radius:10px; padding:8px 4px; text-align:center; font-size:9px; font-weight:700; color:#4a5568; background:white; }
+.oc-btn.sel { border-color:#15803d; background:#15803d; color:white; }
+.oc-btn.sel2 { border-color:#2563eb; background:#2563eb; color:white; }
+
+/* GPS */
+.gps-btn-s { background:#f0fdf4; border:2px solid #15803d; border-radius:12px; padding:12px; text-align:center; margin-bottom:8px; }
+
+/* Animations */
+@keyframes tap-pulse { 0%,100%{box-shadow:0 0 0 0 rgba(245,158,11,0.7)} 50%{box-shadow:0 0 0 10px rgba(245,158,11,0)} }
+.tap-me { animation:tap-pulse 1.2s infinite; }
+@keyframes slide-up { from{transform:translateY(20px);opacity:0} to{transform:translateY(0);opacity:1} }
+.slide-up { animation:slide-up 0.4s ease forwards; }
+@keyframes blink { 0%,100%{opacity:1} 50%{opacity:0.3} }
+.blink { animation:blink 1.5s infinite; }
+
+/* WhatsApp */
+.wa-header { background:#075E54; padding:8px 10px; display:flex; align-items:center; gap:8px; flex-shrink:0; }
+.wa-body { flex:1; background:#ECE5DD; padding:8px 10px; overflow:hidden; }
+.wa-msg-out { background:#DCF8C6; border-radius:10px 10px 0 10px; padding:6px 9px; margin-bottom:6px; margin-left:24px; font-size:10px; color:#111; }
+.wa-msg-in { background:white; border-radius:10px 10px 10px 0; padding:6px 9px; margin-bottom:6px; margin-right:24px; font-size:10px; color:#111; }
+.wa-time { font-size:8px; color:#9aabc5; text-align:right; margin-top:2px; }
+.wa-footer { background:#F0F0F0; padding:6px 8px; display:flex; align-items:center; gap:6px; flex-shrink:0; }
+.wa-input { flex:1; background:white; border-radius:20px; padding:5px 10px; font-size:9px; color:#666; border:none; }
+.wa-mic { width:30px; height:30px; border-radius:50%; background:#075E54; display:flex; align-items:center; justify-content:center; font-size:14px; }
+
+/* Radar */
+.radar-card { background:white; border-radius:10px; padding:8px 10px; margin-bottom:6px; border-left:3px solid #0f766e; }
+.radar-name { font-size:10px; font-weight:800; color:#1F3864; }
+.radar-addr { font-size:8px; color:#9aabc5; margin-top:1px; }
+.radar-dist { font-size:8px; color:#0f766e; font-weight:700; margin-top:2px; }
+
+/* Selfie/photo boxes */
+.selfie-box { border:2px dashed #CBD5E1; border-radius:12px; padding:12px; text-align:center; background:#f8fafc; margin-bottom:6px; }
+.selfie-box.done { border:2px solid #15803d; background:#f0fdf4; }
+
+/* Pending photo banner */
+.pending-banner { background:#fef3c7; border-left:3px solid #d97706; border-radius:10px; padding:8px 10px; margin-bottom:6px; }
+.pending-row { background:white; border-radius:8px; padding:6px 8px; display:flex; align-items:center; justify-content:space-between; margin-top:5px; }
+
+/* Intro/Outro */
+.intro-screen { background:linear-gradient(135deg,#1F3864,#2E75B6); display:flex; flex-direction:column; align-items:center; justify-content:center; height:100%; padding:20px; text-align:center; }
+
+/* Login */
+.login-screen { background:linear-gradient(135deg,#1F3864,#2E75B6); display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; padding:0 0 20px; }
+.login-card { background:white; border-radius:20px; padding:18px 16px; width:220px; }
+.login-field { background:#f1f5f9; border-radius:8px; padding:7px 10px; font-size:10px; color:#374151; margin-bottom:8px; }
+.login-btn { background:#1F3864; color:white; border-radius:8px; padding:9px; text-align:center; font-size:11px; font-weight:800; }
+
+/* Step label */
+.step-lbl { display:flex; align-items:center; gap:6px; font-size:10px; font-weight:800; color:#1F3864; margin-bottom:6px; margin-top:8px; }
+.step-num-s { width:20px; height:20px; border-radius:50%; display:flex; align-items:center; justify-content:center; font-size:9px; font-weight:800; color:white; flex-shrink:0; }
+
+/* Report styles */
+.report-row { background:white; border-radius:8px; padding:7px 10px; margin-bottom:5px; display:flex; align-items:center; justify-content:space-between; }
+.report-label { font-size:10px; color:#374151; font-weight:600; }
+.report-val { font-size:11px; font-weight:900; }
+.chart-bar-wrap { background:#e2e8f0; border-radius:4px; height:8px; flex:1; margin:0 8px; }
+.chart-bar-fill { height:100%; border-radius:4px; }
+
+/* Visit history row */
+.hist-row { background:white; border-radius:8px; padding:6px 10px; margin-bottom:4px; }
+.hist-seller { font-size:10px; font-weight:800; color:#1F3864; }
+.hist-meta { font-size:8px; color:#9aabc5; margin-top:1px; }
+.hist-badge { font-size:8px; font-weight:700; padding:2px 6px; border-radius:8px; }
+
+/* Cursor */
+@keyframes cursor-tap { 0%,100%{transform:scale(1);opacity:1} 50%{transform:scale(0.8);opacity:0.7} }
+.cursor { position:absolute; width:28px; height:28px; border-radius:50%; background:rgba(245,158,11,0.5); border:3px solid #f59e0b; pointer-events:none; z-index:50; animation:cursor-tap 1s infinite; display:none; }
+</style>
+</head>
+<body>
+
+<div class="stage">
+  <div class="layout">
+
+    <!-- Phone Frame -->
+    <div class="phone-wrap">
+      <div class="phone">
+        <div class="phone-notch"></div>
+        <div class="phone-screen" id="phoneScreen">
+
+          <!-- ══ SCENE 0: INTRO ══ -->
+          <div class="screen-inner visible" id="scr0">
+            <div class="intro-screen">
+              <div style="font-size:48px;margin-bottom:12px">📱</div>
+              <div style="font-size:22px;font-weight:900;color:white">LSAMS <span style="color:#f59e0b">●</span></div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.5);margin-top:4px">Seller Activation Management System</div>
+              <div style="width:40px;height:3px;background:#f59e0b;margin:14px auto"></div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.7);text-align:center;line-height:1.7">
+                Complete guide for<br><strong style="color:#f59e0b">Gabay Field Agents</strong>
+              </div>
+              <div style="margin-top:16px;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;text-align:left;width:200px">
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">TOPICS COVERED</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">
+                  📍 Check In &amp; GPS<br>📡 Seller Radar<br>📷 Photo Upload<br>📱 WhatsApp Bot<br>🎙 Voice Notes<br>📊 My Reports
+                </div>
+              </div>
+              <div style="margin-top:14px;font-size:9px;color:rgba(255,255,255,0.3)">Altria Call Center · 2026</div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 1: LOGIN ══ -->
+          <div class="screen-inner" id="scr1">
+            <div class="login-screen">
+              <div style="text-align:center;margin-bottom:20px">
+                <div style="font-size:28px;font-weight:900;color:white">LSAMS</div>
+                <div style="font-size:9px;color:rgba(255,255,255,0.5)">Altria Management Corporation</div>
+              </div>
+              <div class="login-card">
+                <div style="font-size:18px;font-weight:900;color:#1F3864;text-align:center;margin-bottom:12px">LSAMS <span style="color:#f59e0b">●</span></div>
+                <div style="font-size:8px;font-weight:700;color:#9aabc5;margin-bottom:4px">USERNAME</div>
+                <div class="login-field">gabay.juan</div>
+                <div style="font-size:8px;font-weight:700;color:#9aabc5;margin-bottom:4px">PASSWORD</div>
+                <div class="login-field" style="letter-spacing:2px">••••••••</div>
+                <div style="font-size:8px;color:#9aabc5;margin-bottom:10px">Ask your supervisor for your login details</div>
+                <div class="login-btn tap-me">Sign In →</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 2: HOME SCREEN ══ -->
+          <div class="screen-inner" id="scr2">
+            <div class="sc">
+              <div class="status-bar"><span>9:41</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div style="background:linear-gradient(135deg,#1F3864,#2E75B6);padding:12px;color:white;flex-shrink:0">
+                <div style="font-size:9px;opacity:0.7;margin-bottom:2px">Tuesday, June 17, 2026</div>
+                <div style="font-size:14px;font-weight:800">Good morning, Juan! 👋</div>
+                <div style="font-size:9px;opacity:0.8;margin-top:2px">0 visits so far. Let's get started! 💪</div>
+                <div style="background:rgba(255,255,255,0.15);border-radius:4px;height:5px;margin-top:8px;overflow:hidden">
+                  <div style="background:#FF9900;width:0%;height:5px;border-radius:4px"></div>
+                </div>
+                <div style="font-size:8px;opacity:0.5;margin-top:2px">Daily goal: 0 / 8 visits</div>
+              </div>
+              <div class="sc-body">
+                <div class="kpi-row-s">
+                  <div class="kpi-tile-s" style="border-color:#2E75B6"><div class="kpi-val-s" style="color:#2E75B6">12</div><div class="kpi-lbl-s">MY LEADS</div></div>
+                  <div class="kpi-tile-s" style="border-color:#FF9900"><div class="kpi-val-s" style="color:#E07B00">0</div><div class="kpi-lbl-s">VISITED TODAY</div></div>
+                  <div class="kpi-tile-s" style="border-color:#15803d"><div class="kpi-val-s" style="color:#15803d">3</div><div class="kpi-lbl-s">LIVE SELLERS</div></div>
+                  <div class="kpi-tile-s" style="border-color:#7c3aed"><div class="kpi-val-s" style="color:#7c3aed">2</div><div class="kpi-lbl-s">FOLLOW-UPS</div></div>
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-top:4px">
+                  <div style="background:#1F3864;border-radius:10px;padding:10px;text-align:center;color:white;font-size:10px;font-weight:800">📍 Check In</div>
+                  <div style="background:#0f766e;border-radius:10px;padding:10px;text-align:center;color:white;font-size:10px;font-weight:800">🗺️ Plan My Day</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-top:6px;display:flex;align-items:center;gap:8px">
+                  <span style="font-size:16px">📊</span>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">My Reports</div><div style="font-size:8px;color:#9aabc5">See your performance &amp; visit history</div></div>
+                  <span style="font-size:10px;color:#9aabc5">›</span>
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <div class="bnav-item active"><span class="bnav-icon">🏠</span>Home</div>
+                <div class="bnav-item"><span class="bnav-icon">👥</span>Leads</div>
+                <div class="bnav-item"><span class="bnav-icon">📍</span>Check In</div>
+                <div class="bnav-item"><span class="bnav-icon">📊</span>Reports</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 3: MY LEADS ══ -->
+          <div class="screen-inner" id="scr3">
+            <div class="sc">
+              <div class="status-bar"><span>9:41</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>👥</span><span class="sec-hdr-title">My Leads</span><span class="back-btn">← Home</span></div>
+              <div style="padding:6px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:9px;color:#9aabc5">12 sellers assigned · tap any to see details</div>
+              <div class="sc-body">
+                <div class="lead-row" style="border:2px solid #7c3aed">
+                  <div class="lead-avatar" style="background:#7c3aed">B</div>
+                  <div style="flex:1"><div class="lead-name">BVS Online Shop</div><div class="lead-city">📍 Marikina · Follow-up due today!</div></div>
+                  <span class="lead-badge" style="background:#ede9fe;color:#7c3aed">Negotiation</span>
+                </div>
+                <div class="lead-row">
+                  <div class="lead-avatar" style="background:#2E75B6">C</div>
+                  <div style="flex:1"><div class="lead-name">Chokorean Online</div><div class="lead-city">📍 Pasig City</div></div>
+                  <span class="lead-badge" style="background:#fef3c7;color:#d97706">Attempting</span>
+                </div>
+                <div class="lead-row">
+                  <div class="lead-avatar" style="background:#15803d">N</div>
+                  <div style="flex:1"><div class="lead-name">Nano Shop PH</div><div class="lead-city">📍 Quezon City</div></div>
+                  <span class="lead-badge" style="background:#dbeafe;color:#2563eb">Assigned</span>
+                </div>
+                <div class="lead-row">
+                  <div class="lead-avatar" style="background:#be185d">J</div>
+                  <div style="flex:1"><div class="lead-name">Jollibee Supplies</div><div class="lead-city">📍 Mandaluyong</div></div>
+                  <span class="lead-badge" style="background:#dbeafe;color:#2563eb">Assigned</span>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px;font-size:9px;color:#9aabc5;text-align:center">
+                  + 8 more sellers...
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <div class="bnav-item"><span class="bnav-icon">🏠</span>Home</div>
+                <div class="bnav-item active"><span class="bnav-icon">👥</span>Leads</div>
+                <div class="bnav-item"><span class="bnav-icon">📍</span>Check In</div>
+                <div class="bnav-item"><span class="bnav-icon">📊</span>Reports</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 4: PLAN MY DAY ══ -->
+          <div class="screen-inner" id="scr4">
+            <div class="sc">
+              <div class="status-bar"><span>9:45</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr" style="background:#0f766e"><span>🗺️</span><span class="sec-hdr-title">Plan My Day</span><span class="back-btn">← Home</span></div>
+              <div style="padding:6px 10px;background:#f0fdf4;border-bottom:1px solid #86efac;font-size:9px;color:#166534">
+                ✅ AI route optimized · 4 stops · ~22km total
+              </div>
+              <div class="sc-body" style="background:#f8fafc">
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                  <div style="width:24px;height:24px;border-radius:50%;background:#1F3864;color:white;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">1</div>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">BVS Online Shop</div><div style="font-size:8px;color:#9aabc5">📍 Marikina · 2.1 km</div></div>
+                  <div style="font-size:9px;font-weight:800;background:#ede9fe;color:#7c3aed;border-radius:8px;padding:2px 6px">⭐72</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                  <div style="width:24px;height:24px;border-radius:50%;background:#2E75B6;color:white;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">2</div>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">Chokorean Online</div><div style="font-size:8px;color:#9aabc5">📍 Pasig · 5.3 km</div></div>
+                  <div style="font-size:9px;font-weight:800;background:#fef3c7;color:#d97706;border-radius:8px;padding:2px 6px">⭐68</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                  <div style="width:24px;height:24px;border-radius:50%;background:#15803d;color:white;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">3</div>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">Nano Shop PH</div><div style="font-size:8px;color:#9aabc5">📍 Quezon City · 7.8 km</div></div>
+                  <div style="font-size:9px;font-weight:800;background:#dcfce7;color:#15803d;border-radius:8px;padding:2px 6px">⭐55</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px;display:flex;align-items:center;gap:8px">
+                  <div style="width:24px;height:24px;border-radius:50%;background:#be185d;color:white;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center;flex-shrink:0">4</div>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">Jollibee Supplies</div><div style="font-size:8px;color:#9aabc5">📍 Mandaluyong · 6.4 km</div></div>
+                  <div style="font-size:9px;font-weight:800;background:#ffe4e6;color:#be185d;border-radius:8px;padding:2px 6px">⭐41</div>
+                </div>
+                <div style="background:linear-gradient(135deg,#0f766e,#0d9488);border-radius:10px;padding:8px 10px;color:white">
+                  <div style="font-size:10px;font-weight:800">📡 Seller Radar — 3 Nearby</div>
+                  <div style="font-size:8px;opacity:0.8;margin-top:2px">Unassigned sellers in your area → extra leads!</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 5: SELLER RADAR ══ -->
+          <div class="screen-inner" id="scr5">
+            <div class="sc">
+              <div class="status-bar"><span>9:47</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr" style="background:#0f766e"><span>📡</span><span class="sec-hdr-title">Seller Radar</span><span class="back-btn">← Plan My Day</span></div>
+              <div style="padding:6px 10px;background:#f0fdfa;border-bottom:1px solid #99f6e4;font-size:9px;color:#0f766e;flex-shrink:0">
+                Unassigned sellers near you — visit &amp; check in to claim them!
+              </div>
+              <div class="sc-body" style="background:#f0fdfa;padding:8px 10px">
+                <div class="radar-card">
+                  <div class="radar-name">Craftopya Arts &amp; Craft</div>
+                  <div class="radar-addr">📍 123 Mayon St, Pasig City</div>
+                  <div class="radar-dist">🚶 0.3 km away · Mobile: 0917-123-4567</div>
+                  <div style="display:flex;gap:4px;margin-top:5px">
+                    <div style="background:#4285F418;border:1px solid #4285F4;color:#4285F4;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700">🗺 Open Maps</div>
+                    <div style="background:#15803d18;border:1px solid #15803d;color:#15803d;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700 tap-me">✅ Check In Now</div>
+                  </div>
+                </div>
+                <div class="radar-card">
+                  <div class="radar-name">Seoul Eats PH</div>
+                  <div class="radar-addr">📍 456 Ortigas Ave, Pasig City</div>
+                  <div class="radar-dist">🚶 0.8 km away · Mobile: 0918-234-5678</div>
+                  <div style="display:flex;gap:4px;margin-top:5px">
+                    <div style="background:#4285F418;border:1px solid #4285F4;color:#4285F4;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700">🗺 Open Maps</div>
+                    <div style="background:#15803d18;border:1px solid #15803d;color:#15803d;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700">✅ Check In Now</div>
+                  </div>
+                </div>
+                <div class="radar-card">
+                  <div class="radar-name">Pinoy Gadgets Hub</div>
+                  <div class="radar-addr">📍 789 Julia Vargas, Pasig City</div>
+                  <div class="radar-dist">🚶 1.2 km away · Mobile: 0919-345-6789</div>
+                  <div style="display:flex;gap:4px;margin-top:5px">
+                    <div style="background:#4285F418;border:1px solid #4285F4;color:#4285F4;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700">🗺 Open Maps</div>
+                    <div style="background:#15803d18;border:1px solid #15803d;color:#15803d;border-radius:6px;padding:3px 7px;font-size:8px;font-weight:700">✅ Check In Now</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 6: CHECK IN — SELECT + GPS ══ -->
+          <div class="screen-inner" id="scr6">
+            <div class="sc">
+              <div class="status-bar"><span>10:05</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>📍</span><span class="sec-hdr-title">Check In</span><span class="back-btn">← Home</span></div>
+              <div class="sc-body">
+                <div class="step-lbl">
+                  <div class="step-num-s" style="background:#1F3864">1</div>
+                  Which seller did you visit?
+                </div>
+                <div style="background:#EEF2FF;border:2px solid #4338ca;border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;align-items:center;gap:8px">
+                  <div style="width:32px;height:32px;border-radius:8px;background:#4338ca;color:white;display:flex;align-items:center;justify-content:center;font-size:14px;font-weight:800">C</div>
+                  <div><div style="font-size:11px;font-weight:800;color:#1F3864">Chokorean Online</div><div style="font-size:9px;color:#6366f1">📍 Pasig City ✅ Selected</div></div>
+                </div>
+                <div class="step-lbl">
+                  <div class="step-num-s" style="background:#15803d">2</div>
+                  Capture your GPS location
+                </div>
+                <div class="gps-btn-s">
+                  <div style="font-size:18px">✅</div>
+                  <div style="font-size:10px;font-weight:800;color:#15803d">GPS Captured!</div>
+                  <div style="font-size:8px;color:#9aabc5;margin-top:2px">📍 Mayon St, Pasig City, Metro Manila</div>
+                  <div style="font-size:8px;color:#9aabc5">Lat: 14.5814 · Long: 121.0600</div>
+                </div>
+                <div class="step-lbl">
+                  <div class="step-num-s" style="background:#CBD5E1">3</div>
+                  What happened at the visit?
+                </div>
+                <div class="oc-grid">
+                  <div class="oc-btn sel">👍<br>Interested</div>
+                  <div class="oc-btn">📞<br>Call Back</div>
+                  <div class="oc-btn">🚪<br>Not Home</div>
+                  <div class="oc-btn">❌<br>Rejected</div>
+                  <div class="oc-btn">📝<br>Registered</div>
+                  <div class="oc-btn">📅<br>Follow Up</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 7: CHECK IN — NOTES ══ -->
+          <div class="screen-inner" id="scr7">
+            <div class="sc">
+              <div class="status-bar"><span>10:06</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>📍</span><span class="sec-hdr-title">Check In</span></div>
+              <div class="sc-body">
+                <div style="background:#f0fdf4;border-left:3px solid #15803d;border-radius:8px;padding:8px 10px;margin-bottom:8px">
+                  <div style="font-size:9px;font-weight:800;color:#15803d">✅ Outcome: Interested</div>
+                  <div style="font-size:8px;color:#166534">Seller wants to proceed to registration!</div>
+                </div>
+                <div class="step-lbl" style="margin-top:0">
+                  <div class="step-num-s" style="background:#2563eb">4</div>
+                  Add notes (optional)
+                </div>
+                <div style="background:white;border-radius:10px;padding:10px;margin-bottom:8px;font-size:10px;color:#374151;border:1px solid #e2e8f0;min-height:60px">
+                  Seller is interested. Needs to coordinate with her husband first. Will call back Thursday. Has laptop ready.
+                  <span class="blink" style="color:#2563eb">|</span>
+                </div>
+                <div class="step-lbl">
+                  <div class="step-num-s" style="background:#7c3aed">5</div>
+                  Schedule follow-up (if needed)
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:8px;display:flex;align-items:center;gap:8px;border:1px solid #e2e8f0">
+                  <span style="font-size:16px">📅</span>
+                  <div style="flex:1"><div style="font-size:10px;font-weight:800;color:#1F3864">Jun 20, 2026 (Thursday)</div><div style="font-size:8px;color:#9aabc5">3 days from now</div></div>
+                  <span style="font-size:9px;color:#7c3aed;font-weight:700">Set ›</span>
+                </div>
+                <div style="background:#1F3864;color:white;border-radius:10px;padding:11px;text-align:center;font-size:11px;font-weight:800">
+                  Next → Add Photos 📷
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 8: CHECK IN — PHOTO OFFLINE ══ -->
+          <div class="screen-inner" id="scr8">
+            <div class="sc">
+              <div class="status-bar"><span>10:07</span><span>LSAMS</span><span>📵 🔋</span></div>
+              <div class="sec-hdr"><span>📍</span><span class="sec-hdr-title">Check In — Photos</span></div>
+              <div class="sc-body">
+                <div class="step-lbl" style="margin-top:0">
+                  <div class="step-num-s" style="background:#d97706">6</div>
+                  Proof Photos
+                </div>
+                <div style="background:#fef3c7;border-left:3px solid #d97706;border-radius:10px;padding:8px 10px;margin-bottom:8px;font-size:9px;color:#78350f">
+                  <strong>📵 No internet?</strong> No problem! Skip photos now — your check-in is still saved. Upload your selfie proof later from Home when you're back online.
+                </div>
+                <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:8px">
+                  <div class="selfie-box">
+                    <div style="font-size:24px">🤳</div>
+                    <div style="font-size:9px;font-weight:700;color:#9aabc5;margin-top:4px">Selfie</div>
+                    <div style="font-size:8px;color:#CBD5E1">Front camera</div>
+                  </div>
+                  <div class="selfie-box">
+                    <div style="font-size:24px">📸</div>
+                    <div style="font-size:9px;font-weight:700;color:#9aabc5;margin-top:4px">Store Photo</div>
+                    <div style="font-size:8px;color:#CBD5E1">Back camera</div>
+                  </div>
+                </div>
+                <div style="background:#1F3864;color:white;border-radius:10px;padding:11px;text-align:center;font-size:11px;font-weight:800;margin-bottom:6px tap-me">
+                  ✅ Submit Check-In
+                </div>
+                <div style="text-align:center;font-size:9px;color:#9aabc5">(Photo upload can be done later)</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 9: HOME — PENDING PHOTOS ══ -->
+          <div class="screen-inner" id="scr9">
+            <div class="sc">
+              <div class="status-bar"><span>12:30</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div style="background:linear-gradient(135deg,#1F3864,#2E75B6);padding:10px 12px;color:white;flex-shrink:0">
+                <div style="font-size:13px;font-weight:800">Good afternoon, Juan! 👋</div>
+                <div style="font-size:9px;opacity:0.8">3 sellers visited today. Keep it up! 🔥</div>
+              </div>
+              <div class="sc-body">
+                <div class="pending-banner">
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <span style="font-size:18px">📷</span>
+                    <div>
+                      <div style="font-size:10px;font-weight:800;color:#92400e">2 Visits Need Photos</div>
+                      <div style="font-size:8px;color:#78350f">You're back online — upload your selfie proof now</div>
+                    </div>
+                  </div>
+                  <div class="pending-row">
+                    <div><div style="font-size:10px;font-weight:800;color:#1F3864">Chokorean Online</div><div style="font-size:8px;color:#9aabc5">Jun 17 · 10:07 AM · Interested</div></div>
+                    <div style="background:#d97706;color:white;border-radius:6px;padding:4px 8px;font-size:9px;font-weight:800 tap-me">📷 Upload</div>
+                  </div>
+                  <div class="pending-row">
+                    <div><div style="font-size:10px;font-weight:800;color:#1F3864">Nano Shop PH</div><div style="font-size:8px;color:#9aabc5">Jun 17 · 11:45 AM · Not Home</div></div>
+                    <div style="background:#d97706;color:white;border-radius:6px;padding:4px 8px;font-size:9px;font-weight:800">📷 Upload</div>
+                  </div>
+                </div>
+                <div class="kpi-row-s">
+                  <div class="kpi-tile-s" style="border-color:#FF9900"><div class="kpi-val-s" style="color:#E07B00">3</div><div class="kpi-lbl-s">VISITED TODAY</div></div>
+                  <div class="kpi-tile-s" style="border-color:#15803d"><div class="kpi-val-s" style="color:#15803d">3</div><div class="kpi-lbl-s">LIVE SELLERS</div></div>
+                </div>
+              </div>
+              <div class="bottom-nav">
+                <div class="bnav-item active"><span class="bnav-icon">🏠</span>Home</div>
+                <div class="bnav-item"><span class="bnav-icon">👥</span>Leads</div>
+                <div class="bnav-item"><span class="bnav-icon">📍</span>Check In</div>
+                <div class="bnav-item"><span class="bnav-icon">📊</span>Reports</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 10: UPLOAD PHOTO ══ -->
+          <div class="screen-inner" id="scr10">
+            <div class="sc">
+              <div class="status-bar"><span>12:32</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>📷</span><span class="sec-hdr-title">Upload Visit Photo</span><span class="back-btn">← Home</span></div>
+              <div class="sc-body">
+                <div style="background:#EEF2FF;border-radius:10px;padding:8px 10px;margin-bottom:10px;border-left:3px solid #4338ca">
+                  <div style="font-size:11px;font-weight:800;color:#1F3864">Chokorean Online</div>
+                  <div style="font-size:9px;color:#6366f1">Visit: Jun 17 · 10:07 AM · 🟢 Interested</div>
+                  <div style="font-size:8px;color:#9aabc5;margin-top:2px">📍 Mayon St, Pasig City (GPS confirmed)</div>
+                </div>
+                <div class="step-lbl" style="margin-top:0">
+                  <div class="step-num-s" style="background:#7c3aed">1</div>
+                  Your selfie at seller location
+                </div>
+                <div class="selfie-box done" style="margin-bottom:8px">
+                  <div style="font-size:24px">🤳</div>
+                  <div style="font-size:18px;margin:4px 0">✅</div>
+                  <div style="font-size:9px;font-weight:700;color:#15803d">Selfie ready! Tap to retake</div>
+                </div>
+                <div class="step-lbl">
+                  <div class="step-num-s" style="background:#7c3aed">2</div>
+                  Store / meeting proof photo
+                </div>
+                <div class="selfie-box done" style="margin-bottom:10px">
+                  <div style="font-size:24px">📸</div>
+                  <div style="font-size:18px;margin:4px 0">✅</div>
+                  <div style="font-size:9px;font-weight:700;color:#15803d">Photo ready! Tap to retake</div>
+                </div>
+                <div style="background:#15803d;color:white;border-radius:10px;padding:11px;text-align:center;font-size:11px;font-weight:800 tap-me">
+                  ☁️ Upload 2 Photos
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 11: WHATSAPP TEXT ══ -->
+          <div class="screen-inner" id="scr11">
+            <div class="sc" style="background:#ECE5DD">
+              <div class="status-bar" style="background:#075E54"><span>2:00 PM</span><span>LSAMS Bot</span><span>📶 🔋</span></div>
+              <div class="wa-header">
+                <div style="width:28px;height:28px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div>
+                <div><div style="font-size:11px;font-weight:800">LSAMS Bot</div><div style="font-size:8px;opacity:0.7">online</div></div>
+              </div>
+              <div class="wa-body">
+                <div style="text-align:center;font-size:8px;color:#9aabc5;margin-bottom:8px">Just type your visit — bot does the rest!</div>
+                <div class="wa-msg-out">
+                  Visited BVS Online Shop — seller interested, will call next week
+                  <div class="wa-time">2:00 PM ✓✓</div>
+                </div>
+                <div class="wa-msg-in">
+                  ✅ <strong>Visit Logged!</strong><br>
+                  📍 BVS Online Shop<br>
+                  🟢 Outcome: Interested<br>
+                  📅 Follow-up: Jun 24, 2026<br>
+                  📝 Notes saved<br><br>
+                  Reply <em>status</em> for summary or <em>help</em> for commands.
+                  <div class="wa-time">2:00 PM</div>
+                </div>
+                <div class="wa-msg-out">
+                  Visited Nano Shop — not home
+                  <div class="wa-time">2:05 PM ✓✓</div>
+                </div>
+                <div class="wa-msg-in">
+                  ✅ <strong>Visit Logged!</strong><br>
+                  📍 Nano Shop PH<br>
+                  ⚪ Outcome: Not Home
+                  <div class="wa-time">2:05 PM</div>
+                </div>
+              </div>
+              <div class="wa-footer">
+                <div class="wa-input">Visited [seller] — [outcome]…</div>
+                <div class="wa-mic">🎙</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 12: WHATSAPP VOICE ══ -->
+          <div class="screen-inner" id="scr12">
+            <div class="sc" style="background:#ECE5DD">
+              <div class="status-bar" style="background:#075E54"><span>3:15 PM</span><span>LSAMS Bot</span><span>📶 🔋</span></div>
+              <div class="wa-header">
+                <div style="width:28px;height:28px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div>
+                <div><div style="font-size:11px;font-weight:800">LSAMS Bot</div><div style="font-size:8px;opacity:0.7">online</div></div>
+              </div>
+              <div class="wa-body">
+                <div style="text-align:center;font-size:8px;color:#9aabc5;margin-bottom:8px">Hold 🎙 and speak in Tagalog or English!</div>
+                <div class="wa-msg-out">
+                  🎙 <em style="color:#075E54;font-size:9px">Voice note · 0:09</em>
+                  <div style="background:#b7f0b1;height:18px;border-radius:10px;margin:4px 0;display:flex;align-items:center;padding:0 8px">
+                    <div style="font-size:8px;color:#075E54">▶ ~~ ~ ~~~ ~ 0:09</div>
+                  </div>
+                  <div class="wa-time">3:15 PM ✓✓</div>
+                </div>
+                <div class="wa-msg-in">
+                  🎙 <em style="color:#9aabc5;font-size:9px">Transcribed: "Pumunta ako sa Jollibee Supplies — hindi siya interesado"</em><br><br>
+                  ✅ <strong>Visit Logged!</strong><br>
+                  📍 Jollibee Supplies<br>
+                  🔴 Outcome: Not Interested<br><br>
+                  Voice note understood in Filipino!
+                  <div class="wa-time">3:15 PM</div>
+                </div>
+              </div>
+              <div class="wa-footer">
+                <div class="wa-input">Hold mic to speak your visit…</div>
+                <div class="wa-mic tap-me">🎙</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 13: BOT COMMANDS ══ -->
+          <div class="screen-inner" id="scr13">
+            <div class="sc" style="background:#ECE5DD">
+              <div class="status-bar" style="background:#075E54"><span>5:00 PM</span><span>LSAMS Bot</span><span>📶 🔋</span></div>
+              <div class="wa-header">
+                <div style="width:28px;height:28px;border-radius:50%;background:#25D366;display:flex;align-items:center;justify-content:center;font-size:14px">🤖</div>
+                <div><div style="font-size:11px;font-weight:800">LSAMS Bot — Commands</div></div>
+              </div>
+              <div class="wa-body">
+                <div class="wa-msg-out">status<div class="wa-time">5:00 PM ✓✓</div></div>
+                <div class="wa-msg-in">
+                  📊 <strong>Your Summary</strong><br>
+                  👤 Juan dela Cruz<br>
+                  📋 Leads: 12 assigned<br>
+                  ✅ Live sellers: 3<br>
+                  📍 Visits today: 5<br>
+                  🏆 This week: 18 visits<br><br>
+                  <em>Excellent work today!</em>
+                  <div class="wa-time">5:00 PM</div>
+                </div>
+                <div class="wa-msg-out">today<div class="wa-time">5:01 PM ✓✓</div></div>
+                <div class="wa-msg-in">
+                  📍 <strong>Today's Visits (5)</strong><br>
+                  • BVS Online Shop — Interested<br>
+                  • Chokorean Online — Interested<br>
+                  • Nano Shop PH — Not Home<br>
+                  • Seoul Eats PH — Callback<br>
+                  • Jollibee Supplies — Not Interested
+                  <div class="wa-time">5:01 PM</div>
+                </div>
+              </div>
+              <div class="wa-footer">
+                <div class="wa-input">Type: status · today · help</div>
+                <div class="wa-mic">🎙</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 14: MY REPORTS — PERFORMANCE ══ -->
+          <div class="screen-inner" id="scr14">
+            <div class="sc">
+              <div class="status-bar"><span>5:05 PM</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>📊</span><span class="sec-hdr-title">My Reports</span><span class="back-btn">← Home</span></div>
+              <div style="padding:6px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:9px;color:#9aabc5;flex-shrink:0">
+                June 2026 · Your performance this month
+              </div>
+              <div class="sc-body">
+                <!-- Summary KPIs -->
+                <div class="kpi-row-s" style="margin-bottom:6px">
+                  <div class="kpi-tile-s" style="border-color:#2E75B6"><div class="kpi-val-s" style="color:#2E75B6">47</div><div class="kpi-lbl-s">VISITS THIS MONTH</div></div>
+                  <div class="kpi-tile-s" style="border-color:#15803d"><div class="kpi-val-s" style="color:#15803d">3</div><div class="kpi-lbl-s">SELLERS LIVE</div></div>
+                </div>
+                <!-- Outcome breakdown -->
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px">
+                  <div style="font-size:10px;font-weight:800;color:#1F3864;margin-bottom:6px">Visit Outcomes</div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                    <div style="font-size:9px;width:70px;color:#374151">🟢 Interested</div>
+                    <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:60%;background:#15803d"></div></div>
+                    <div style="font-size:9px;font-weight:800;color:#15803d">18</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                    <div style="font-size:9px;width:70px;color:#374151">🔵 Callback</div>
+                    <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:35%;background:#2563eb"></div></div>
+                    <div style="font-size:9px;font-weight:800;color:#2563eb">11</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px;margin-bottom:5px">
+                    <div style="font-size:9px;width:70px;color:#374151">⚪ Not Home</div>
+                    <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:28%;background:#9ca3af"></div></div>
+                    <div style="font-size:9px;font-weight:800;color:#9ca3af">9</div>
+                  </div>
+                  <div style="display:flex;align-items:center;gap:6px">
+                    <div style="font-size:9px;width:70px;color:#374151">🔴 Rejected</div>
+                    <div class="chart-bar-wrap"><div class="chart-bar-fill" style="width:28%;background:#b91c1c"></div></div>
+                    <div style="font-size:9px;font-weight:800;color:#b91c1c">9</div>
+                  </div>
+                </div>
+                <!-- Registration funnel -->
+                <div style="background:white;border-radius:10px;padding:8px 10px">
+                  <div style="font-size:10px;font-weight:800;color:#1F3864;margin-bottom:6px">Registration Funnel</div>
+                  <div style="display:flex;gap:4px;align-items:flex-end;height:40px">
+                    <div style="flex:1;background:#2E75B6;border-radius:4px 4px 0 0;height:100%;display:flex;align-items:flex-start;justify-content:center;padding-top:2px"><span style="font-size:8px;color:white;font-weight:800">12</span></div>
+                    <div style="flex:1;background:#7c3aed;border-radius:4px 4px 0 0;height:70%;display:flex;align-items:flex-start;justify-content:center;padding-top:2px"><span style="font-size:8px;color:white;font-weight:800">8</span></div>
+                    <div style="flex:1;background:#f59e0b;border-radius:4px 4px 0 0;height:40%;display:flex;align-items:flex-start;justify-content:center;padding-top:2px"><span style="font-size:8px;color:white;font-weight:800">5</span></div>
+                    <div style="flex:1;background:#15803d;border-radius:4px 4px 0 0;height:25%;display:flex;align-items:flex-start;justify-content:center;padding-top:2px"><span style="font-size:8px;color:white;font-weight:800">3</span></div>
+                  </div>
+                  <div style="display:flex;gap:4px;margin-top:2px">
+                    <div style="flex:1;text-align:center;font-size:7px;color:#9aabc5">Assigned</div>
+                    <div style="flex:1;text-align:center;font-size:7px;color:#9aabc5">Negotiating</div>
+                    <div style="flex:1;text-align:center;font-size:7px;color:#9aabc5">Submitted</div>
+                    <div style="flex:1;text-align:center;font-size:7px;color:#9aabc5">Live ✅</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 15: MY REPORTS — VISIT HISTORY ══ -->
+          <div class="screen-inner" id="scr15">
+            <div class="sc">
+              <div class="status-bar"><span>5:06 PM</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr"><span>📋</span><span class="sec-hdr-title">Visit History</span><span class="back-btn">← Reports</span></div>
+              <div style="padding:6px 10px;background:#f8fafc;border-bottom:1px solid #e2e8f0;font-size:9px;color:#9aabc5;flex-shrink:0">
+                Today — June 17, 2026 · 5 visits
+              </div>
+              <div class="sc-body">
+                <div class="hist-row">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="hist-seller">BVS Online Shop</div>
+                    <span class="hist-badge" style="background:#dcfce7;color:#15803d">Interested</span>
+                  </div>
+                  <div class="hist-meta">📍 Marikina · 10:05 AM · GPS ✅ · 📷 2 photos</div>
+                </div>
+                <div class="hist-row">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="hist-seller">Chokorean Online</div>
+                    <span class="hist-badge" style="background:#dcfce7;color:#15803d">Interested</span>
+                  </div>
+                  <div class="hist-meta">📍 Pasig · 11:30 AM · GPS ✅ · 📷 Pending upload</div>
+                </div>
+                <div class="hist-row">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="hist-seller">Nano Shop PH</div>
+                    <span class="hist-badge" style="background:#f1f5f9;color:#9aabc5">Not Home</span>
+                  </div>
+                  <div class="hist-meta">📍 Quezon City · 12:45 PM · GPS ✅ · via WhatsApp</div>
+                </div>
+                <div class="hist-row">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="hist-seller">Seoul Eats PH</div>
+                    <span class="hist-badge" style="background:#dbeafe;color:#2563eb">Callback</span>
+                  </div>
+                  <div class="hist-meta">📍 Pasig · 2:10 PM · GPS ✅ · 📷 2 photos</div>
+                </div>
+                <div class="hist-row">
+                  <div style="display:flex;justify-content:space-between;align-items:center">
+                    <div class="hist-seller">Jollibee Supplies</div>
+                    <span class="hist-badge" style="background:#fee2e2;color:#b91c1c">Not Interested</span>
+                  </div>
+                  <div class="hist-meta">📍 Mandaluyong · 3:15 PM · via Voice Note 🎙</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE 16: OUTRO ══ -->
+          <div class="screen-inner" id="scr16">
+            <div style="background:linear-gradient(135deg,#065f46,#0f766e);display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;padding:20px;text-align:center">
+              <div style="font-size:44px;margin-bottom:12px">🎉</div>
+              <div style="font-size:16px;font-weight:900;color:white;margin-bottom:6px">You're Ready!</div>
+              <div style="font-size:10px;color:rgba(255,255,255,0.7);margin-bottom:14px;line-height:1.7">
+                You now know everything<br>to succeed as a Gabay agent.
+              </div>
+              <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px 14px;text-align:left;width:210px">
+                <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:8px">DAILY CHECKLIST</div>
+                <div style="font-size:10px;color:white;line-height:2.1">
+                  ✅ Check leads every morning<br>
+                  🗺️ Use Plan My Day for route<br>
+                  📡 Check Seller Radar for extras<br>
+                  📍 Always Check In after visits<br>
+                  📝 Add notes &amp; follow-up date<br>
+                  📷 Upload selfie proof photo<br>
+                  📱 Use WhatsApp to log visits<br>
+                  🎙 Voice notes work in Tagalog<br>
+                  📊 Check Reports at day-end
+                </div>
+              </div>
+              <div style="margin-top:14px;font-size:9px;color:rgba(255,255,255,0.3)">© 2026 Altria Call Center</div>
+            </div>
+          </div>
+
+        </div><!-- /phone-screen -->
+      </div><!-- /phone -->
+    </div><!-- /phone-wrap -->
+
+    <!-- Narration -->
+    <div class="narration-area">
+      <div class="scene-label" id="sceneLabelEl"></div>
+      <div class="scene-title" id="sceneTitleEl"></div>
+      <div class="narration-text" id="narrationEl"></div>
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-fill" id="progressFill" style="width:0%"></div>
+      </div>
+      <div class="controls">
+        <button class="ctrl-btn" onclick="prevScene()" title="Previous">⏮</button>
+        <button class="ctrl-btn play-btn" id="playPauseBtn" onclick="togglePlay()">▶</button>
+        <button class="ctrl-btn" onclick="nextScene()" title="Next">⏭</button>
+        <span class="scene-counter" id="sceneCounterEl">1 / 17</span>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+const scenes = [
+  { screen:0,  label:'Introduction', title:'Welcome to LSAMS', duration:6000,
+    narration:'Welcome! This tutorial covers everything you need as a Gabay field agent — from logging visits and planning your route, to using WhatsApp voice notes and reading your performance reports.' },
+  { screen:1,  label:'Getting Started', title:'Step 1 — Login', duration:6000,
+    narration:'Open your phone browser and go to your LSAMS URL. Enter the username and password given by your supervisor, then tap Sign In. Your supervisor sets up your account — contact them if you cannot log in.' },
+  { screen:2,  label:'Navigation', title:'Step 2 — Home Screen', duration:7000,
+    narration:'Your home screen shows your total leads, how many sellers you visited today, your live sellers, and follow-ups due. Use Check In to log visits, Plan My Day for your route, and Reports to track your performance.' },
+  { screen:3,  label:'Your Sellers', title:'Step 3 — My Leads', duration:7000,
+    narration:'Tap Leads to see all sellers assigned to you. Each card shows the seller name, city, and current status. Negotiation leads are priority — they are close to registering! Sellers in purple with a follow-up date need your attention first.' },
+  { screen:4,  label:'Route Planning', title:'Step 4 — Plan My Day', duration:7000,
+    narration:'Tap Plan My Day every morning. The AI arranges your sellers in the most efficient travel order based on distance and priority score. The star score shows which sellers are most likely to convert — higher score means visit them first!' },
+  { screen:5,  label:'Bonus Leads', title:'Step 5 — Seller Radar', duration:8000,
+    narration:'Seller Radar shows unassigned sellers near your current location that nobody is visiting yet. Tap Open Maps to navigate to them, then tap Check In to log your visit. When your supervisor sees the check-in, they can officially assign the seller to you — extra leads mean extra commissions!' },
+  { screen:6,  label:'Logging a Visit', title:'Step 6 — Check In (GPS + Outcome)', duration:8000,
+    narration:'Tap Check In after visiting a seller. Step 1: select the seller from your list. Step 2: tap Capture GPS — this proves you were physically at the location. Step 3: select what happened — Interested, Call Back, Not Home, Rejected, Registered, or Follow Up.' },
+  { screen:7,  label:'Logging a Visit', title:'Step 7 — Notes & Follow-up Date', duration:7000,
+    narration:'Step 4: add notes about what the seller said — very important for your supervisor to know! Step 5: set a follow-up date if the seller asked you to come back. The system will remind you on that date. Then tap Next to add photos.' },
+  { screen:8,  label:'Photo Proof', title:'Step 8 — Photos (Offline Mode)', duration:8000,
+    narration:'Step 6 is your selfie proof photo. If you have no internet at the seller location — no problem! You can skip the photo now. Your check-in is still saved with GPS. Upload your selfie later when you are back online. Never lose a visit because of bad signal!' },
+  { screen:9,  label:'Photo Proof', title:'Step 9 — Pending Photos Banner', duration:7000,
+    narration:'When you return to an area with internet, your home screen shows an orange banner: "Visits Need Photos." Tap the Upload button next to each visit. Your supervisor can see which visits still need proof — upload as soon as possible!' },
+  { screen:10, label:'Photo Proof', title:'Step 10 — Upload Selfie + Proof Photo', duration:7000,
+    narration:'On the upload page, tap the selfie box to take a photo of yourself at the seller location using your front camera. Then tap the proof box to take a photo of the store sign or your meeting using the back camera. Tap Upload — done! The banner disappears.' },
+  { screen:11, label:'WhatsApp Bot', title:'Step 11 — Log Visits by WhatsApp Text', duration:8000,
+    narration:'You can also log visits by sending a WhatsApp message to the LSAMS Bot number. Just type: Visited [seller name] — [outcome]. The bot finds the seller in your list, saves the visit automatically, and replies with a confirmation. Great when you are between visits and don\'t want to open the app!' },
+  { screen:12, label:'WhatsApp Bot', title:'Step 12 — Log Visits by Voice Note', duration:8000,
+    narration:'You can speak your visit instead of typing! Hold the WhatsApp microphone button and say your visit in Tagalog, Filipino, or English. For example: "Pumunta ako sa Nano Shop — wala siya." The bot transcribes your voice, identifies the seller, and logs the visit automatically — completely hands-free!' },
+  { screen:13, label:'WhatsApp Bot', title:'Step 13 — Bot Commands', duration:7000,
+    narration:'The bot also has quick commands. Type "status" to see your full performance summary — leads, live sellers, visits today, and this week. Type "today" to list all visits from today with their outcomes. Type "help" to see all available commands and examples.' },
+  { screen:14, label:'Reports', title:'Step 14 — My Performance Report', duration:8000,
+    narration:'Tap Reports on the bottom menu to see your monthly performance. You can see total visits, outcome breakdown — how many sellers were Interested, Callback, Not Home, or Rejected — and your registration funnel showing how many sellers progressed from Assigned all the way to Live!' },
+  { screen:15, label:'Reports', title:'Step 15 — Visit History', duration:7000,
+    narration:'The Visit History tab shows every single visit you logged — date, time, seller name, outcome, GPS confirmation, and photo status. Your supervisor uses this to verify your work. Make sure every visit has a GPS check and photos uploaded — it protects you and proves your hard work!' },
+  { screen:16, label:'Complete!', title:'You\'re Ready — Daily Checklist', duration:9000,
+    narration:'That is everything! Follow this daily checklist: check leads every morning, use Plan My Day, look at Seller Radar for bonus leads, always check in after every visit, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. Good luck!' }
+];
+
+let current = 0, playing = false, timer = null;
+
+function showScene(idx) {
+  document.querySelectorAll('.screen-inner').forEach(s => s.classList.remove('visible'));
+  document.getElementById('scr' + scenes[idx].screen).classList.add('visible');
+  document.getElementById('sceneLabelEl').textContent = scenes[idx].label;
+  document.getElementById('sceneTitleEl').textContent = scenes[idx].title;
+  document.getElementById('narrationEl').textContent = scenes[idx].narration;
+  document.getElementById('sceneCounterEl').textContent = (idx+1) + ' / ' + scenes.length;
+  document.getElementById('progressFill').style.width = ((idx / (scenes.length-1)) * 100) + '%';
+}
+
+function goTo(idx) {
+  if (idx < 0 || idx >= scenes.length) return;
+  if (timer) { clearTimeout(timer); timer = null; }
+  current = idx;
+  showScene(current);
+  if (playing) timer = setTimeout(() => { if (current < scenes.length-1) goTo(current+1); else { playing=false; updatePlayBtn(); } }, scenes[current].duration);
+}
+
+function nextScene() { goTo(Math.min(current+1, scenes.length-1)); }
+function prevScene() { goTo(Math.max(current-1, 0)); }
+
+function togglePlay() {
+  playing = !playing;
+  updatePlayBtn();
+  if (playing) {
+    if (current === scenes.length-1) { current=0; showScene(0); }
+    timer = setTimeout(() => { if (current < scenes.length-1) goTo(current+1); else { playing=false; updatePlayBtn(); } }, scenes[current].duration);
+  } else {
+    if (timer) { clearTimeout(timer); timer=null; }
+  }
+}
+
+function updatePlayBtn() {
+  document.getElementById('playPauseBtn').textContent = playing ? '⏸' : '▶';
+}
+
+document.addEventListener('keydown', e => {
+  if (e.key==='ArrowRight'||e.key===' ') { e.preventDefault(); nextScene(); }
+  if (e.key==='ArrowLeft') prevScene();
+  if (e.key==='p'||e.key==='P') togglePlay();
+});
+
+let touchStartX = 0;
+document.addEventListener('touchstart', e => { touchStartX = e.touches[0].clientX; });
+document.addEventListener('touchend', e => {
+  const dx = e.changedTouches[0].clientX - touchStartX;
+  if (Math.abs(dx) > 50) { if (dx < 0) nextScene(); else prevScene(); }
+});
+
+showScene(0);
+</script>
+</body>
+</html>
