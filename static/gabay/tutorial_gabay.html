@@ -801,8 +801,8 @@ body {
 
 <script>
 const scenes = [
-  { screen:0,  label:'Introduction', title:'Welcome to LSAMS', duration:6000,
-    narration:'Welcome! This tutorial covers everything you need as a Gabay field agent — from logging visits and planning your route, to using WhatsApp voice notes and reading your performance reports.' },
+  { screen:0,  label:'Introduction', title:'Welcome to LSAMS — Powered by Maria 🌸', duration:6000,
+    narration:'Welcome! This tutorial covers everything you need as a Gabay field agent — from logging visits and planning your route, to reading Maria\'s seller intelligence and earning badges for your performance. Maria is the AI brain of LSAMS — she researches every seller before you visit so you always know what to say.' },
   { screen:1,  label:'Getting Started', title:'Step 1 — Login', duration:6000,
     narration:'Open your phone browser and go to your LSAMS URL. Enter the username and password given by your supervisor, then tap Sign In. Your supervisor sets up your account — contact them if you cannot log in.' },
   { screen:2,  label:'Navigation', title:'Step 2 — Home Screen', duration:8000,
@@ -833,8 +833,14 @@ const scenes = [
     narration:'Tap Reports on the bottom menu to see your monthly performance. You can see total visits, outcome breakdown — how many sellers were Interested, Callback, Not Home, or Rejected — and your registration funnel showing how many sellers progressed from Assigned all the way to Live!' },
   { screen:15, label:'Reports', title:'Step 15 — Visit History', duration:7000,
     narration:'The Visit History tab shows every single visit you logged — date, time, seller name, outcome, GPS confirmation, and photo status. Your supervisor uses this to verify your work. Make sure every visit has a GPS check and photos uploaded — it protects you and proves your hard work!' },
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 16 — Seller 360 Rating', duration:8000,
+    narration:'Before every visit, open the lead and scroll to the Maria card. At the top you will see a Seller 360 Rating badge — AAA, AA, A, B, or C. AAA means this seller is a top priority — active on multiple platforms with many followers and no Lazada account yet. C means low priority. Always visit your AAA and AA sellers first. The number on the right is Maria\'s score out of 100.' },
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 17 — Maria\'s Pitch Script', duration:8000,
+    narration:'Below the Visit Brief you will see a purple card: Maria\'s Pitch Script — Say This When You Arrive. Maria has written three lines specifically for this seller: an opening line that references their business, a Lazada value pitch tailored to their product category, and a clear call to action. Read these before you knock on the door. You do not need to memorize them — just glance at your phone once before entering.' },
+  { screen:2,  label:'🏅 Badges', title:'Step 18 — Your Achievement Badges', duration:8000,
+    narration:'Your home screen shows your achievement badges at the top. The 🥇 Conversion Champion badge appears when you have live sellers. The 🔥 7-Day Streak badge appears when you log visits every single day for 7 days in a row. The ⭐ Perfect Visit Day badge appears when you log 3 or more visits in one day. The 🚀 Fast Activator badge appears when a seller you were assigned went live within 14 days. Earn all four to show your supervisor what you are made of!' },
   { screen:16, label:'Complete!', title:'You\'re Ready — Daily Checklist', duration:9000,
-    narration:'That is everything! Follow this daily checklist: check leads every morning, use Plan My Day, look at Seller Radar for bonus leads, always check in after every visit, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. Good luck!' }
+    narration:'That is everything! Follow this daily checklist: check your badges and priority leads every morning, glance at Maria\'s 360 Rating and Pitch Script before each visit, use Plan My Day for your route, check Seller Radar for bonus leads, always check in after every visit, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. Good luck — Maria is with you!' }
 ];
 
 let current = 0, playing = false, timer = null;
