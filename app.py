@@ -134,6 +134,13 @@ with app.app_context():
                     platforms_json TEXT,
                     is_on_lazada BOOLEAN,
                     score_reason TEXT,
+                    top_platform VARCHAR(50),
+                    max_followers INTEGER,
+                    last_active VARCHAR(50),
+                    product_category VARCHAR(200),
+                    price_range VARCHAR(100),
+                    avg_rating FLOAT,
+                    product_count INTEGER,
                     scan_status VARCHAR(20) DEFAULT 'pending',
                     scan_trigger VARCHAR(30),
                     scanned_at TIMESTAMP,
@@ -143,6 +150,26 @@ with app.app_context():
             _conn.commit()
         except Exception:
             _conn.rollback()
+
+    # Add any new columns to existing lead_intelligence table (safe for existing deploys)
+    _new_intel_cols = [
+        ("top_platform",     "VARCHAR(50)"),
+        ("max_followers",    "INTEGER"),
+        ("last_active",      "VARCHAR(50)"),
+        ("product_category", "VARCHAR(200)"),
+        ("price_range",      "VARCHAR(100)"),
+        ("avg_rating",       "FLOAT"),
+        ("product_count",    "INTEGER"),
+    ]
+    with db.engine.connect() as _conn:
+        for _col, _type in _new_intel_cols:
+            try:
+                _conn.execute(text(
+                    f"ALTER TABLE lead_intelligence ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                ))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
 
     # Seed "Legacy" campaign for existing leads that have no campaign_id
     with app.app_context():
@@ -236,14 +263,29 @@ Seller info:
 Web search results:
 {search_snippet if search_snippet else '(No search results available — use seller info only)'}
 
-Respond ONLY with valid JSON (no markdown, no extra text):
+Extract ALL available intelligence. Respond ONLY with valid JSON (no markdown, no extra text):
 {{
-  "ai_score": <integer 0-100; 90-100=active multi-platform seller NOT on Lazada; 70-89=single platform active; 50-69=physical biz with social; below 50=hard to verify>,
-  "ai_brief": "<2-3 sentences for the field agent: what they sell, where found online, best pitch angle. Max 55 words.>",
+  "ai_score": <integer 0-100; 90-100=active multi-platform seller NOT on Lazada; 70-89=single platform active; 50-69=physical biz with social presence; below 50=hard to verify or wrong data>,
+  "ai_brief": "<2-3 sentences for the field agent: what they sell, where found online, key numbers, and the single best pitch angle. Max 60 words.>",
   "score_reason": "<one sentence explaining the score>",
   "is_on_lazada": <true if confirmed already on Lazada, false if not found, null if unknown>,
+  "top_platform": "<the platform where they are most active, e.g. Shopee, TikTok, Facebook, or null>",
+  "max_followers": <integer — highest follower/fan count found across all platforms, or null>,
+  "last_active": "<approximate last activity across any platform, e.g. '2 days ago', 'last week', 'this month', 'inactive', or null>",
+  "product_category": "<specific product category found, e.g. 'Baked goods', 'Women fashion / Hijab', 'Electronics accessories', or null>",
+  "price_range": "<price range found, e.g. 'Budget RM5–30', 'Mid-range RM50–200', 'Premium RM300+', or null>",
+  "avg_rating": <float — best rating found, e.g. 4.8, or null>,
+  "product_count": <integer — total number of products listed across platforms, or null>,
   "platforms": [
-    {{"name": "<Shopee|TikTok|Facebook|Instagram|Tokopedia|Other>", "status": "<active|inactive|not_found>", "detail": "<followers/products/rating or empty>"}}
+    {{
+      "name": "<Shopee|TikTok|Facebook|Instagram|Tokopedia|WhatsApp Business|Google Business|Other>",
+      "status": "<active|inactive|not_found>",
+      "detail": "<concise summary: followers/products/rating/sales — only what was actually found>",
+      "followers": <integer or null>,
+      "rating": <float or null>,
+      "product_count": <integer or null>,
+      "last_active": "<recency string or null>"
+    }}
   ]
 }}"""
 
@@ -264,6 +306,16 @@ Respond ONLY with valid JSON (no markdown, no extra text):
             intel.score_reason = result.get('score_reason', '')
             intel.platforms_json = _json.dumps(result.get('platforms', []))
             intel.is_on_lazada = result.get('is_on_lazada')
+            # New product intelligence fields
+            intel.top_platform = result.get('top_platform')
+            intel.max_followers = result.get('max_followers')
+            intel.last_active = result.get('last_active')
+            intel.product_category = result.get('product_category')
+            intel.price_range = result.get('price_range')
+            _rating = result.get('avg_rating')
+            intel.avg_rating = float(_rating) if _rating is not None else None
+            _pcount = result.get('product_count')
+            intel.product_count = int(_pcount) if _pcount is not None else None
             intel.scan_status = 'done'
             intel.scanned_at = datetime.utcnow()
             intel.error_msg = None
@@ -328,6 +380,13 @@ def lead_intel(lead_id):
         'ai_brief': intel.ai_brief,
         'score_reason': intel.score_reason,
         'is_on_lazada': intel.is_on_lazada,
+        'top_platform': intel.top_platform,
+        'max_followers': intel.max_followers,
+        'last_active': intel.last_active,
+        'product_category': intel.product_category,
+        'price_range': intel.price_range,
+        'avg_rating': intel.avg_rating,
+        'product_count': intel.product_count,
         'platforms': intel.platforms,
         'scanned_at': intel.scanned_at.isoformat() if intel.scanned_at else None,
         'error_msg': intel.error_msg,

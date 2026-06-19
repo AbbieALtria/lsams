@@ -81,6 +81,7 @@
     </div>
     {% endif %}
 
+    <!-- Lazada status banner -->
     {% if intel.is_on_lazada == true %}
     <div style="background:#FEF2F2;border-radius:8px;padding:7px 10px;font-size:11px;
                 color:#b91c1c;font-weight:700;margin-bottom:8px">
@@ -93,22 +94,82 @@
     </div>
     {% endif %}
 
-    {% set platforms = intel.platforms %}
-    {% if platforms %}
-    <div style="display:flex;flex-wrap:wrap;gap:5px">
-      {% for p in platforms %}
-      {% if p.status != 'not_found' %}
-      <div style="background:#EEF2FF;border-radius:8px;padding:5px 9px;font-size:10px;color:#4338ca">
-        <strong>{{ p.name }}</strong>
-        {% if p.detail %} · {{ p.detail }}{% endif %}
+    <!-- Product Intelligence strip -->
+    {% if intel.product_category or intel.price_range or intel.avg_rating or intel.product_count %}
+    <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px">
+      {% if intel.product_category %}
+      <div style="background:#F5F3FF;border-radius:8px;padding:7px 9px">
+        <div style="font-size:8px;font-weight:700;color:#7c3aed;text-transform:uppercase;letter-spacing:.5px">Category</div>
+        <div style="font-size:11px;color:#1F3864;font-weight:600;margin-top:2px">{{ intel.product_category }}</div>
       </div>
       {% endif %}
+      {% if intel.price_range %}
+      <div style="background:#FFF7ED;border-radius:8px;padding:7px 9px">
+        <div style="font-size:8px;font-weight:700;color:#d97706;text-transform:uppercase;letter-spacing:.5px">Price Range</div>
+        <div style="font-size:11px;color:#1F3864;font-weight:600;margin-top:2px">{{ intel.price_range }}</div>
+      </div>
+      {% endif %}
+      {% if intel.avg_rating %}
+      <div style="background:#F0FDF4;border-radius:8px;padding:7px 9px">
+        <div style="font-size:8px;font-weight:700;color:#15803d;text-transform:uppercase;letter-spacing:.5px">Avg Rating</div>
+        <div style="font-size:11px;color:#1F3864;font-weight:600;margin-top:2px">⭐ {{ "%.1f"|format(intel.avg_rating) }} / 5.0</div>
+      </div>
+      {% endif %}
+      {% if intel.product_count %}
+      <div style="background:#EEF2FF;border-radius:8px;padding:7px 9px">
+        <div style="font-size:8px;font-weight:700;color:#4338ca;text-transform:uppercase;letter-spacing:.5px">Products Listed</div>
+        <div style="font-size:11px;color:#1F3864;font-weight:600;margin-top:2px">{{ intel.product_count }} items</div>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Social footprint -->
+    {% if intel.max_followers or intel.last_active or intel.top_platform %}
+    <div style="background:#F8FAFD;border-radius:8px;padding:8px 10px;margin-bottom:10px;
+                display:flex;flex-wrap:wrap;gap:10px;align-items:center">
+      {% if intel.top_platform %}
+      <div style="font-size:11px;color:#374151">
+        <span style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase">Top Platform</span><br>
+        <strong>{{ intel.top_platform }}</strong>
+      </div>
+      {% endif %}
+      {% if intel.max_followers %}
+      <div style="font-size:11px;color:#374151">
+        <span style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase">Followers</span><br>
+        <strong>{{ "{:,}".format(intel.max_followers) }}</strong>
+      </div>
+      {% endif %}
+      {% if intel.last_active %}
+      <div style="font-size:11px;color:#374151">
+        <span style="color:#94a3b8;font-size:9px;font-weight:700;text-transform:uppercase">Last Active</span><br>
+        <strong>{{ intel.last_active }}</strong>
+      </div>
+      {% endif %}
+    </div>
+    {% endif %}
+
+    <!-- Platform chips -->
+    {% set active_platforms = intel.active_platforms %}
+    {% if active_platforms %}
+    <div style="display:flex;flex-wrap:wrap;gap:5px;margin-bottom:8px">
+      {% for p in active_platforms %}
+      <div style="background:#EEF2FF;border-radius:8px;padding:5px 9px;font-size:10px;color:#4338ca;line-height:1.4">
+        <strong>{{ p.name }}</strong>
+        {% if p.get('detail') %}<br><span style="color:#6b7280">{{ p.detail }}</span>{% endif %}
+      </div>
       {% endfor %}
     </div>
     {% endif %}
 
+    {% if intel.score_reason %}
+    <div style="font-size:10px;color:#94a3b8;font-style:italic;margin-bottom:6px">
+      💡 {{ intel.score_reason }}
+    </div>
+    {% endif %}
+
     {% if intel.scanned_at %}
-    <div style="font-size:9px;color:#94a3b8;margin-top:8px">
+    <div style="font-size:9px;color:#94a3b8">
       Last scanned: {{ intel.scanned_at.strftime('%b %d, %Y %I:%M %p') }}
     </div>
     {% endif %}

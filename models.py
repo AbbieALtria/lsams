@@ -539,11 +539,22 @@ class LeadIntelligence(db.Model):
     __tablename__ = 'lead_intelligence'
     id = db.Column(db.Integer, primary_key=True)
     lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), unique=True, nullable=False)
+    # Core
     ai_score = db.Column(db.Integer)          # 0-100
     ai_brief = db.Column(db.Text)             # pre-visit brief for Gabay
-    platforms_json = db.Column(db.Text)       # JSON list of {name, status, detail}
-    is_on_lazada = db.Column(db.Boolean)      # already registered on Lazada?
     score_reason = db.Column(db.Text)
+    # Platform data
+    platforms_json = db.Column(db.Text)       # JSON list of {name, status, detail, followers, rating, product_count, last_active}
+    is_on_lazada = db.Column(db.Boolean)      # already registered on Lazada?
+    top_platform = db.Column(db.String(50))   # strongest platform found
+    max_followers = db.Column(db.Integer)     # highest follower count across all platforms
+    last_active = db.Column(db.String(50))    # e.g. "2 days ago", "last week"
+    # Product intelligence
+    product_category = db.Column(db.String(200))  # e.g. "Baked goods / Food & Beverage"
+    price_range = db.Column(db.String(100))        # e.g. "Budget RM10–50"
+    avg_rating = db.Column(db.Float)               # best rating found across platforms
+    product_count = db.Column(db.Integer)          # total products listed
+    # Scan metadata
     scan_status = db.Column(db.String(20), default='pending')  # pending/running/done/failed
     scan_trigger = db.Column(db.String(30))   # auto/manual/campaign_sweep
     scanned_at = db.Column(db.DateTime)
@@ -556,3 +567,7 @@ class LeadIntelligence(db.Model):
             return json.loads(self.platforms_json or '[]')
         except Exception:
             return []
+
+    @property
+    def active_platforms(self):
+        return [p for p in self.platforms if p.get('status') == 'active']
