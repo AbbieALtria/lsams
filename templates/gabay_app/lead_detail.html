@@ -74,9 +74,109 @@
   </div>
 
   {% if intel and intel.scan_status == 'done' %}
+
+    <!-- ══ MARIA ACTION BUTTON ══ -->
+    {% if intel.is_on_lazada == true %}
+      {% set action_label = 'SKIP — Already on Lazada' %}
+      {% set action_color = '#b91c1c' %}
+      {% set action_bg    = '#FEF2F2' %}
+      {% set action_icon  = '❌' %}
+      {% set action_sub   = 'This seller already has a Lazada account.' %}
+    {% elif intel.ai_score >= 75 %}
+      {% set action_label = 'VISIT TODAY' %}
+      {% set action_color = '#15803d' %}
+      {% set action_bg    = '#F0FDF4' %}
+      {% set action_icon  = '🟢' %}
+      {% set action_sub   = 'Maria gives this seller a high chance of converting.' %}
+    {% elif intel.ai_score >= 50 %}
+      {% set action_label = 'VISIT SOON' %}
+      {% set action_color = '#2563eb' %}
+      {% set action_bg    = '#EFF6FF' %}
+      {% set action_icon  = '🔵' %}
+      {% set action_sub   = 'Good potential — schedule within this week.' %}
+    {% elif intel.ai_score >= 30 %}
+      {% set action_label = 'FOLLOW UP IN 3 DAYS' %}
+      {% set action_color = '#d97706' %}
+      {% set action_bg    = '#FFFBEB' %}
+      {% set action_icon  = '🟡' %}
+      {% set action_sub   = 'Some potential — worth a follow-up visit.' %}
+    {% else %}
+      {% set action_label = 'LOW PRIORITY' %}
+      {% set action_color = '#9ca3af' %}
+      {% set action_bg    = '#F9FAFB' %}
+      {% set action_icon  = '🟠' %}
+      {% set action_sub   = 'Low conversion potential based on current data.' %}
+    {% endif %}
+
+    <div style="background:{{ action_bg }};border:2px solid {{ action_color }}33;border-radius:12px;
+                padding:14px 16px;margin-bottom:12px;text-align:center">
+      <div style="font-size:20px;margin-bottom:4px">{{ action_icon }}</div>
+      <div style="font-size:16px;font-weight:900;color:{{ action_color }};letter-spacing:.5px">
+        Maria says: {{ action_label }}
+      </div>
+      <div style="font-size:11px;color:#6b7280;margin-top:3px">{{ action_sub }}</div>
+      {% set confidence = [30, intel.ai_score]|max %}
+      <div style="margin-top:10px;background:rgba(0,0,0,0.05);border-radius:20px;height:6px;overflow:hidden">
+        <div style="height:100%;width:{{ confidence }}%;background:{{ action_color }};border-radius:20px;transition:width .6s"></div>
+      </div>
+      <div style="font-size:10px;color:{{ action_color }};font-weight:700;margin-top:3px">
+        {{ confidence }}% conversion confidence
+      </div>
+    </div>
+
+    <!-- ══ MARIA SAYS WHY ══ -->
+    <div style="background:#F8FAFD;border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:10px;font-weight:800;color:#1F3864;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:8px">🌸 Maria recommends this seller because:</div>
+      <div style="display:flex;flex-direction:column;gap:5px">
+        {% if intel.is_on_lazada == false %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#15803d;font-weight:600">
+          <span style="font-size:14px">✓</span> Not yet on Lazada — open opportunity
+        </div>
+        {% endif %}
+        {% if intel.max_followers and intel.max_followers > 0 %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151">
+          <span style="font-size:14px;color:#15803d">✓</span>
+          {{ "{:,}".format(intel.max_followers) }} followers on {{ intel.top_platform or 'social media' }}
+        </div>
+        {% endif %}
+        {% if intel.avg_rating and intel.avg_rating >= 4.0 %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151">
+          <span style="font-size:14px;color:#15803d">✓</span>
+          ⭐ {{ "%.1f"|format(intel.avg_rating) }} seller rating — customers trust them
+        </div>
+        {% endif %}
+        {% if intel.product_count and intel.product_count > 10 %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151">
+          <span style="font-size:14px;color:#15803d">✓</span>
+          {{ intel.product_count }} products listed — active seller
+        </div>
+        {% endif %}
+        {% if intel.product_category %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151">
+          <span style="font-size:14px;color:#15803d">✓</span>
+          Category: <strong>{{ intel.product_category }}</strong>
+        </div>
+        {% endif %}
+        {% if intel.last_active %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#374151">
+          <span style="font-size:14px;color:#15803d">✓</span>
+          Last active: {{ intel.last_active }}
+        </div>
+        {% endif %}
+        {% if intel.is_on_lazada == true %}
+        <div style="display:flex;align-items:center;gap:7px;font-size:11.5px;color:#b91c1c;font-weight:600">
+          <span style="font-size:14px">✗</span> Already registered on Lazada
+        </div>
+        {% endif %}
+      </div>
+    </div>
+
+    <!-- ══ AI BRIEF ══ -->
     {% if intel.ai_brief %}
     <div style="font-size:11.5px;color:#374151;line-height:1.6;margin-bottom:10px;
-                background:#F8FAFD;border-radius:8px;padding:10px 12px">
+                background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
+      <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Maria's Visit Brief</div>
       {{ intel.ai_brief }}
     </div>
     {% endif %}
