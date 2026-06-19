@@ -4858,6 +4858,11 @@ def campaign_slide():
     return render_template('campaign_slide.html')
 
 
+@app.route('/privacy-policy')
+def privacy_policy():
+    return render_template('privacy_policy.html')
+
+
 @app.route('/ai-intelligence/brochure')
 @login_required
 def ai_intel_brochure():
