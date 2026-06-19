@@ -138,6 +138,56 @@
       {% else %}
       <div style="font-size:12px;color:#9aabc5;font-style:italic">No Gabay assignments yet for this campaign.</div>
       {% endif %}
+
+      <!-- AI INTELLIGENCE SECTION (Phase 2) -->
+      {% set intel = row.intel %}
+      <div style="margin-top:16px;border-top:1px solid #f1f5f9;padding-top:14px">
+        <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+          <div style="font-size:11px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:.5px">
+            🤖 AI Lead Intelligence
+          </div>
+          <button onclick="sweepCampaign({{ c.id }}, this)"
+            style="font-size:11px;font-weight:700;padding:4px 14px;border-radius:8px;
+                   border:1px solid #4338ca;background:#EEF2FF;color:#4338ca;cursor:pointer">
+            ⚡ Run AI Sweep
+          </button>
+        </div>
+
+        <div class="row g-2">
+          <div class="col-6 col-md-3">
+            <div style="background:#F5F3FF;border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:#7c3aed">
+                {{ intel.done }} <span style="font-size:11px;color:#9aabc5">/ {{ intel.total }}</span>
+              </div>
+              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Scanned</div>
+              {% if intel.pending > 0 %}
+              <div style="font-size:9px;color:#d97706;margin-top:2px">{{ intel.pending }} scanning…</div>
+              {% endif %}
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="background:#F0FDF4;border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:#15803d">
+                {{ intel.avg_score or '—' }}
+              </div>
+              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Avg AI Score</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="background:#FFF7ED;border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:#d97706">{{ intel.high_potential }}</div>
+              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">High Potential ≥70</div>
+            </div>
+          </div>
+          <div class="col-6 col-md-3">
+            <div style="background:#FEF2F2;border-radius:8px;padding:10px 12px;text-align:center">
+              <div style="font-size:20px;font-weight:900;color:#b91c1c">{{ intel.already_lazada }}</div>
+              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Already on Lazada</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
     </div>
   </div>
   {% endfor %}
@@ -153,4 +203,18 @@
   </div>
 </div>
 {% endif %}
+
+<script>
+function sweepCampaign(campaignId, btn) {
+  btn.disabled = true;
+  btn.textContent = '⏳ Queuing…';
+  fetch(`/campaigns/${campaignId}/sweep`, {method:'POST'})
+    .then(r => r.json())
+    .then(d => {
+      btn.textContent = `✅ ${d.queued} leads queued`;
+      setTimeout(() => { btn.disabled = false; btn.textContent = '⚡ Run AI Sweep'; }, 5000);
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = '⚡ Run AI Sweep'; });
+}
+</script>
 {% endblock %}

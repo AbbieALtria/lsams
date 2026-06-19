@@ -185,6 +185,8 @@ class Lead(db.Model):
     ai_inspected_at = db.Column(db.DateTime)
     is_warehouse = db.Column(db.Boolean, default=False)   # fulfillment center flag
     is_duplicate_addr = db.Column(db.Boolean, default=False)
+    # AI Lead Intelligence — Phase 3: used for queue ordering
+    ai_score = db.Column(db.Integer)          # 0-100 from LeadIntelligence engine
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
@@ -530,3 +532,27 @@ class GabayTarget(db.Model):
     set_by = db.Column(db.Integer, db.ForeignKey('users.id'))
     created_at = db.Column(db.DateTime, default=datetime.utcnow)
     __table_args__ = (db.UniqueConstraint('gabay_id', 'month', name='uq_gabay_month'),)
+
+
+class LeadIntelligence(db.Model):
+    """AI-enriched intel per lead — web scan + Claude Haiku analysis."""
+    __tablename__ = 'lead_intelligence'
+    id = db.Column(db.Integer, primary_key=True)
+    lead_id = db.Column(db.Integer, db.ForeignKey('leads.id'), unique=True, nullable=False)
+    ai_score = db.Column(db.Integer)          # 0-100
+    ai_brief = db.Column(db.Text)             # pre-visit brief for Gabay
+    platforms_json = db.Column(db.Text)       # JSON list of {name, status, detail}
+    is_on_lazada = db.Column(db.Boolean)      # already registered on Lazada?
+    score_reason = db.Column(db.Text)
+    scan_status = db.Column(db.String(20), default='pending')  # pending/running/done/failed
+    scan_trigger = db.Column(db.String(30))   # auto/manual/campaign_sweep
+    scanned_at = db.Column(db.DateTime)
+    error_msg = db.Column(db.Text)
+    lead = db.relationship('Lead', backref=db.backref('intelligence', uselist=False))
+
+    @property
+    def platforms(self):
+        try:
+            return json.loads(self.platforms_json or '[]')
+        except Exception:
+            return []

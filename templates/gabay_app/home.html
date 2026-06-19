@@ -274,9 +274,25 @@
         {% endif %}
       </div>
     </div>
-    <span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span>
+    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:4px;flex-shrink:0">
+      <span class="sbadge s-{{ lead.status }}">{{ lead.status_label }}</span>
+      {% if lead.intelligence and lead.intelligence.scan_status == 'done' %}
+      <span style="font-size:9px;font-weight:900;padding:1px 7px;border-radius:8px;
+        background:{% if lead.ai_score >= 80 %}#f0fdf4;color:#15803d{% elif lead.ai_score >= 60 %}#fef3c7;color:#d97706{% else %}#f1f5f9;color:#64748b{% endif %}">
+        🎯 {{ lead.ai_score }}
+      </span>
+      {% elif lead.intelligence and lead.intelligence.scan_status in ('pending','running') %}
+      <span style="font-size:9px;color:#94a3b8">⏳ scanning</span>
+      {% endif %}
+    </div>
     <i class="bi bi-chevron-right lead-arrow"></i>
   </a>
+  {% if lead.intelligence and lead.intelligence.ai_brief %}
+  <div style="margin:0 12px 10px 24px;padding:8px 10px;background:#F8FAFD;
+              border-left:3px solid #f59e0b;border-radius:0 8px 8px 0;font-size:11px;color:#374151;line-height:1.5">
+    🤖 {{ lead.intelligence.ai_brief }}
+  </div>
+  {% endif %}
   {% endfor %}
 </div>
 {% else %}

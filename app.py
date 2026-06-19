@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -81,6 +81,7 @@ with app.app_context():
         ("is_warehouse",      "BOOLEAN DEFAULT FALSE"),
         ("is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
         ("campaign_id",       "INTEGER"),
+        ("ai_score",          "INTEGER"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_cols:
@@ -121,6 +122,28 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
+    # Create lead_intelligence table
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS lead_intelligence (
+                    id SERIAL PRIMARY KEY,
+                    lead_id INTEGER NOT NULL UNIQUE REFERENCES leads(id),
+                    ai_score INTEGER,
+                    ai_brief TEXT,
+                    platforms_json TEXT,
+                    is_on_lazada BOOLEAN,
+                    score_reason TEXT,
+                    scan_status VARCHAR(20) DEFAULT 'pending',
+                    scan_trigger VARCHAR(30),
+                    scanned_at TIMESTAMP,
+                    error_msg TEXT
+                )
+            """))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Seed "Legacy" campaign for existing leads that have no campaign_id
     with app.app_context():
         try:
@@ -153,6 +176,182 @@ def update_last_seen():
             current_user.last_seen = now
             db.session.commit()
 
+
+# ─── AI LEAD INTELLIGENCE ENGINE ─────────────────────────────────────────────
+
+def _enrich_lead(lead_id):
+    """SerpAPI search + Claude Haiku extraction for one lead. Runs in background thread."""
+    import threading, requests as _req, json as _json
+    try:
+        import anthropic as _anthropic
+    except ImportError:
+        return
+
+    with app.app_context():
+        lead = Lead.query.get(lead_id)
+        if not lead:
+            return
+        intel = lead.intelligence
+        if not intel:
+            intel = LeadIntelligence(lead_id=lead_id)
+            db.session.add(intel)
+        intel.scan_status = 'running'
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+            return
+
+        try:
+            # 1. SerpAPI web search
+            serp_key = os.environ.get('SERPAPI_KEY', '')
+            search_snippet = ''
+            if serp_key:
+                query = f'{lead.seller_name} {lead.city or ""} online seller shop'.strip()
+                resp = _req.get('https://serpapi.com/search', params={
+                    'q': query, 'api_key': serp_key, 'num': 5, 'engine': 'google'
+                }, timeout=12)
+                if resp.ok:
+                    organic = resp.json().get('organic_results', [])
+                    lines = []
+                    for r in organic[:5]:
+                        lines.append(f"- {r.get('title','')} | {r.get('snippet','')}\n  URL: {r.get('link','')}")
+                    search_snippet = '\n'.join(lines)
+
+            # 2. Claude Haiku extraction
+            api_key = os.environ.get('ANTHROPIC_API_KEY', '')
+            if not api_key:
+                raise Exception('ANTHROPIC_API_KEY not set')
+
+            client = _anthropic.Anthropic(api_key=api_key)
+            prompt = f"""You are analyzing a seller lead for Lazada recruitment in Southeast Asia.
+
+Seller info:
+- Name: {lead.seller_name}
+- City: {lead.city or 'Unknown'}
+- Category: {lead.category or 'Unknown'}
+- Phone: {lead.contact_number or 'Unknown'}
+- Known link: {lead.link or 'None'}
+
+Web search results:
+{search_snippet if search_snippet else '(No search results available — use seller info only)'}
+
+Respond ONLY with valid JSON (no markdown, no extra text):
+{{
+  "ai_score": <integer 0-100; 90-100=active multi-platform seller NOT on Lazada; 70-89=single platform active; 50-69=physical biz with social; below 50=hard to verify>,
+  "ai_brief": "<2-3 sentences for the field agent: what they sell, where found online, best pitch angle. Max 55 words.>",
+  "score_reason": "<one sentence explaining the score>",
+  "is_on_lazada": <true if confirmed already on Lazada, false if not found, null if unknown>,
+  "platforms": [
+    {{"name": "<Shopee|TikTok|Facebook|Instagram|Tokopedia|Other>", "status": "<active|inactive|not_found>", "detail": "<followers/products/rating or empty>"}}
+  ]
+}}"""
+
+            msg = client.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=600,
+                messages=[{'role': 'user', 'content': prompt}]
+            )
+            raw = msg.content[0].text.strip()
+            if raw.startswith('```'):
+                raw = raw[raw.find('{'):]
+                if '```' in raw:
+                    raw = raw[:raw.rfind('```')]
+            result = _json.loads(raw.strip())
+
+            intel.ai_score = max(0, min(100, int(result.get('ai_score', 50))))
+            intel.ai_brief = result.get('ai_brief', '')
+            intel.score_reason = result.get('score_reason', '')
+            intel.platforms_json = _json.dumps(result.get('platforms', []))
+            intel.is_on_lazada = result.get('is_on_lazada')
+            intel.scan_status = 'done'
+            intel.scanned_at = datetime.utcnow()
+            intel.error_msg = None
+            lead.ai_score = intel.ai_score
+            db.session.commit()
+
+        except Exception as e:
+            intel.scan_status = 'failed'
+            intel.error_msg = str(e)[:300]
+            intel.scanned_at = datetime.utcnow()
+            try:
+                db.session.commit()
+            except Exception:
+                db.session.rollback()
+
+
+def _enrich_lead_background(lead_id, trigger='auto'):
+    """Queue a lead for background enrichment (fire-and-forget thread)."""
+    import threading
+    with app.app_context():
+        intel = LeadIntelligence.query.filter_by(lead_id=lead_id).first()
+        if not intel:
+            intel = LeadIntelligence(lead_id=lead_id, scan_status='pending', scan_trigger=trigger)
+            db.session.add(intel)
+        else:
+            intel.scan_status = 'pending'
+            intel.scan_trigger = trigger
+        try:
+            db.session.commit()
+        except Exception:
+            db.session.rollback()
+    t = threading.Thread(target=_enrich_lead, args=(lead_id,), daemon=True)
+    t.start()
+
+
+@app.route('/leads/<int:lead_id>/scan', methods=['POST'])
+@login_required
+def lead_scan(lead_id):
+    """Trigger AI enrichment for a single lead (manual or Gabay re-scan)."""
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
+        return jsonify({'error': 'Access denied'}), 403
+    if current_user.role == 'gabay' and lead.gabay_id != current_user.id:
+        return jsonify({'error': 'Not your lead'}), 403
+    _enrich_lead_background(lead_id, trigger='manual')
+    return jsonify({'status': 'queued', 'lead_id': lead_id})
+
+
+@app.route('/leads/<int:lead_id>/intel')
+@login_required
+def lead_intel(lead_id):
+    """Return current intel JSON for a lead (polled by Gabay after scan)."""
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role == 'gabay' and lead.gabay_id != current_user.id:
+        return jsonify({'error': 'Not your lead'}), 403
+    intel = lead.intelligence
+    if not intel:
+        return jsonify({'scan_status': 'none'})
+    return jsonify({
+        'scan_status': intel.scan_status,
+        'ai_score': intel.ai_score,
+        'ai_brief': intel.ai_brief,
+        'score_reason': intel.score_reason,
+        'is_on_lazada': intel.is_on_lazada,
+        'platforms': intel.platforms,
+        'scanned_at': intel.scanned_at.isoformat() if intel.scanned_at else None,
+        'error_msg': intel.error_msg,
+    })
+
+
+@app.route('/campaigns/<int:campaign_id>/sweep', methods=['POST'])
+@login_required
+def campaign_sweep(campaign_id):
+    """Bulk AI enrichment for all un-scanned leads in a campaign."""
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign = Campaign.query.get_or_404(campaign_id)
+    leads = Lead.query.filter_by(campaign_id=campaign_id).all()
+    queued = 0
+    for lead in leads:
+        intel = lead.intelligence
+        if not intel or intel.scan_status in ('pending', 'failed'):
+            _enrich_lead_background(lead.id, trigger='campaign_sweep')
+            queued += 1
+    return jsonify({'status': 'ok', 'queued': queued, 'campaign': campaign.name})
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 
 @app.context_processor
 def inject_globals():
@@ -493,8 +692,16 @@ def import_leads():
                     errors += 1
 
             db.session.commit()
+            # Phase 1: auto-enrich all newly imported leads in background
+            new_leads = Lead.query.filter_by(campaign_id=campaign.id).filter(
+                ~Lead.id.in_(
+                    db.session.query(LeadIntelligence.lead_id)
+                )
+            ).all()
+            for _l in new_leads:
+                _enrich_lead_background(_l.id, trigger='auto')
             dup_msg = f', {len(duplicates)} duplicate{"s" if len(duplicates)!=1 else ""} skipped' if duplicates else ''
-            flash(f'Import complete: {added} leads added to campaign "{campaign.name}"{dup_msg}, {errors} errors.', 'success')
+            flash(f'Import complete: {added} leads added to campaign "{campaign.name}"{dup_msg}, {errors} errors. AI enrichment running in background.', 'success')
             return redirect(url_for('campaign_manage'))
         except Exception as e:
             db.session.rollback()
@@ -4214,7 +4421,33 @@ def campaign_dashboard():
          .group_by(User.id, User.full_name)\
          .order_by(func.count(Lead.id).desc())\
          .all()
-        campaign_data.append({'campaign': c, 'metrics': m, 'gabay_stats': gabay_stats})
+        # Phase 2: aggregate AI intel for this campaign
+        intel_done = db.session.query(func.count(LeadIntelligence.id))\
+            .join(Lead, Lead.id == LeadIntelligence.lead_id)\
+            .filter(Lead.campaign_id == c.id, LeadIntelligence.scan_status == 'done').scalar() or 0
+        intel_pending = db.session.query(func.count(LeadIntelligence.id))\
+            .join(Lead, Lead.id == LeadIntelligence.lead_id)\
+            .filter(Lead.campaign_id == c.id, LeadIntelligence.scan_status.in_(['pending', 'running'])).scalar() or 0
+        avg_score = db.session.query(func.avg(LeadIntelligence.ai_score))\
+            .join(Lead, Lead.id == LeadIntelligence.lead_id)\
+            .filter(Lead.campaign_id == c.id, LeadIntelligence.scan_status == 'done').scalar()
+        high_potential = db.session.query(func.count(LeadIntelligence.id))\
+            .join(Lead, Lead.id == LeadIntelligence.lead_id)\
+            .filter(Lead.campaign_id == c.id, LeadIntelligence.ai_score >= 70).scalar() or 0
+        already_lazada = db.session.query(func.count(LeadIntelligence.id))\
+            .join(Lead, Lead.id == LeadIntelligence.lead_id)\
+            .filter(Lead.campaign_id == c.id, LeadIntelligence.is_on_lazada == True).scalar() or 0
+        campaign_data.append({
+            'campaign': c, 'metrics': m, 'gabay_stats': gabay_stats,
+            'intel': {
+                'done': intel_done,
+                'pending': intel_pending,
+                'total': m.get('total', 0) if isinstance(m, dict) else 0,
+                'avg_score': round(float(avg_score), 1) if avg_score else None,
+                'high_potential': high_potential,
+                'already_lazada': already_lazada,
+            }
+        })
     return render_template('campaigns/dashboard.html', campaign_data=campaign_data)
 
 
@@ -4279,7 +4512,11 @@ def gabay_home():
             Lead.gabay_id == gid,
             Lead.status.in_(['negotiation', 'attempting', 'assigned'])
         )
-        .order_by(Campaign.priority.asc().nullslast(), Lead.assigned_at.asc())
+        .order_by(
+            Campaign.priority.asc().nullslast(),
+            Lead.ai_score.desc().nullslast(),   # Phase 3: highest-potential leads first
+            Lead.assigned_at.asc()
+        )
         .limit(8).all())
     stalled_cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0) - \
         __import__('datetime').timedelta(days=7)

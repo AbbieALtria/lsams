@@ -43,6 +43,120 @@
   </div>
 </div>
 
+<!-- AI INTELLIGENCE CARD -->
+{% set intel = lead.intelligence %}
+<div class="m-card" style="margin-bottom:12px;border-left:4px solid
+  {% if intel and intel.scan_status == 'done' %}
+    {% if intel.ai_score >= 80 %}#15803d{% elif intel.ai_score >= 60 %}#d97706{% else %}#94a3b8{% endif %}
+  {% else %}#e2e8f0{% endif %}">
+
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+    <div style="font-size:12px;font-weight:800;color:#1F3864">🤖 AI Lead Intelligence</div>
+    <div style="display:flex;align-items:center;gap:8px">
+      {% if intel and intel.scan_status == 'done' %}
+        <span style="font-size:18px;font-weight:900;
+          color:{% if intel.ai_score >= 80 %}#15803d{% elif intel.ai_score >= 60 %}#d97706{% else %}#94a3b8{% endif %}">
+          {{ intel.ai_score }}<span style="font-size:10px;font-weight:600;color:#94a3b8">/100</span>
+        </span>
+      {% elif intel and intel.scan_status == 'running' %}
+        <span style="font-size:10px;color:#2563eb;font-weight:700">⏳ Scanning…</span>
+      {% elif intel and intel.scan_status == 'failed' %}
+        <span style="font-size:10px;color:#b91c1c;font-weight:700">⚠️ Scan failed</span>
+      {% else %}
+        <span style="font-size:10px;color:#94a3b8">Not scanned yet</span>
+      {% endif %}
+      <button id="scanBtn" onclick="triggerScan()"
+        style="font-size:10px;font-weight:700;padding:3px 10px;border-radius:8px;
+               border:1px solid #e2e8f0;background:#f8fafd;color:#374151;cursor:pointer">
+        🔍 {% if intel and intel.scan_status == 'done' %}Re-scan{% else %}Scan Now{% endif %}
+      </button>
+    </div>
+  </div>
+
+  {% if intel and intel.scan_status == 'done' %}
+    {% if intel.ai_brief %}
+    <div style="font-size:11.5px;color:#374151;line-height:1.6;margin-bottom:10px;
+                background:#F8FAFD;border-radius:8px;padding:10px 12px">
+      {{ intel.ai_brief }}
+    </div>
+    {% endif %}
+
+    {% if intel.is_on_lazada == true %}
+    <div style="background:#FEF2F2;border-radius:8px;padding:7px 10px;font-size:11px;
+                color:#b91c1c;font-weight:700;margin-bottom:8px">
+      ⚠️ Already registered on Lazada — confirm before investing time
+    </div>
+    {% elif intel.is_on_lazada == false %}
+    <div style="background:#F0FDF4;border-radius:8px;padding:7px 10px;font-size:11px;
+                color:#15803d;font-weight:700;margin-bottom:8px">
+      ✅ Not on Lazada yet — great opportunity!
+    </div>
+    {% endif %}
+
+    {% set platforms = intel.platforms %}
+    {% if platforms %}
+    <div style="display:flex;flex-wrap:wrap;gap:5px">
+      {% for p in platforms %}
+      {% if p.status != 'not_found' %}
+      <div style="background:#EEF2FF;border-radius:8px;padding:5px 9px;font-size:10px;color:#4338ca">
+        <strong>{{ p.name }}</strong>
+        {% if p.detail %} · {{ p.detail }}{% endif %}
+      </div>
+      {% endif %}
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if intel.scanned_at %}
+    <div style="font-size:9px;color:#94a3b8;margin-top:8px">
+      Last scanned: {{ intel.scanned_at.strftime('%b %d, %Y %I:%M %p') }}
+    </div>
+    {% endif %}
+
+  {% elif not intel or intel.scan_status == 'none' %}
+    <div style="font-size:11px;color:#94a3b8;text-align:center;padding:8px 0">
+      Tap Scan Now to get AI insights about this seller before your visit.
+    </div>
+  {% elif intel and intel.scan_status == 'failed' %}
+    <div style="font-size:11px;color:#94a3b8">{{ intel.error_msg or 'Scan failed. Try again.' }}</div>
+  {% else %}
+    <div style="font-size:11px;color:#94a3b8">Scan in progress — check back in a moment.</div>
+  {% endif %}
+</div>
+
+<script>
+function triggerScan() {
+  const btn = document.getElementById('scanBtn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Queued…';
+  fetch('/leads/{{ lead.id }}/scan', {method:'POST', headers:{'X-CSRFToken': '{{ csrf_token() if csrf_token is defined else "" }}'}})
+    .then(r => r.json())
+    .then(() => {
+      btn.textContent = '⏳ Scanning…';
+      // Poll every 4 seconds for result
+      const poll = setInterval(() => {
+        fetch('/leads/{{ lead.id }}/intel')
+          .then(r => r.json())
+          .then(d => {
+            if (d.scan_status === 'done' || d.scan_status === 'failed') {
+              clearInterval(poll);
+              location.reload();
+            }
+          });
+      }, 4000);
+    })
+    .catch(() => { btn.disabled = false; btn.textContent = '🔍 Retry'; });
+}
+// Auto-poll if scan is running
+{% if intel and intel.scan_status in ('pending','running') %}
+const autoPoll = setInterval(() => {
+  fetch('/leads/{{ lead.id }}/intel')
+    .then(r => r.json())
+    .then(d => { if (d.scan_status === 'done' || d.scan_status === 'failed') { clearInterval(autoPoll); location.reload(); }});
+}, 4000);
+{% endif %}
+</script>
+
 <!-- QUICK ACTIONS -->
 <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
   <a href="{{ url_for('gabay_quick_checkin') }}?lead_id={{ lead.id }}" style="text-decoration:none">
