@@ -4858,6 +4858,15 @@ def campaign_slide():
     return render_template('campaign_slide.html')
 
 
+@app.route('/ai-intelligence/brochure')
+@login_required
+def ai_intel_brochure():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('ai_intel_brochure.html')
+
+
 @app.route('/uploads/visits/<path:filename>')
 @login_required
 def visit_photo(filename):

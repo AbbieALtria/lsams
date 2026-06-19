@@ -1,0 +1,424 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>AI Lead Intelligence Engine — Altria × Lazada</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700;800;900&display=swap');
+@page { size: A4 landscape; margin: 0; }
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: 'Inter', 'Segoe UI', Arial, sans-serif;
+  background: #fff;
+  width: 297mm;
+  min-height: 210mm;
+  overflow: hidden;
+  color: #1a1a2e;
+}
+
+/* ── Print bar ── */
+.print-bar {
+  position: fixed; top: 0; left: 0; right: 0; z-index: 100;
+  background: #1F3864; color: white;
+  padding: 8px 20px; display: flex; align-items: center; gap: 14px;
+  font-size: 12px; font-family: 'Inter', sans-serif;
+}
+.print-btn {
+  background: #f59e0b; color: #1F3864; border: none; border-radius: 6px;
+  padding: 6px 18px; font-size: 12px; font-weight: 700; cursor: pointer;
+  font-family: 'Inter', sans-serif;
+}
+.print-hint { opacity: .55; font-size: 11px; }
+@media print { .print-bar { display: none !important; } }
+
+/* ── Page layout ── */
+.page {
+  width: 297mm;
+  height: 210mm;
+  display: grid;
+  grid-template-columns: 72mm 1fr;
+  grid-template-rows: 100%;
+  margin-top: 38px; /* offset for print-bar */
+}
+@media print { .page { margin-top: 0; } }
+
+/* ══ LEFT PANEL ══ */
+.left {
+  background: #1F3864;
+  padding: 20mm 9mm 10mm 10mm;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  position: relative;
+  overflow: hidden;
+}
+/* decorative circles */
+.left::before {
+  content: '';
+  position: absolute; bottom: -18mm; right: -22mm;
+  width: 60mm; height: 60mm; border-radius: 50%;
+  background: rgba(245,158,11,.10);
+}
+.left::after {
+  content: '';
+  position: absolute; top: -12mm; left: -12mm;
+  width: 40mm; height: 40mm; border-radius: 50%;
+  background: rgba(255,255,255,.04);
+}
+
+.brand-row { display: flex; align-items: center; gap: 8px; margin-bottom: 7mm; }
+.brand-logo {
+  font-size: 13px; font-weight: 900; letter-spacing: 2px; color: #f59e0b;
+  text-transform: uppercase;
+}
+.brand-sep { width: 1px; height: 16px; background: rgba(255,255,255,.2); }
+.brand-partner { font-size: 10px; color: rgba(255,255,255,.4); font-weight: 600; letter-spacing: .5px; }
+
+.left-tag {
+  display: inline-block;
+  font-size: 8px; font-weight: 800; letter-spacing: 1.5px; text-transform: uppercase;
+  color: #f59e0b; border: 1px solid rgba(245,158,11,.4);
+  border-radius: 20px; padding: 3px 10px; margin-bottom: 5mm;
+}
+.left-headline {
+  font-size: 19px; font-weight: 900; line-height: 1.18; color: white;
+  margin-bottom: 4mm;
+}
+.left-headline span { color: #f59e0b; }
+.left-sub {
+  font-size: 10px; color: rgba(255,255,255,.55); line-height: 1.65; margin-bottom: 6mm;
+}
+.divider { width: 18mm; height: 2px; background: #f59e0b; margin-bottom: 6mm; }
+
+.how-row {
+  display: flex; flex-direction: column; gap: 4mm;
+}
+.how-item {
+  display: flex; align-items: flex-start; gap: 8px;
+}
+.how-dot {
+  width: 22px; height: 22px; border-radius: 50%; flex-shrink: 0;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 10px; font-weight: 900; color: #1F3864;
+  background: #f59e0b; margin-top: 1px;
+}
+.how-text { font-size: 9.5px; color: rgba(255,255,255,.75); line-height: 1.5; }
+.how-text strong { color: white; }
+
+.left-footer { font-size: 8px; color: rgba(255,255,255,.2); margin-top: auto; }
+
+/* ══ RIGHT PANEL ══ */
+.right {
+  background: #F8FAFD;
+  padding: 8mm 9mm 8mm 9mm;
+  display: grid;
+  grid-template-rows: auto 1fr auto;
+  gap: 5mm;
+}
+
+.right-top {
+  display: flex; align-items: center; justify-content: space-between;
+}
+.right-top-label {
+  font-size: 8px; font-weight: 800; color: #9aabc5;
+  text-transform: uppercase; letter-spacing: 1.2px;
+}
+.lazada-badge {
+  background: #F05A28; color: white; font-size: 8px; font-weight: 800;
+  padding: 3px 10px; border-radius: 4px; letter-spacing: .5px;
+}
+
+/* middle: 2 columns */
+.right-mid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 5mm;
+}
+
+/* ── mock lead card ── */
+.lead-card {
+  background: white; border-radius: 12px;
+  border: 1.5px solid #f59e0b;
+  padding: 5mm 4mm;
+}
+.lead-card-title {
+  font-size: 8px; font-weight: 800; color: #9aabc5;
+  text-transform: uppercase; letter-spacing: .8px; margin-bottom: 4mm;
+}
+.lead-header {
+  display: flex; align-items: center; gap: 7px; margin-bottom: 4mm;
+}
+.lead-avatar {
+  width: 34px; height: 34px; border-radius: 10px;
+  background: linear-gradient(135deg,#1F3864,#2E75B6);
+  display: flex; align-items: center; justify-content: center;
+  font-size: 16px; font-weight: 900; color: white; flex-shrink: 0;
+}
+.lead-name { font-size: 12px; font-weight: 800; color: #1F3864; }
+.lead-loc { font-size: 9px; color: #9aabc5; }
+.lead-score {
+  margin-left: auto; background: #FEF3C7;
+  border: 1.5px solid #f59e0b; border-radius: 8px;
+  padding: 3px 8px; text-align: center; flex-shrink: 0;
+}
+.score-val { font-size: 18px; font-weight: 900; color: #d97706; line-height: 1; }
+.score-lbl { font-size: 7px; color: #92400e; font-weight: 700; }
+
+.lazada-status {
+  border-radius: 7px; padding: 5px 8px; font-size: 9px;
+  font-weight: 700; margin-bottom: 4mm;
+}
+.lazada-status.no  { background: #F0FDF4; color: #15803d; }
+.lazada-status.yes { background: #FEF2F2; color: #b91c1c; }
+
+.intel-grid {
+  display: grid; grid-template-columns: 1fr 1fr; gap: 3mm; margin-bottom: 4mm;
+}
+.intel-cell { border-radius: 7px; padding: 4px 7px; }
+.intel-cell-purple { background: #F5F3FF; }
+.intel-cell-amber  { background: #FFF7ED; }
+.intel-cell-green  { background: #F0FDF4; }
+.intel-cell-blue   { background: #EEF2FF; }
+.intel-label { font-size: 7px; font-weight: 800; text-transform: uppercase; letter-spacing: .4px; }
+.intel-label-purple { color: #7c3aed; }
+.intel-label-amber  { color: #d97706; }
+.intel-label-green  { color: #15803d; }
+.intel-label-blue   { color: #4338ca; }
+.intel-val { font-size: 10.5px; font-weight: 700; color: #1F3864; margin-top: 1px; }
+
+.ai-brief {
+  background: #F8FAFD; border-left: 2.5px solid #f59e0b;
+  border-radius: 0 8px 8px 0; padding: 6px 8px;
+  font-size: 9px; color: #374151; line-height: 1.55; margin-bottom: 4mm;
+}
+.ai-brief strong { color: #d97706; }
+
+.platform-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+.chip {
+  background: #EEF2FF; border-radius: 6px;
+  padding: 3px 8px; font-size: 8.5px; color: #4338ca; font-weight: 700;
+}
+
+/* ── right column: benefits + stats ── */
+.benefits-col { display: flex; flex-direction: column; gap: 3mm; }
+
+.benefit-card {
+  background: white; border-radius: 10px;
+  border-left: 3px solid var(--accent);
+  padding: 5px 9px;
+}
+.benefit-icon { font-size: 14px; margin-bottom: 2px; }
+.benefit-title { font-size: 10px; font-weight: 800; color: #1F3864; }
+.benefit-sub { font-size: 8.5px; color: #64748b; line-height: 1.4; margin-top: 1px; }
+
+.stats-row {
+  display: grid; grid-template-columns: repeat(4,1fr); gap: 3mm;
+}
+.stat-box {
+  background: white; border-radius: 8px; padding: 4mm 3mm;
+  text-align: center; border: 1px solid #E2E8F0;
+}
+.stat-val { font-size: 18px; font-weight: 900; color: #1F3864; }
+.stat-label { font-size: 8px; color: #9aabc5; font-weight: 700; text-transform: uppercase; letter-spacing: .4px; margin-top: 2px; }
+
+/* ── quote strip ── */
+.quote-strip {
+  background: linear-gradient(90deg, #1F3864 0%, #2E75B6 100%);
+  border-radius: 10px; padding: 5mm 6mm;
+  display: flex; align-items: center; gap: 5mm;
+}
+.quote-text {
+  font-size: 10px; font-weight: 600; color: rgba(255,255,255,.9);
+  line-height: 1.6; flex: 1; font-style: italic;
+}
+.quote-text strong { color: #f59e0b; font-style: normal; }
+.quote-sig {
+  font-size: 9px; color: rgba(255,255,255,.5); text-align: right;
+  white-space: nowrap; flex-shrink: 0;
+}
+</style>
+</head>
+<body>
+
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">Print dialog → Save as PDF · Paper: A4 Landscape · Enable Background Graphics for full color</span>
+</div>
+
+<div class="page">
+
+  <!-- ══ LEFT ══ -->
+  <div class="left">
+    <div>
+      <div class="brand-row">
+        <div class="brand-logo">Altria</div>
+        <div class="brand-sep"></div>
+        <div class="brand-partner">Lazada Partner</div>
+      </div>
+
+      <div class="left-tag">🤖 Exclusive Innovation · 2026</div>
+
+      <div class="left-headline">
+        We built AI that<br>knows your sellers<br><span>before we knock.</span>
+      </div>
+      <div class="divider"></div>
+      <div class="left-sub">
+        Before our Gabay agent sets foot outside, LSAMS has already researched
+        every seller — their platforms, products, followers, ratings, and most
+        importantly: whether they are already on Lazada. Our agents arrive
+        informed, confident, and ready to convert.
+      </div>
+
+      <div class="how-row">
+        <div class="how-item">
+          <div class="how-dot">1</div>
+          <div class="how-text"><strong>CSV Uploaded</strong> — AI enrichment starts automatically. No action needed.</div>
+        </div>
+        <div class="how-item">
+          <div class="how-dot">2</div>
+          <div class="how-text"><strong>Google Search</strong> — finds seller across Shopee, TikTok, Facebook, Instagram, Tokopedia.</div>
+        </div>
+        <div class="how-item">
+          <div class="how-dot">3</div>
+          <div class="how-text"><strong>Claude AI Analysis</strong> — extracts category, price, rating, followers, Lazada status.</div>
+        </div>
+        <div class="how-item">
+          <div class="how-dot">4</div>
+          <div class="how-text"><strong>AI Score 0–100</strong> — highest-potential leads surface first. Gabay never wastes a visit.</div>
+        </div>
+      </div>
+    </div>
+
+    <div class="left-footer">© 2026 Altria Management Corporation · LSAMS AI Lead Intelligence Engine · Confidential</div>
+  </div>
+
+  <!-- ══ RIGHT ══ -->
+  <div class="right">
+
+    <div class="right-top">
+      <div class="right-top-label">Sample — What our Gabay agent sees before visiting this seller</div>
+      <div class="lazada-badge">FOR LAZADA TEAM</div>
+    </div>
+
+    <div class="right-mid">
+
+      <!-- Lead card -->
+      <div class="lead-card">
+        <div class="lead-card-title">AI-Enriched Lead Card · Gabay Mobile App</div>
+
+        <div class="lead-header">
+          <div class="lead-avatar">S</div>
+          <div>
+            <div class="lead-name">Siti Rahimah Baking Studio</div>
+            <div class="lead-loc">Shah Alam, Selangor · P1 Campaign</div>
+          </div>
+          <div class="lead-score">
+            <div class="score-val">87</div>
+            <div class="score-lbl">AI Score</div>
+          </div>
+        </div>
+
+        <div class="lazada-status no">✅ Not registered on Lazada yet — high conversion potential</div>
+
+        <div class="intel-grid">
+          <div class="intel-cell intel-cell-purple">
+            <div class="intel-label intel-label-purple">Product Category</div>
+            <div class="intel-val">Baked goods / F&B</div>
+          </div>
+          <div class="intel-cell intel-cell-amber">
+            <div class="intel-label intel-label-amber">Price Range</div>
+            <div class="intel-val">Budget RM10–50</div>
+          </div>
+          <div class="intel-cell intel-cell-green">
+            <div class="intel-label intel-label-green">Avg Rating</div>
+            <div class="intel-val">⭐ 4.8 / 5.0</div>
+          </div>
+          <div class="intel-cell intel-cell-blue">
+            <div class="intel-label intel-label-blue">Max Followers</div>
+            <div class="intel-val">14,200</div>
+          </div>
+        </div>
+
+        <div class="ai-brief">
+          🤖 <strong>AI Visit Brief:</strong> Active Shopee seller (4.8★, 312 products) with a growing TikTok audience of 14k followers. Not on Lazada yet. Pitch: nationwide reach vs Shopee's local limit. Show her the Seller Center dashboard.
+        </div>
+
+        <div class="platform-chips">
+          <div class="chip">🛍️ Shopee · Active · 312 products</div>
+          <div class="chip">📱 TikTok Shop · 14,200 followers</div>
+          <div class="chip">📘 Facebook · 2,800 likes</div>
+        </div>
+      </div>
+
+      <!-- Benefits -->
+      <div class="benefits-col">
+
+        <div class="benefit-card" style="--accent:#f59e0b">
+          <div class="benefit-icon">🎯</div>
+          <div class="benefit-title">Higher Conversion Rate</div>
+          <div class="benefit-sub">Agents who know the seller's platforms and products before the visit convert at a significantly higher rate. Less time pitching cold — more time closing warm leads.</div>
+        </div>
+
+        <div class="benefit-card" style="--accent:#10b981">
+          <div class="benefit-icon">⚡</div>
+          <div class="benefit-title">Zero Wasted Visits</div>
+          <div class="benefit-sub">Sellers already on Lazada are flagged in red before the agent leaves. Agents never discover this at the doorstep. Every visit is deliberate.</div>
+        </div>
+
+        <div class="benefit-card" style="--accent:#7c3aed">
+          <div class="benefit-icon">📊</div>
+          <div class="benefit-title">Campaign Intelligence Dashboard</div>
+          <div class="benefit-sub">Supervisors see avg AI score, high-potential count, and already-on-Lazada count per campaign — instantly prioritize which campaigns deserve the most effort.</div>
+        </div>
+
+        <div class="benefit-card" style="--accent:#2563eb">
+          <div class="benefit-icon">🔄</div>
+          <div class="benefit-title">Always Fresh — Re-scan Anytime</div>
+          <div class="benefit-sub">Agent or supervisor can trigger a fresh scan before any follow-up visit. If a seller joined Lazada since the last scan, the system catches it immediately.</div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Stats + quote -->
+    <div>
+      <div class="stats-row" style="margin-bottom:4mm">
+        <div class="stat-box">
+          <div class="stat-val" style="color:#f59e0b">0–100</div>
+          <div class="stat-label">AI Score Per Lead</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" style="color:#10b981">8</div>
+          <div class="stat-label">Platforms Scanned</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" style="color:#7c3aed">~15s</div>
+          <div class="stat-label">Per Lead Scan Time</div>
+        </div>
+        <div class="stat-box">
+          <div class="stat-val" style="color:#2563eb">Auto</div>
+          <div class="stat-label">Triggers on Import</div>
+        </div>
+      </div>
+
+      <div class="quote-strip">
+        <div class="quote-text">
+          "We didn't just build a field management tool. We built an intelligence engine that makes every Altria agent walk into every seller meeting already knowing more than any competitor ever could. <strong>This is our commitment to Lazada — not just effort, but smart effort.</strong>"
+        </div>
+        <div class="quote-sig">
+          Ibrahim Ayyoub<br>
+          <span style="color:#f59e0b">Altria Management Corporation</span><br>
+          LSAMS · 2026
+        </div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+if (new URLSearchParams(window.location.search).get('print') === '1') window.print();
+</script>
+</body>
+</html>
