@@ -53,6 +53,55 @@
   </div>
 </div>
 
+<!-- MARIA FORECAST + BRIEFING ACTIONS -->
+<div class="row g-3 mb-4">
+  <div class="col-md-4">
+    <div class="kpi-card" style="border-left-color:#0891b2;background:linear-gradient(135deg,#f0f9ff,#e0f2fe)">
+      <div class="kpi-lbl" style="color:#0891b2">🌸 Maria Forecast</div>
+      <div class="kpi-val" style="color:#0891b2">+{{ forecast }}</div>
+      <div class="kpi-sub" style="color:#0891b2">estimated new live sellers this week</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:4px">Based on negotiation × 60% + registration × 85%</div>
+    </div>
+  </div>
+  {% if current_user.is_supervisor %}
+  <div class="col-md-4 d-flex align-items-center">
+    <div style="background:white;border-radius:14px;padding:16px;width:100%;box-shadow:0 2px 12px rgba(0,0,0,0.06);border:1px solid #e2e8f0">
+      <div style="font-size:12px;font-weight:700;color:#1F3864;margin-bottom:10px">📲 Maria Daily Briefings</div>
+      <div style="display:flex;flex-direction:column;gap:8px">
+        <button onclick="sendBriefing('gabay')"
+                style="background:#4338ca;color:white;border:none;border-radius:10px;padding:9px 14px;
+                       font-size:12px;font-weight:700;cursor:pointer;text-align:left">
+          🌸 Send Gabay Morning Briefing
+        </button>
+        <button onclick="sendBriefing('manager')"
+                style="background:#1F3864;color:white;border:none;border-radius:10px;padding:9px 14px;
+                       font-size:12px;font-weight:700;cursor:pointer;text-align:left">
+          📊 Send Manager Digest
+        </button>
+      </div>
+      <div id="briefingResult" style="font-size:11px;color:#15803d;margin-top:8px;display:none"></div>
+    </div>
+  </div>
+  {% endif %}
+</div>
+<script>
+async function sendBriefing(type) {
+  const url = type === 'gabay' ? '/admin/send-gabay-briefings' : '/admin/send-manager-digest';
+  const res = document.getElementById('briefingResult');
+  res.style.display = 'none';
+  try {
+    const r = await fetch(url, { method: 'POST', headers: {'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || ''} });
+    const d = await r.json();
+    res.style.display = 'block';
+    res.textContent = `✅ Sent: ${d.sent} | Skipped: ${d.skipped}`;
+  } catch(e) {
+    res.style.display = 'block';
+    res.style.color = '#dc2626';
+    res.textContent = 'Error sending. Try again.';
+  }
+}
+</script>
+
 <!-- CHARTS ROW -->
 <div class="row g-3 mb-4">
   <div class="col-md-5">

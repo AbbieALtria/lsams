@@ -160,6 +160,7 @@ with app.app_context():
         ("price_range",      "VARCHAR(100)"),
         ("avg_rating",       "FLOAT"),
         ("product_count",    "INTEGER"),
+        ("pitch_script",     "TEXT"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_intel_cols:
@@ -276,6 +277,7 @@ Extract ALL available intelligence. Respond ONLY with valid JSON (no markdown, n
   "price_range": "<price range found, e.g. 'Budget RM5–30', 'Mid-range RM50–200', 'Premium RM300+', or null>",
   "avg_rating": <float — best rating found, e.g. 4.8, or null>,
   "product_count": <integer — total number of products listed across platforms, or null>,
+  "pitch_script": "<3 punchy lines for the field agent to say when meeting this seller. Line 1: ice-breaker referencing their business. Line 2: Lazada value proposition tailored to their category. Line 3: clear next step / call to action. Max 40 words total. Write in English.>",
   "platforms": [
     {{
       "name": "<Shopee|TikTok|Facebook|Instagram|Tokopedia|WhatsApp Business|Google Business|Other>",
@@ -291,7 +293,7 @@ Extract ALL available intelligence. Respond ONLY with valid JSON (no markdown, n
 
             msg = client.messages.create(
                 model='claude-haiku-4-5-20251001',
-                max_tokens=600,
+                max_tokens=800,
                 messages=[{'role': 'user', 'content': prompt}]
             )
             raw = msg.content[0].text.strip()
@@ -316,6 +318,7 @@ Extract ALL available intelligence. Respond ONLY with valid JSON (no markdown, n
             intel.avg_rating = float(_rating) if _rating is not None else None
             _pcount = result.get('product_count')
             intel.product_count = int(_pcount) if _pcount is not None else None
+            intel.pitch_script = result.get('pitch_script')
             intel.scan_status = 'done'
             intel.scanned_at = datetime.utcnow()
             intel.error_msg = None
@@ -536,6 +539,8 @@ def dashboard():
             'registration': g_registration, 'live': g_live, 'matched': g_matched,
         })
 
+    forecast = round(negotiation * 0.6 + registration * 0.85)
+
     # Recent activity
     recent_visits = Visit.query.order_by(Visit.visited_at.desc()).limit(10).all()
 
@@ -554,8 +559,8 @@ def dashboard():
     return render_template('dashboard.html',
         total_pool=total_pool, assigned=assigned, attempting=attempting,
         negotiation=negotiation, registration=registration, live=live,
-        matched=matched, gabay_stats=gabay_stats, recent_visits=recent_visits,
-        aging_leads=aging_leads)
+        matched=matched, forecast=forecast, gabay_stats=gabay_stats,
+        recent_visits=recent_visits, aging_leads=aging_leads)
 
 
 # ─── LEADS ───────────────────────────────────────────────────────────────────
@@ -3462,6 +3467,116 @@ def whatsapp_test():
         return f'<pre>Exception: {e}\nToken set: {"YES" if token else "NO"}</pre>'
 
 
+@app.route('/admin/send-gabay-briefings', methods=['POST'])
+@login_required
+def admin_send_gabay_briefings():
+    """Send a morning WhatsApp briefing to every active Gabay."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+    from whatsapp import send_message
+    from datetime import timedelta
+    gabays = User.query.filter_by(role='gabay', is_active=True).all()
+    sent, skipped = 0, 0
+    stalled_cutoff = datetime.utcnow() - timedelta(days=7)
+    for g in gabays:
+        if not g.mobile:
+            skipped += 1
+            continue
+        stats = _gabay_stats(g.id)
+        high_priority = Lead.query.filter(
+            Lead.gabay_id == g.id,
+            Lead.status.in_(['negotiation', 'registration'])
+        ).count()
+        stalled = Lead.query.filter(
+            Lead.gabay_id == g.id,
+            Lead.status.in_(['assigned', 'attempting']),
+            ~Lead.id.in_(
+                db.session.query(Visit.lead_id).filter(Visit.visited_at >= stalled_cutoff)
+            )
+        ).count()
+        msg = (
+            f"🌸 Good morning, {g.full_name.split()[0]}!\n"
+            f"Here's your Maria briefing for today:\n\n"
+            f"📋 {stats['total']} sellers assigned\n"
+            f"🔥 {high_priority} in negotiation/registration\n"
+            f"⚠️ {stalled} stalled leads (no visit in 7 days)\n"
+            f"✅ {stats['live']} live sellers total\n\n"
+            f"Tip: Focus on your high-priority leads first!\n"
+            f"Good luck today! 💪 — LSAMS Maria"
+        )
+        to = g.mobile.replace('+', '').replace(' ', '').replace('-', '')
+        if not to.startswith('63'):
+            to = '63' + to.lstrip('0')
+        try:
+            send_message(to, msg)
+            sent += 1
+        except Exception:
+            skipped += 1
+    return jsonify({'sent': sent, 'skipped': skipped})
+
+
+@app.route('/admin/send-manager-digest', methods=['POST'])
+@login_required
+def admin_send_manager_digest():
+    """Send a daily performance digest to all active managers/supervisors."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+    from whatsapp import send_message
+    from datetime import timedelta
+    yesterday_start = (datetime.utcnow() - timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
+    yesterday_end = yesterday_start + timedelta(days=1)
+    visits_yesterday = Visit.query.filter(
+        Visit.visited_at >= yesterday_start,
+        Visit.visited_at < yesterday_end
+    ).count()
+    live_yesterday = Lead.query.filter(
+        Lead.status == 'live',
+        Lead.assigned_at >= yesterday_start,
+        Lead.assigned_at < yesterday_end
+    ).count()
+    total_live = Lead.query.filter_by(status='live').count()
+    total_pool = Lead.query.count()
+    gabays = User.query.filter_by(role='gabay', is_active=True).all()
+    top_performers = []
+    for g in gabays:
+        g_live = Lead.query.filter_by(gabay_id=g.id, status='live').count()
+        top_performers.append((g.full_name.split()[0], g_live))
+    top_performers.sort(key=lambda x: -x[1])
+
+    top_lines = '\n'.join(
+        f"  {'🥇' if i==0 else '🥈' if i==1 else '🥉'} {name}: {cnt} live"
+        for i, (name, cnt) in enumerate(top_performers[:3])
+    ) if top_performers else '  (no data)'
+
+    today_str = datetime.now().strftime('%B %d, %Y')
+    msg = (
+        f"📊 Good morning! Maria's Daily Digest\n"
+        f"📅 {today_str}\n\n"
+        f"Yesterday's Performance:\n"
+        f"👣 {visits_yesterday} visits logged\n"
+        f"✅ {live_yesterday} new live sellers\n"
+        f"📈 Total live: {total_live} / {total_pool} pool\n\n"
+        f"Top Performers (all-time live):\n{top_lines}\n\n"
+        f"— LSAMS Maria 🌸"
+    )
+    managers = User.query.filter(
+        User.role.in_(['manager', 'supervisor', 'admin']),
+        User.is_active == True,
+        User.mobile.isnot(None)
+    ).all()
+    sent, skipped = 0, 0
+    for m in managers:
+        to = m.mobile.replace('+', '').replace(' ', '').replace('-', '')
+        if not to.startswith('63'):
+            to = '63' + to.lstrip('0')
+        try:
+            send_message(to, msg)
+            sent += 1
+        except Exception:
+            skipped += 1
+    return jsonify({'sent': sent, 'skipped': skipped})
+
+
 @app.route('/admin/ml/train', methods=['GET', 'POST'])
 @login_required
 def admin_ml_train():
@@ -4634,11 +4749,43 @@ def gabay_home():
 
     pending_photos = Visit.query.filter_by(gabay_id=gid, photo_pending=True).order_by(Visit.visited_at.desc()).all()
 
+    # Gamification badges
+    from datetime import timedelta
+    badges = []
+    # 🥇 Conversion Champion — has any live sellers
+    live_count = Lead.query.filter_by(gabay_id=gid, status='live').count()
+    if live_count >= 1:
+        badges.append({'icon': '🥇', 'label': 'Conversion Champion', 'desc': f'{live_count} seller{"s" if live_count>1 else ""} live', 'color': '#d97706'})
+    # 🔥 7-Day Streak — visited at least one seller every day for 7 consecutive days
+    streak_days = 0
+    for d in range(7):
+        day_start = (datetime.utcnow() - timedelta(days=d)).replace(hour=0, minute=0, second=0, microsecond=0)
+        day_end = day_start + timedelta(days=1)
+        if Visit.query.filter(Visit.gabay_id == gid, Visit.visited_at >= day_start, Visit.visited_at < day_end).first():
+            streak_days += 1
+        else:
+            break
+    if streak_days >= 7:
+        badges.append({'icon': '🔥', 'label': '7-Day Streak', 'desc': '7 days in a row!', 'color': '#dc2626'})
+    # ⭐ Perfect Visit — has a visit logged today
+    today_start = datetime.utcnow().replace(hour=0, minute=0, second=0, microsecond=0)
+    visits_today_count = Visit.query.filter(Visit.gabay_id == gid, Visit.visited_at >= today_start).count()
+    if visits_today_count >= 3:
+        badges.append({'icon': '⭐', 'label': 'Perfect Visit Day', 'desc': f'{visits_today_count} visits today', 'color': '#7c3aed'})
+    # 🚀 Fast Activator — has a live lead assigned within the last 14 days
+    fast_cutoff = datetime.utcnow() - timedelta(days=14)
+    fast_live = Lead.query.filter(
+        Lead.gabay_id == gid, Lead.status == 'live',
+        Lead.assigned_at >= fast_cutoff
+    ).first()
+    if fast_live:
+        badges.append({'icon': '🚀', 'label': 'Fast Activator', 'desc': 'Activated in ≤14 days', 'color': '#0891b2'})
+
     return render_template('gabay_app/home.html',
         stats=stats, greeting=greeting, today=today_str,
         followups=followups, priority_leads=priority_leads, stalled_count=stalled_count,
         suggested_leads=suggested_leads, traffic_msg=traffic_msg, traffic_level=traffic_level,
-        pending_photos=pending_photos)
+        pending_photos=pending_photos, badges=badges)
 
 
 @app.route('/gabay/app/leads')

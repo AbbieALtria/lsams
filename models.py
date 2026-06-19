@@ -554,6 +554,7 @@ class LeadIntelligence(db.Model):
     price_range = db.Column(db.String(100))        # e.g. "Budget RM10–50"
     avg_rating = db.Column(db.Float)               # best rating found across platforms
     product_count = db.Column(db.Integer)          # total products listed
+    pitch_script = db.Column(db.Text)                           # Maria's 3-line visit pitch
     # Scan metadata
     scan_status = db.Column(db.String(20), default='pending')  # pending/running/done/failed
     scan_trigger = db.Column(db.String(30))   # auto/manual/campaign_sweep

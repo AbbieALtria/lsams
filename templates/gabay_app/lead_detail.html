@@ -172,12 +172,49 @@
       </div>
     </div>
 
+    <!-- ══ 360 SELLER RATING ══ -->
+    {% if intel.ai_score is not none %}
+    {% if intel.ai_score >= 85 %}
+      {% set tier_label = 'AAA' %}{% set tier_color = '#15803d' %}{% set tier_bg = '#f0fdf4' %}{% set tier_desc = 'Top Tier — Priority Visit' %}
+    {% elif intel.ai_score >= 70 %}
+      {% set tier_label = 'AA' %}{% set tier_color = '#0891b2' %}{% set tier_bg = '#f0f9ff' %}{% set tier_desc = 'High Value Seller' %}
+    {% elif intel.ai_score >= 55 %}
+      {% set tier_label = 'A' %}{% set tier_color = '#4338ca' %}{% set tier_bg = '#eef2ff' %}{% set tier_desc = 'Good Prospect' %}
+    {% elif intel.ai_score >= 40 %}
+      {% set tier_label = 'B' %}{% set tier_color = '#d97706' %}{% set tier_bg = '#fffbeb' %}{% set tier_desc = 'Moderate Potential' %}
+    {% else %}
+      {% set tier_label = 'C' %}{% set tier_color = '#94a3b8' %}{% set tier_bg = '#f8fafc' %}{% set tier_desc = 'Low Priority' %}
+    {% endif %}
+    <div style="display:flex;align-items:center;gap:10px;background:{{ tier_bg }};
+                border-radius:10px;padding:9px 12px;margin-bottom:10px;border:1px solid {{ tier_color }}33">
+      <div style="background:{{ tier_color }};color:white;font-size:15px;font-weight:900;
+                  border-radius:8px;padding:4px 10px;letter-spacing:.5px">{{ tier_label }}</div>
+      <div>
+        <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px">Seller 360 Rating</div>
+        <div style="font-size:12px;font-weight:700;color:{{ tier_color }}">{{ tier_desc }}</div>
+      </div>
+      <div style="margin-left:auto;font-size:18px;font-weight:900;color:{{ tier_color }}">{{ intel.ai_score }}</div>
+    </div>
+    {% endif %}
+
     <!-- ══ AI BRIEF ══ -->
     {% if intel.ai_brief %}
     <div style="font-size:11.5px;color:#374151;line-height:1.6;margin-bottom:10px;
                 background:#fff;border:1px solid #e2e8f0;border-radius:8px;padding:10px 12px">
       <div style="font-size:9px;font-weight:700;color:#94a3b8;text-transform:uppercase;letter-spacing:.5px;margin-bottom:5px">Maria's Visit Brief</div>
       {{ intel.ai_brief }}
+    </div>
+    {% endif %}
+
+    <!-- ══ MARIA PITCH SCRIPT ══ -->
+    {% if intel.pitch_script %}
+    <div style="background:linear-gradient(135deg,#fdf4ff,#ede9fe);border:1px solid #d8b4fe;
+                border-radius:10px;padding:10px 12px;margin-bottom:10px">
+      <div style="font-size:9px;font-weight:700;color:#7c3aed;text-transform:uppercase;
+                  letter-spacing:.5px;margin-bottom:6px">🌸 Maria's Pitch Script — Say This When You Arrive</div>
+      <div style="font-size:12px;color:#3b0764;line-height:1.7;font-style:italic">
+        "{{ intel.pitch_script }}"
+      </div>
     </div>
     {% endif %}
 
