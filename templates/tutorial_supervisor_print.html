@@ -311,7 +311,52 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1
 
   <div class="scene-card" style="border-color:#f59e0b">
     <div class="scene-header" style="background:#d97706">
-      <span class="scene-num" style="background:#1F3864;color:white">Scene 19</span>
+      <span class="scene-num">Scene 19</span>
+      <div><div class="scene-module">AI Lead Intelligence</div><div class="scene-title-text">AI Lead Intelligence — Auto-Scan on Import</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">Every time you import a campaign CSV, the system automatically scans each seller using Google Search (SerpAPI) + Claude AI in the background. No action needed. For existing campaigns, go to Campaign Dashboard → click <strong>⚡ Run AI Sweep</strong>.</div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Import CSV → AI enrichment queues automatically for every new lead</div>
+        <div class="step"><span class="step-num">2</span>Google Search finds seller across Shopee, TikTok, Facebook, Instagram, Tokopedia</div>
+        <div class="step"><span class="step-num">3</span>Claude Haiku extracts: category, price range, rating, followers, last active, Lazada status</div>
+        <div class="step"><span class="step-num">4</span>AI Score (0–100) saved — Gabay queue auto-sorts highest-score leads first within same campaign priority</div>
+        <div class="step"><span class="step-num">5</span>Campaign Dashboard shows: scanned count, avg score, high-potential count, already-on-Lazada count</div>
+      </div>
+      <div class="tip-box"><strong>Tip:</strong> For campaigns uploaded before this feature was added, go to Campaign Dashboard and click <strong>⚡ Run AI Sweep</strong> on each campaign to backfill all scores.</div>
+    </div>
+  </div>
+
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Scene 20</span>
+      <div><div class="scene-module">AI Lead Intelligence</div><div class="scene-title-text">AI Lead Card — What Gabay Sees Before Every Visit</div></div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">When Gabay opens any lead detail page, they see the full AI intelligence card — everything the system found about this seller before they leave the office.</div>
+      <div class="key-points">
+        <span class="kp purple">🎯 AI Score 0–100</span>
+        <span class="kp orange">📝 Pre-visit AI brief</span>
+        <span class="kp green">✅ Lazada status</span>
+        <span class="kp">📦 Product category</span>
+        <span class="kp orange">💰 Price range</span>
+        <span class="kp green">⭐ Avg rating</span>
+        <span class="kp">👥 Follower count</span>
+        <span class="kp teal">🛍️ Platform chips</span>
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">🟢</span><strong>80–100 Hot lead</strong> — active multi-platform seller, NOT on Lazada. Visit immediately.</div>
+        <div class="step"><span class="step-num">🟡</span><strong>60–79 Warm lead</strong> — selling on one platform. Needs a good pitch.</div>
+        <div class="step"><span class="step-num">⚫</span><strong>Below 60 Cold</strong> — hard to verify online. Deprioritize or re-check data.</div>
+        <div class="step"><span class="step-num">🔴</span><strong>Already on Lazada</strong> — flagged in red. Confirm before sending Gabay.</div>
+      </div>
+      <div class="tip-box"><strong>Re-scan:</strong> Gabay can tap the <strong>Re-scan</strong> button on any lead for a fresh scan — useful before a second visit or when following up weeks later. Page auto-reloads when done (~15 seconds).</div>
+    </div>
+  </div>
+
+  <div class="scene-card" style="border-color:#f59e0b">
+    <div class="scene-header" style="background:#1F3864">
+      <span class="scene-num" style="background:#f59e0b;color:#1F3864">Scene 21</span>
       <div><div class="scene-module">Daily Workflow</div><div class="scene-title-text">Admin Daily Workflow Checklist</div></div>
     </div>
     <div class="scene-body">
@@ -351,7 +396,7 @@ body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1
 
 <div class="doc-footer">
   <span>© 2026 Altria Call Center · LSAMS Supervisor & Admin Guide · Confidential</span>
-  <span>19 scenes · web-production-c9ec2.up.railway.app</span>
+  <span>21 scenes · web-production-c9ec2.up.railway.app</span>
 </div>
 
 <script>
