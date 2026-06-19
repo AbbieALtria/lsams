@@ -1,59 +1,224 @@
 {% extends "base.html" %}
 {% block title %}Registrations{% endblock %}
 {% block content %}
-<div class="page-header">
-  <div class="page-title"><i class="bi bi-file-earmark-check me-2"></i>Registrations</div>
+
+<div class="d-flex align-items-center justify-content-between mb-3">
+  <div>
+    <h4 class="fw-bold mb-0" style="color:#1F3864"><i class="bi bi-file-earmark-check me-2"></i>Registrations</h4>
+    <small class="text-muted">Track sellers submitted for Lazada onboarding</small>
+  </div>
+  <button class="btn btn-sm" style="background:#f0f4ff;color:#1F3864;font-weight:600;border:1px solid #c7d2fe"
+          onclick="document.getElementById('helpPanel').classList.toggle('d-none')">
+    <i class="bi bi-question-circle me-1"></i> How it works
+  </button>
 </div>
 
-<div class="card mb-3">
-  <div class="card-body py-2">
-    <form method="GET" class="d-flex gap-2 align-items-center">
-      <select name="status" class="form-select form-select-sm" style="max-width:160px">
-        <option value="">All Statuses</option>
-        {% for s in ['draft','pending','approved','rejected'] %}
-        <option value="{{ s }}" {% if status_filter == s %}selected{% endif %}>{{ s.title() }}</option>
-        {% endfor %}
-      </select>
-      <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-      <a href="{{ url_for('registrations') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+<!-- Help Panel -->
+<div id="helpPanel" class="d-none mb-3">
+  <div style="background:linear-gradient(135deg,#1F3864,#2d4f8a);border-radius:14px;padding:20px;color:#fff">
+    <div class="d-flex align-items-center mb-3">
+      <i class="bi bi-info-circle-fill me-2" style="font-size:18px;color:#f59e0b"></i>
+      <strong style="font-size:15px">How Registrations Work</strong>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-3">
+        <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:14px;height:100%">
+          <div style="font-size:22px;margin-bottom:6px">1️⃣</div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">Lead Visits</div>
+          <div style="font-size:12px;opacity:.85">Gabay agent visits the seller and logs a visit with outcome <em>Interested</em> or <em>Registered</em></div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:14px;height:100%">
+          <div style="font-size:22px;margin-bottom:6px">2️⃣</div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">Registration Created</div>
+          <div style="font-size:12px;opacity:.85">A registration record is automatically created when a lead reaches <em>Registration</em> status</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:14px;height:100%">
+          <div style="font-size:22px;margin-bottom:6px">3️⃣</div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">Documents Uploaded</div>
+          <div style="font-size:12px;opacity:.85">Upload seller's 5 required Lazada documents (DTI, ID, bank, etc.) in the detail view</div>
+        </div>
+      </div>
+      <div class="col-md-3">
+        <div style="background:rgba(255,255,255,0.1);border-radius:10px;padding:14px;height:100%">
+          <div style="font-size:22px;margin-bottom:6px">4️⃣</div>
+          <div style="font-weight:700;font-size:13px;margin-bottom:4px">Lazada Approves</div>
+          <div style="font-size:12px;opacity:.85">Submit to Lazada → status changes to <em>Approved</em> → seller goes <em>Live</em></div>
+        </div>
+      </div>
+    </div>
+    <div class="mt-3 d-flex gap-3" style="font-size:12px">
+      <span><span style="background:#6b7280;border-radius:4px;padding:2px 8px">Draft</span> → created, not submitted</span>
+      <span><span style="background:#d97706;border-radius:4px;padding:2px 8px">Pending</span> → submitted, waiting</span>
+      <span><span style="background:#16a34a;border-radius:4px;padding:2px 8px">Approved</span> → Lazada accepted</span>
+      <span><span style="background:#dc2626;border-radius:4px;padding:2px 8px">Rejected</span> → needs correction</span>
+    </div>
+  </div>
+</div>
+
+<!-- Stat Cards -->
+{% set total = pagination.total %}
+{% set approved = pagination.items | selectattr('status','eq','approved') | list | length %}
+{% set pending  = pagination.items | selectattr('status','eq','pending')  | list | length %}
+{% set rejected = pagination.items | selectattr('status','eq','rejected') | list | length %}
+{% set draft    = pagination.items | selectattr('status','eq','draft')    | list | length %}
+
+<div class="row g-2 mb-3">
+  <div class="col-6 col-md-3">
+    <div style="background:#f8fafc;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:#64748b;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Total</div>
+      <div style="font-size:28px;font-weight:800;color:#1F3864">{{ pagination.total }}</div>
+      <div style="font-size:11px;color:#94a3b8">All registrations</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#fffbeb;border:1px solid #fde68a;border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:#92400e;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Pending</div>
+      <div style="font-size:28px;font-weight:800;color:#d97706">{{ pending }}</div>
+      <div style="font-size:11px;color:#92400e">Waiting for Lazada</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#f0fdf4;border:1px solid #bbf7d0;border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:#14532d;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Approved</div>
+      <div style="font-size:28px;font-weight:800;color:#16a34a">{{ approved }}</div>
+      <div style="font-size:11px;color:#14532d">Lazada accepted</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div style="background:#fff1f2;border:1px solid #fecdd3;border-radius:12px;padding:14px 16px">
+      <div style="font-size:11px;color:#9f1239;font-weight:600;text-transform:uppercase;letter-spacing:.5px">Rejected</div>
+      <div style="font-size:28px;font-weight:800;color:#dc2626">{{ rejected }}</div>
+      <div style="font-size:11px;color:#9f1239">Needs correction</div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter Bar -->
+<div class="card mb-3 border-0 shadow-sm">
+  <div class="card-body py-2 px-3">
+    <form method="GET" class="d-flex align-items-center gap-2 flex-wrap">
+      <span style="font-size:12px;color:#64748b;font-weight:600">Filter:</span>
+      {% for s, label, color in [('','All','#1F3864'),('draft','Draft','#6b7280'),('pending','Pending','#d97706'),('approved','Approved','#16a34a'),('rejected','Rejected','#dc2626')] %}
+      <button type="submit" name="status" value="{{ s }}"
+              style="border:none;border-radius:20px;padding:4px 14px;font-size:12px;font-weight:600;cursor:pointer;
+                     background:{% if status_filter == s or (s == '' and not status_filter) %}{{ color }}{% else %}#f1f5f9{% endif %};
+                     color:{% if status_filter == s or (s == '' and not status_filter) %}#fff{% else %}#64748b{% endif %}">
+        {{ label }}
+      </button>
+      {% endfor %}
     </form>
   </div>
 </div>
 
-<div class="card">
-  <div class="card-header">Registrations <span class="badge bg-secondary ms-1">{{ pagination.total }}</span></div>
+<!-- Table -->
+<div class="card border-0 shadow-sm">
   <div class="table-responsive">
-    <table class="table table-hover mb-0">
-      <thead><tr><th>Seller</th><th>City</th><th>Docs</th><th>Status</th><th>Submitted</th><th>Actions</th></tr></thead>
+    <table class="table table-hover mb-0 align-middle">
+      <thead style="background:#f8fafc;font-size:11px;text-transform:uppercase;letter-spacing:.5px;color:#64748b">
+        <tr>
+          <th style="padding:12px 16px">Seller</th>
+          <th>City</th>
+          <th>Documents</th>
+          <th>Status</th>
+          <th>Submitted</th>
+          <th>Agent</th>
+          <th></th>
+        </tr>
+      </thead>
       <tbody>
         {% for reg in pagination.items %}
-        <tr>
-          <td>
-            <strong>{{ reg.lead.seller_name if reg.lead else '—' }}</strong><br>
-            <small class="text-muted">{{ reg.lead.business_name if reg.lead else '' }}</small>
+        <tr style="font-size:13px">
+          <td style="padding:12px 16px">
+            <div style="font-weight:700;color:#1F3864">{{ reg.lead.seller_name if reg.lead else '—' }}</div>
+            {% if reg.lead and reg.lead.business_name %}
+            <div style="font-size:11px;color:#94a3b8">{{ reg.lead.business_name }}</div>
+            {% endif %}
+            {% if reg.is_vw %}<span style="background:#dbeafe;color:#1d4ed8;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px">VW</span>{% endif %}
+            {% if reg.is_vw_rrld %}<span style="background:#ede9fe;color:#6d28d9;font-size:10px;font-weight:700;border-radius:4px;padding:1px 6px;margin-left:3px">VW-RRLD</span>{% endif %}
           </td>
-          <td style="font-size:12px">{{ reg.lead.city if reg.lead else '—' }}</td>
+          <td style="font-size:12px;color:#475569">
+            <i class="bi bi-geo-alt me-1" style="color:#94a3b8"></i>{{ reg.lead.city if reg.lead else '—' }}
+          </td>
           <td>
-            <div style="font-size:12px">{{ reg.docs_count }}/5 docs</div>
-            <div class="progress mt-1" style="height:4px;width:60px">
-              <div class="progress-bar bg-success" style="width:{{ reg.docs_count * 20 }}%"></div>
+            <div class="d-flex align-items-center gap-2">
+              <div class="progress" style="height:6px;width:56px;background:#e2e8f0;border-radius:4px">
+                <div class="progress-bar" style="width:{{ reg.docs_count * 20 }}%;background:{% if reg.docs_count == 5 %}#16a34a{% elif reg.docs_count >= 3 %}#d97706{% else %}#94a3b8{% endif %};border-radius:4px"></div>
+              </div>
+              <span style="font-size:12px;color:{% if reg.docs_count == 5 %}#16a34a{% elif reg.docs_count >= 3 %}#d97706{% else %}#64748b{% endif %};font-weight:600">
+                {{ reg.docs_count }}/5
+              </span>
             </div>
           </td>
           <td>
-            <span class="badge {% if reg.status == 'approved' %}bg-success{% elif reg.status == 'rejected' %}bg-danger{% elif reg.status == 'pending' %}bg-warning text-dark{% else %}bg-secondary{% endif %}">
+            {% set sc = {'approved':'#16a34a','rejected':'#dc2626','pending':'#d97706','draft':'#6b7280'} %}
+            {% set sb = {'approved':'#f0fdf4','rejected':'#fff1f2','pending':'#fffbeb','draft':'#f8fafc'} %}
+            {% set si = {'approved':'bi-check-circle-fill','rejected':'bi-x-circle-fill','pending':'bi-clock-fill','draft':'bi-pencil-fill'} %}
+            <span style="background:{{ sb.get(reg.status,'#f8fafc') }};color:{{ sc.get(reg.status,'#6b7280') }};border-radius:20px;padding:4px 10px;font-size:11px;font-weight:700;display:inline-flex;align-items:center;gap:4px">
+              <i class="bi {{ si.get(reg.status,'bi-circle') }}" style="font-size:10px"></i>
               {{ reg.status.title() }}
             </span>
-            {% if reg.is_vw %}<span class="badge bg-primary ms-1">VW</span>{% endif %}
-            {% if reg.is_vw_rrld %}<span class="badge bg-info ms-1">VW-RRLD</span>{% endif %}
           </td>
-          <td style="font-size:12px">{{ reg.submitted_at.strftime('%b %d, %Y') if reg.submitted_at else '—' }}</td>
-          <td><a href="{{ url_for('registration_detail', reg_id=reg.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:11px">View</a></td>
+          <td style="font-size:12px;color:#64748b">
+            {% if reg.submitted_at %}
+            <div>{{ reg.submitted_at.strftime('%b %d, %Y') }}</div>
+            <div style="font-size:10px;color:#94a3b8">{{ reg.submitted_at.strftime('%I:%M %p') }}</div>
+            {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+          </td>
+          <td style="font-size:12px;color:#475569">
+            {{ reg.lead.gabay.display_name if reg.lead and reg.lead.gabay else '—' }}
+          </td>
+          <td style="text-align:right;padding-right:16px">
+            <a href="{{ url_for('registration_detail', reg_id=reg.id) }}"
+               style="background:#1F3864;color:#fff;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;text-decoration:none">
+              View <i class="bi bi-arrow-right ms-1"></i>
+            </a>
+          </td>
         </tr>
         {% else %}
-        <tr><td colspan="6" class="text-center text-muted py-4">No registrations yet.</td></tr>
+        <tr>
+          <td colspan="7" style="text-align:center;padding:60px 20px">
+            <div style="font-size:40px;margin-bottom:12px">📋</div>
+            <div style="font-weight:700;color:#1F3864;margin-bottom:6px">No registrations yet</div>
+            <div style="font-size:13px;color:#94a3b8;max-width:340px;margin:0 auto">
+              Registrations appear here once a Gabay agent moves a lead to <strong>Registration</strong> status after a successful visit.
+            </div>
+            <button onclick="document.getElementById('helpPanel').classList.remove('d-none')"
+                    class="btn btn-sm mt-3" style="background:#f0f4ff;color:#1F3864;font-weight:600;border:1px solid #c7d2fe">
+              <i class="bi bi-question-circle me-1"></i> How does this work?
+            </button>
+          </td>
+        </tr>
         {% endfor %}
       </tbody>
     </table>
   </div>
+
+  <!-- Pagination -->
+  {% if pagination.pages > 1 %}
+  <div class="card-footer bg-white border-top d-flex justify-content-between align-items-center py-2 px-3">
+    <small class="text-muted">Showing {{ pagination.items|length }} of {{ pagination.total }}</small>
+    <div class="d-flex gap-1">
+      {% if pagination.has_prev %}
+      <a href="?page={{ pagination.prev_num }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+         class="btn btn-sm btn-outline-secondary py-0 px-2">‹</a>
+      {% endif %}
+      {% for p in pagination.iter_pages() %}
+        {% if p %}
+        <a href="?page={{ p }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+           class="btn btn-sm py-0 px-2 {% if p == pagination.page %}btn-primary{% else %}btn-outline-secondary{% endif %}">{{ p }}</a>
+        {% endif %}
+      {% endfor %}
+      {% if pagination.has_next %}
+      <a href="?page={{ pagination.next_num }}{% if status_filter %}&status={{ status_filter }}{% endif %}"
+         class="btn btn-sm btn-outline-secondary py-0 px-2">›</a>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
 </div>
+
 {% endblock %}
