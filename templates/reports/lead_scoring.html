@@ -71,15 +71,67 @@
   </div>
 </div>
 
-<!-- SCORING EXPLANATION -->
-<div class="alert d-flex gap-3 mb-3 no-print"
-     style="background:#FFFBEB;border:1px solid #fde68a;border-radius:12px;padding:12px 16px;font-size:12px">
-  <i class="bi bi-info-circle-fill" style="color:#d97706;font-size:18px;flex-shrink:0;margin-top:1px"></i>
-  <div style="color:#78350f;line-height:1.7">
-    <strong>How scores work:</strong>
-    Score 0–100 based on: Priority tier (P0–P3) · Status stage · Last 5 visit outcomes (weighted by recency) ·
-    Days since last visit · Follow-up compliance · Contact info completeness.
-    <strong>🔥 Hot ≥70 · ⚡ Warm ≥50 · 📋 Cool ≥30 · 🧊 Cold &lt;30</strong>
+<!-- HELP TOGGLE BUTTON -->
+<div class="d-flex justify-content-end mb-2 no-print">
+  <button onclick="document.getElementById('scoringHelp').classList.toggle('d-none')"
+          style="background:#f0f4ff;color:#1F3864;border:1px solid #c7d2fe;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+    <i class="bi bi-question-circle me-1"></i> How does AI Scoring work?
+  </button>
+</div>
+
+<!-- HELP PANEL -->
+<div id="scoringHelp" class="d-none mb-3 no-print">
+  <div style="background:linear-gradient(135deg,#1F3864,#2d4f8a);border-radius:14px;padding:20px;color:#fff">
+    <div class="d-flex align-items-center mb-3">
+      <i class="bi bi-stars me-2" style="font-size:20px;color:#f59e0b"></i>
+      <strong style="font-size:15px">How AI Lead Scoring Works</strong>
+    </div>
+
+    <!-- Step cards -->
+    <div class="row g-2 mb-3">
+      {% for icon, color, bg, title, desc in [
+        ('bi-trophy-fill',      '#f59e0b', 'rgba(245,158,11,0.15)',  'Priority Tier',        'P0 leads score highest. P1 next, P2 lower, P3 lowest. Campaign priority directly affects your score.'),
+        ('bi-graph-up-arrow',   '#34d399', 'rgba(52,211,153,0.15)',  'Pipeline Stage',       'Leads further in the funnel (Negotiation > Attempting > Assigned) get a higher base score.'),
+        ('bi-calendar-check',   '#60a5fa', 'rgba(96,165,250,0.15)',  'Visit Momentum',       'Recent visits with positive outcomes (interested, callback) boost the score. Stale leads lose points.'),
+        ('bi-person-check-fill','#f472b6', 'rgba(244,114,182,0.15)', 'Follow-up Compliance', 'Did the agent follow up on time? Missed follow-ups reduce the score.'),
+        ('bi-building',         '#a78bfa', 'rgba(167,139,250,0.15)', 'Contact & Category',   'Complete contact info and a recognized product category add bonus points.'),
+      ] %}
+      <div class="col-6 col-md" style="min-width:160px">
+        <div style="background:{{ bg }};border:1px solid {{ color }}44;border-radius:10px;padding:12px">
+          <i class="bi {{ icon }}" style="font-size:20px;color:{{ color }};margin-bottom:6px;display:block"></i>
+          <div style="font-weight:700;font-size:12px;margin-bottom:4px">{{ title }}</div>
+          <div style="font-size:11px;opacity:.85;line-height:1.5">{{ desc }}</div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+
+    <!-- Tier legend -->
+    <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px">
+      <div style="font-size:12px;font-weight:700;margin-bottom:8px;opacity:.7;text-transform:uppercase;letter-spacing:.5px">Score Tiers</div>
+      <div class="d-flex flex-wrap gap-3">
+        {% for emoji, label, range_, color in [
+          ('🔥','Hot','≥ 70','#fca5a5'),
+          ('⚡','Warm','50–69','#fde68a'),
+          ('📋','Cool','30–49','#93c5fd'),
+          ('🧊','Cold','< 30','#d1d5db'),
+        ] %}
+        <div style="display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">{{ emoji }}</span>
+          <div>
+            <div style="font-weight:700;font-size:13px;color:{{ color }}">{{ label }}</div>
+            <div style="font-size:11px;opacity:.7">Score {{ range_ }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+    <!-- ML note -->
+    <div style="margin-top:12px;font-size:11px;opacity:.65;border-top:1px solid rgba(255,255,255,0.15);padding-top:10px">
+      <i class="bi bi-cpu me-1"></i>
+      <strong>ML Mode</strong> activates after 20 live/matched leads — logistic regression then blends 70% ML + 30% rules for territory-specific predictions.
+    </div>
   </div>
 </div>
 

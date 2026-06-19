@@ -55,6 +55,50 @@
   {% endfor %}
 </div>
 
+<!-- HELP TOGGLE -->
+<div class="d-flex justify-content-end mb-2">
+  <button onclick="document.getElementById('healthHelp').classList.toggle('d-none')"
+          style="background:#f0fdf4;color:#15803d;border:1px solid #bbf7d0;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+    <i class="bi bi-question-circle me-1"></i> How does Lead Health work?
+  </button>
+</div>
+
+<!-- HELP PANEL -->
+<div id="healthHelp" class="d-none mb-3">
+  <div style="background:linear-gradient(135deg,#14532d,#15803d);border-radius:14px;padding:20px;color:#fff">
+    <div class="d-flex align-items-center mb-3">
+      <i class="bi bi-shield-check-fill me-2" style="font-size:20px;color:#86efac"></i>
+      <strong style="font-size:15px">Lead Health — What Each Tab Means</strong>
+    </div>
+    <div class="row g-2 mb-3">
+      {% for icon, color, bg, title, desc, action in [
+        ('bi-geo-alt-fill',        '#fbbf24', 'rgba(251,191,36,0.15)',  '🔁 Duplicate Addresses', 'Two or more leads share the same address — likely the same physical location uploaded twice.',          'Review both leads. Keep the better one, archive the duplicate.'),
+        ('bi-clock-history',       '#67e8f9', 'rgba(103,232,249,0.15)', '🕐 Previously Visited',  'These pool leads were already visited by a Gabay in a past campaign — they have visit history.',         'Check the visit outcome. If rejected before, skip or reassign carefully.'),
+        ('bi-building-fill',       '#fca5a5', 'rgba(252,165,165,0.15)', '🏭 Likely Warehouses',   'Addresses match known warehouse/fulfillment patterns — not individual sellers. Low conversion rate.',   'Flag as WH to remove from Gabay queue. Do not assign these.'),
+        ('bi-stars',               '#a78bfa', 'rgba(167,139,250,0.15)', '🤖 AI Inspection',       'Claude AI reviewed the lead\'s name, address and category and flagged quality issues or insights.',    'Click Run AI Inspection to scan all pending leads. Review flags before assigning.'),
+        ('bi-shield-exclamation',  '#fb923c', 'rgba(251,146,60,0.15)',  '🔒 Strict Buildings',    'Manually flagged locations where access is restricted (malls, gated compounds, office buildings).',     'Assign only experienced Gabay to strict buildings. Brief them before the visit.'),
+      ] %}
+      <div class="col-12 col-md-6">
+        <div style="background:{{ bg }};border:1px solid {{ color }}44;border-radius:10px;padding:14px;display:flex;gap:12px;align-items:flex-start">
+          <i class="bi {{ icon }}" style="font-size:22px;color:{{ color }};flex-shrink:0;margin-top:2px"></i>
+          <div>
+            <div style="font-weight:700;font-size:13px;margin-bottom:3px">{{ title }}</div>
+            <div style="font-size:11px;opacity:.85;margin-bottom:6px;line-height:1.5">{{ desc }}</div>
+            <div style="font-size:11px;background:rgba(255,255,255,0.12);border-radius:6px;padding:4px 8px;display:inline-block">
+              <i class="bi bi-arrow-right-circle me-1" style="color:{{ color }}"></i>{{ action }}
+            </div>
+          </div>
+        </div>
+      </div>
+      {% endfor %}
+    </div>
+    <div style="background:rgba(255,255,255,0.08);border-radius:10px;padding:12px;font-size:12px">
+      <i class="bi bi-lightbulb-fill me-1" style="color:#fbbf24"></i>
+      <strong>Workflow tip:</strong> Run Lead Health before every new campaign assignment. Clean your pool first — remove warehouses, merge duplicates — then assign to Gabay for best results.
+    </div>
+  </div>
+</div>
+
 <!-- NAV TABS -->
 <ul class="nav nav-tabs mb-3" id="healthTabs">
   <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#dupes">🔁 Duplicate Addresses <span class="badge bg-warning text-dark ms-1">{{ duplicate_groups|length }}</span></a></li>
