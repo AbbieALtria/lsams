@@ -15,7 +15,7 @@
     <form method="POST" action="{{ url_for('admin_health_ai_inspect') }}"
           onsubmit="return confirm('Run AI inspection on {{ ai_pending }} uninspected leads? This may take ~{{ [1, ai_pending//10]|max }} minute(s).')">
       <button class="btn btn-sm" style="background:#7c3aed;color:white">
-        <i class="bi bi-stars me-1"></i>Run AI Inspection
+        🌸 Ask Maria to Inspect
         {% if ai_pending > 0 %}<span class="badge ms-1" style="background:rgba(255,255,255,0.3)">{{ ai_pending }} pending</span>{% endif %}
       </button>
     </form>
@@ -71,7 +71,7 @@
         ('bi-geo-alt-fill',        '#fbbf24', 'rgba(251,191,36,0.15)',  '🔁 Duplicate Addresses', 'Two or more leads share the same address — likely the same physical location uploaded twice.',          'Review both leads. Keep the better one, archive the duplicate.'),
         ('bi-clock-history',       '#67e8f9', 'rgba(103,232,249,0.15)', '🕐 Previously Visited',  'These pool leads were already visited by a Gabay in a past campaign — they have visit history.',         'Check the visit outcome. If rejected before, skip or reassign carefully.'),
         ('bi-building-fill',       '#fca5a5', 'rgba(252,165,165,0.15)', '🏭 Likely Warehouses',   'Addresses match known warehouse/fulfillment patterns — not individual sellers. Low conversion rate.',   'Flag as WH to remove from Gabay queue. Do not assign these.'),
-        ('bi-stars',               '#a78bfa', 'rgba(167,139,250,0.15)', '🤖 AI Inspection',       'Claude AI reviewed the lead\'s name, address and category and flagged quality issues or insights.',    'Click Run AI Inspection to scan all pending leads. Review flags before assigning.'),
+        ('bi-stars',               '#a78bfa', 'rgba(167,139,250,0.15)', '🌸 Maria Inspection',    'Maria reviewed each lead\'s name, address and category and flagged quality issues or insights.',        'Click Ask Maria to Inspect to scan all pending leads. Review flags before assigning.'),
         ('bi-shield-exclamation',  '#fb923c', 'rgba(251,146,60,0.15)',  '🔒 Strict Buildings',    'Manually flagged locations where access is restricted (malls, gated compounds, office buildings).',     'Assign only experienced Gabay to strict buildings. Brief them before the visit.'),
       ] %}
       <div class="col-12 col-md-6">
@@ -100,7 +100,7 @@
   <li class="nav-item"><a class="nav-link active" data-bs-toggle="tab" href="#dupes">🔁 Duplicate Addresses <span class="badge bg-warning text-dark ms-1">{{ duplicate_groups|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#visited">🕐 Previously Visited <span class="badge bg-info ms-1">{{ prev_visited|length }}</span></a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#warehouses">🏭 Warehouses <span class="badge bg-danger ms-1">{{ warehouse_leads|length }}</span></a></li>
-  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ai">🤖 AI Inspection <span class="badge bg-success ms-1">{{ ai_inspected_count }}</span></a></li>
+  <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#ai">🌸 Maria Inspection <span class="badge bg-success ms-1">{{ ai_inspected_count }}</span></a></li>
   <li class="nav-item"><a class="nav-link" data-bs-toggle="tab" href="#strict">🔒 Strict Buildings <span class="badge bg-secondary ms-1">{{ manual_strict|length }}</span></a></li>
 </ul>
 
@@ -273,7 +273,7 @@
   <div class="text-center py-5">
     <i class="bi bi-stars" style="font-size:48px;color:#7c3aed"></i>
     <p class="mt-3 fw-bold" style="color:#1F3864">No leads have been AI-inspected yet.</p>
-    <p class="text-muted">Click <strong>"Run AI Inspection"</strong> above to let Claude Haiku assess all {{ pool_leads|length }} pool leads.</p>
+    <p class="text-muted">Click <strong>"Ask Maria to Inspect"</strong> above and Maria will assess all {{ pool_leads|length }} pool leads for you.</p>
     <p style="font-size:12px;color:#9ca3af">Inspects: online presence, contact quality, registration readiness, business type, red flags</p>
   </div>
   {% else %}

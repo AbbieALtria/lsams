@@ -144,12 +144,12 @@
       <div style="margin-top:16px;border-top:1px solid #f1f5f9;padding-top:14px">
         <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
           <div style="font-size:11px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:.5px">
-            🤖 AI Lead Intelligence
+            🌸 Maria Intelligence
           </div>
           <button onclick="sweepCampaign({{ c.id }}, this)"
             style="font-size:11px;font-weight:700;padding:4px 14px;border-radius:8px;
                    border:1px solid #4338ca;background:#EEF2FF;color:#4338ca;cursor:pointer">
-            ⚡ Run AI Sweep
+            ⚡ Ask Maria
           </button>
         </div>
 
@@ -170,7 +170,7 @@
               <div style="font-size:20px;font-weight:900;color:#15803d">
                 {{ intel.avg_score or '—' }}
               </div>
-              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Avg AI Score</div>
+              <div style="font-size:10px;color:#9aabc5;font-weight:700;text-transform:uppercase">Avg Maria Score</div>
             </div>
           </div>
           <div class="col-6 col-md-3">
@@ -212,9 +212,9 @@ function sweepCampaign(campaignId, btn) {
     .then(r => r.json())
     .then(d => {
       btn.textContent = `✅ ${d.queued} leads queued`;
-      setTimeout(() => { btn.disabled = false; btn.textContent = '⚡ Run AI Sweep'; }, 5000);
+      setTimeout(() => { btn.disabled = false; btn.textContent = '⚡ Ask Maria'; }, 5000);
     })
-    .catch(() => { btn.disabled = false; btn.textContent = '⚡ Run AI Sweep'; });
+    .catch(() => { btn.disabled = false; btn.textContent = '⚡ Ask Maria'; });
 }
 </script>
 {% endblock %}

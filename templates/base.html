@@ -417,7 +417,7 @@
   </a>
   {% if current_user.is_supervisor %}
   <a href="{{ url_for('admin_ml_train') }}" class="nav-link {% if request.endpoint == 'admin_ml_train' %}active{% endif %}">
-    <i class="bi bi-cpu" style="color:#7c3aed"></i> AI Scoring
+    <i class="bi bi-cpu" style="color:#7c3aed"></i> Maria · Scoring
   </a>
   <a href="{{ url_for('admin_health') }}" class="nav-link {% if request.endpoint == 'admin_health' %}active{% endif %}">
     <i class="bi bi-shield-check" style="color:#15803d"></i> Lead Health
