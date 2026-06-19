@@ -7,6 +7,10 @@
     <div class="page-title"><i class="bi bi-cpu me-2" style="color:#7c3aed"></i>AI Lead Scoring</div>
     <small class="text-muted">Logistic regression trained on your actual conversion history</small>
   </div>
+  <button onclick="document.getElementById('scoringHelp').classList.toggle('d-none')"
+          style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:8px;padding:5px 14px;font-size:12px;font-weight:600;cursor:pointer">
+    <i class="bi bi-question-circle me-1"></i> How does AI Scoring work?
+  </button>
   <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary">← Reports</a>
 </div>
 
@@ -147,14 +151,6 @@
   </div>
 </div>
 {% endif %}
-
-<!-- HOW IT WORKS HELP PANEL -->
-<div class="d-flex justify-content-end mt-3 mb-2">
-  <button onclick="document.getElementById('scoringHelp').classList.toggle('d-none')"
-          style="background:#f5f3ff;color:#7c3aed;border:1px solid #ddd6fe;border-radius:8px;padding:6px 16px;font-size:12px;font-weight:600;cursor:pointer">
-    <i class="bi bi-question-circle me-1"></i> How does AI Scoring work?
-  </button>
-</div>
 
 <div id="scoringHelp" class="d-none mb-3">
   <div style="background:linear-gradient(135deg,#1F3864,#2d4f8a);border-radius:14px;padding:20px;color:#fff">
