@@ -4564,14 +4564,58 @@ def campaign_set_priority():
     return jsonify({'ok': True, 'name': campaign.name, 'priority': campaign.priority})
 
 
-@app.route('/campaigns/manage/remove-leads/<int:campaign_id>', methods=['POST'])
+@app.route('/campaigns/manage/remove-leads/<int:campaign_id>/preview', methods=['GET'])
 @login_required
-def campaign_remove_leads(campaign_id):
-    """Soft-remove unvisited pool leads from a campaign. Leads with visits are untouched."""
+def campaign_remove_leads_preview(campaign_id):
+    """Return a breakdown of what would be removed — used by the modal before confirmation."""
     if not current_user.is_supervisor:
         return jsonify({'error': 'Access denied'}), 403
     campaign = Campaign.query.get_or_404(campaign_id)
-    # Only remove leads that have never been visited (status = pool or assigned with no visits)
+    visited_ids = {v.lead_id for v in Visit.query.with_entities(Visit.lead_id).all()}
+
+    pool_leads = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.status == 'pool',
+        ~Lead.id.in_(db.session.query(Visit.lead_id))
+    ).all()
+
+    assigned_leads = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.status == 'assigned',
+        ~Lead.id.in_(db.session.query(Visit.lead_id))
+    ).all()
+
+    # Group assigned leads by agent
+    agent_breakdown = {}
+    for lead in assigned_leads:
+        if lead.gabay_id:
+            agent = User.query.get(lead.gabay_id)
+            name = agent.full_name if agent else 'Unknown'
+            agent_breakdown[name] = agent_breakdown.get(name, 0) + 1
+
+    # Leads that have visits — will be kept
+    visited_count = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.id.in_(db.session.query(Visit.lead_id))
+    ).count()
+
+    return jsonify({
+        'campaign': campaign.name,
+        'pool': len(pool_leads),
+        'assigned': len(assigned_leads),
+        'agent_breakdown': [{'name': k, 'count': v} for k, v in agent_breakdown.items()],
+        'visited_kept': visited_count,
+        'total_removable': len(pool_leads) + len(assigned_leads),
+    })
+
+
+@app.route('/campaigns/manage/remove-leads/<int:campaign_id>', methods=['POST'])
+@login_required
+def campaign_remove_leads(campaign_id):
+    """Soft-remove unvisited leads from a campaign. Leads with visits are always kept."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign = Campaign.query.get_or_404(campaign_id)
     removable = Lead.query.filter(
         Lead.campaign_id == campaign_id,
         Lead.status.in_(['pool', 'assigned']),

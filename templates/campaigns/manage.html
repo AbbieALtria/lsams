@@ -134,49 +134,87 @@
 <div class="modal fade" id="removeLeadsModal" tabindex="-1">
   <div class="modal-dialog modal-dialog-centered">
     <div class="modal-content" style="border-radius:16px;border:none;overflow:hidden">
+
+      <!-- Header -->
       <div style="background:#b91c1c;padding:20px 24px;display:flex;align-items:center;gap:12px">
-        <div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;
-                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🗑️</div>
+        <div style="width:42px;height:42px;background:rgba(255,255,255,0.15);border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;font-size:22px;flex-shrink:0">🗑️</div>
         <div>
           <div style="font-size:16px;font-weight:800;color:white">Remove Leads</div>
-          <div style="font-size:12px;color:rgba(255,255,255,0.75)" id="removeModalSubtitle"></div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.75)" id="removeModalSubtitle">Loading…</div>
         </div>
       </div>
-      <div class="modal-body p-4">
-        <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-bottom:16px">
-          <div style="font-size:12px;font-weight:800;color:#b91c1c;margin-bottom:6px">⚠️ What will be removed</div>
-          <ul style="font-size:12px;color:#7f1d1d;margin:0;padding-left:16px;line-height:1.8">
-            <li>All <strong id="removeCount"></strong> unvisited leads from <strong id="removeCampaignName"></strong></li>
-            <li>Leads that already have visit records will <strong>NOT</strong> be removed</li>
-            <li>This action can be reviewed in the Audit Log</li>
-          </ul>
+
+      <!-- Loading state -->
+      <div id="removeLoadingState" class="modal-body text-center py-5">
+        <div class="spinner-border text-danger" style="width:2rem;height:2rem"></div>
+        <div style="font-size:13px;color:#9aabc5;margin-top:12px">Checking what can be removed…</div>
+      </div>
+
+      <!-- Loaded state -->
+      <div id="removeLoadedState" style="display:none">
+        <div class="modal-body p-4">
+
+          <!-- Breakdown cards -->
+          <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-bottom:16px">
+            <div style="background:#fff5f5;border:1.5px solid #fca5a5;border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:#b91c1c" id="previewPool">—</div>
+              <div style="font-size:10px;font-weight:700;color:#9aabc5;margin-top:2px">POOL<br>(unassigned)</div>
+            </div>
+            <div style="background:#fff7ed;border:1.5px solid #fdba74;border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:#ea580c" id="previewAssigned">—</div>
+              <div style="font-size:10px;font-weight:700;color:#9aabc5;margin-top:2px">ASSIGNED<br>(no visits yet)</div>
+            </div>
+            <div style="background:#f0fdf4;border:1.5px solid #86efac;border-radius:12px;padding:12px;text-align:center">
+              <div style="font-size:22px;font-weight:900;color:#15803d" id="previewKept">—</div>
+              <div style="font-size:10px;font-weight:700;color:#9aabc5;margin-top:2px">KEPT<br>(has visits)</div>
+            </div>
+          </div>
+
+          <!-- Agent impact (only shown if assigned > 0) -->
+          <div id="agentImpactSection" style="display:none;margin-bottom:16px">
+            <div style="font-size:12px;font-weight:800;color:#ea580c;margin-bottom:8px">
+              ⚠️ These agents will lose assigned leads from their queue:
+            </div>
+            <div id="agentImpactList" style="display:flex;flex-direction:column;gap:5px"></div>
+          </div>
+
+          <!-- Kept leads note (only shown if visited_kept > 0) -->
+          <div id="keptLeadsNote" style="display:none;background:#f0fdf4;border:1px solid #86efac;
+               border-radius:10px;padding:10px 14px;font-size:12px;color:#166534;margin-bottom:16px">
+            <strong>✅ Visit history is fully preserved.</strong><br>
+            <span id="keptLeadsText"></span> leads with existing visits will <strong>not</strong> be removed —
+            their visit records and history remain intact in the system.
+          </div>
+
+          <!-- Separator -->
+          <div style="border-top:1px solid #f1f5f9;margin-bottom:16px"></div>
+
+          <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">
+            Type <strong id="removeConfirmLabel"></strong> to confirm:
+          </label>
+          <input type="text" id="removeConfirmInput" class="form-control"
+                 placeholder="" autocomplete="off"
+                 style="border:2px solid #e2e8f0;border-radius:8px;font-size:13px;padding:10px 12px">
+          <div id="removeConfirmError" style="font-size:11px;color:#b91c1c;margin-top:5px;display:none">
+            Campaign name doesn't match. Please try again.
+          </div>
         </div>
-        <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#374151">
-          <strong>Why remove leads?</strong><br>
-          Use this when leads were uploaded by mistake, are duplicates, or belong to the wrong campaign. Removed leads are kept in the system for audit purposes but will no longer appear in agent queues.
-        </div>
-        <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">
-          Type the campaign name to confirm:
-        </label>
-        <input type="text" id="removeConfirmInput" class="form-control"
-               placeholder="" autocomplete="off"
-               style="border:2px solid #e2e8f0;border-radius:8px;font-size:13px;padding:10px 12px">
-        <div id="removeConfirmError" style="font-size:11px;color:#b91c1c;margin-top:5px;display:none">
-          Campaign name doesn't match. Please try again.
+
+        <div class="modal-footer" style="border-top:1px solid #f1f5f9;padding:12px 20px;gap:8px">
+          <button type="button" class="btn" data-bs-dismiss="modal"
+                  style="background:#f1f5f9;color:#374151;font-weight:700;border-radius:8px;padding:8px 18px">
+            Cancel
+          </button>
+          <button type="button" id="confirmRemoveBtn"
+                  style="background:#b91c1c;color:white;border:none;border-radius:8px;
+                         padding:8px 20px;font-weight:800;font-size:13px;cursor:pointer;opacity:0.4"
+                  disabled>
+            <i class="bi bi-trash3 me-1"></i>Remove <span id="removeBtnCount"></span> Leads
+          </button>
         </div>
       </div>
-      <div class="modal-footer" style="border-top:1px solid #f1f5f9;padding:12px 20px;gap:8px">
-        <button type="button" class="btn" data-bs-dismiss="modal"
-                style="background:#f1f5f9;color:#374151;font-weight:700;border-radius:8px;padding:8px 18px">
-          Cancel
-        </button>
-        <button type="button" id="confirmRemoveBtn"
-                style="background:#b91c1c;color:white;border:none;border-radius:8px;
-                       padding:8px 20px;font-weight:800;font-size:13px;cursor:pointer;opacity:0.4"
-                disabled>
-          <i class="bi bi-trash3 me-1"></i>Remove <span id="removeBtnCount"></span> Leads
-        </button>
-      </div>
+
     </div>
   </div>
 </div>
@@ -255,19 +293,66 @@ const removeModal = new bootstrap.Modal(document.getElementById('removeLeadsModa
 
 document.querySelectorAll('.remove-leads-btn').forEach(btn => {
   btn.addEventListener('click', function() {
-    removeTarget = { id: this.dataset.id, name: this.dataset.name, count: this.dataset.count };
-    document.getElementById('removeModalSubtitle').textContent = removeTarget.name;
-    document.getElementById('removeCount').textContent = removeTarget.count;
-    document.getElementById('removeCampaignName').textContent = removeTarget.name;
-    document.getElementById('removeBtnCount').textContent = removeTarget.count;
+    removeTarget = { id: this.dataset.id, name: this.dataset.name };
+
+    // Reset modal to loading state
+    document.getElementById('removeModalSubtitle').textContent = this.dataset.name;
+    document.getElementById('removeLoadingState').style.display = 'block';
+    document.getElementById('removeLoadedState').style.display = 'none';
     document.getElementById('removeConfirmInput').value = '';
-    document.getElementById('removeConfirmInput').placeholder = removeTarget.name;
     document.getElementById('removeConfirmError').style.display = 'none';
-    const btn = document.getElementById('confirmRemoveBtn');
-    btn.disabled = true;
-    btn.style.opacity = '0.4';
+    const confirmBtn = document.getElementById('confirmRemoveBtn');
+    confirmBtn.disabled = true;
+    confirmBtn.style.opacity = '0.4';
+
     removeModal.show();
-    setTimeout(() => document.getElementById('removeConfirmInput').focus(), 400);
+
+    // Fetch preview
+    fetch(`/campaigns/manage/remove-leads/${removeTarget.id}/preview`)
+      .then(r => r.json())
+      .then(d => {
+        removeTarget.totalRemovable = d.total_removable;
+
+        document.getElementById('previewPool').textContent = d.pool;
+        document.getElementById('previewAssigned').textContent = d.assigned;
+        document.getElementById('previewKept').textContent = d.visited_kept;
+        document.getElementById('removeBtnCount').textContent = d.total_removable;
+        document.getElementById('removeConfirmLabel').textContent = d.campaign;
+        document.getElementById('removeConfirmInput').placeholder = `Type "${d.campaign}" to confirm`;
+
+        // Agent impact
+        const agentSection = document.getElementById('agentImpactSection');
+        const agentList = document.getElementById('agentImpactList');
+        if (d.assigned > 0 && d.agent_breakdown.length > 0) {
+          agentList.innerHTML = d.agent_breakdown.map(a =>
+            `<div style="display:flex;align-items:center;justify-content:space-between;
+                         background:#fff7ed;border:1px solid #fdba74;border-radius:8px;
+                         padding:7px 12px;font-size:12px">
+               <span style="color:#92400e;font-weight:700">👤 ${a.name}</span>
+               <span style="background:#ea580c;color:white;border-radius:6px;
+                            padding:2px 8px;font-weight:800;font-size:11px">
+                 −${a.count} leads
+               </span>
+             </div>`
+          ).join('');
+          agentSection.style.display = 'block';
+        } else {
+          agentSection.style.display = 'none';
+        }
+
+        // Kept leads note
+        const keptNote = document.getElementById('keptLeadsNote');
+        if (d.visited_kept > 0) {
+          document.getElementById('keptLeadsText').textContent = d.visited_kept;
+          keptNote.style.display = 'block';
+        } else {
+          keptNote.style.display = 'none';
+        }
+
+        document.getElementById('removeLoadingState').style.display = 'none';
+        document.getElementById('removeLoadedState').style.display = 'block';
+        setTimeout(() => document.getElementById('removeConfirmInput').focus(), 100);
+      });
   });
 });
 
@@ -294,10 +379,9 @@ document.getElementById('confirmRemoveBtn').addEventListener('click', function()
       if (d.ok) {
         const row = document.getElementById(`row-${removeTarget.id}`);
         if (row) {
-          const unvisitedCell = row.querySelectorAll('td')[5];
-          if (unvisitedCell) unvisitedCell.textContent = '0';
-          const totalCell = row.querySelectorAll('td')[2];
-          if (totalCell) totalCell.textContent = parseInt(totalCell.textContent) - d.removed;
+          const cells = row.querySelectorAll('td');
+          if (cells[2]) cells[2].textContent = parseInt(cells[2].textContent) - d.removed;
+          if (cells[5]) cells[5].textContent = '0';
           const removeBtn = row.querySelector('.remove-leads-btn');
           if (removeBtn) removeBtn.remove();
         }
@@ -307,7 +391,7 @@ document.getElementById('confirmRemoveBtn').addEventListener('click', function()
     }).catch(() => {
       showToast('❌ Error removing leads. Please try again.');
       this.disabled = false;
-      this.innerHTML = `<i class="bi bi-trash3 me-1"></i>Remove ${removeTarget?.count} Leads`;
+      this.innerHTML = `<i class="bi bi-trash3 me-1"></i>Remove ${removeTarget?.totalRemovable} Leads`;
     });
 });
 
