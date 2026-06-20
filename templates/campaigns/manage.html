@@ -90,6 +90,16 @@
                 style="background:{% if c.status == 'active' %}#FEF2F2;color:#b91c1c{% else %}#F0FDF4;color:#15803d{% endif %};font-size:11px">
                 {% if c.status == 'active' %}Archive{% else %}Restore{% endif %}
               </button>
+              {% if current_user.is_supervisor and m.unvisited > 0 %}
+              <button class="btn btn-sm remove-leads-btn"
+                data-id="{{ c.id }}"
+                data-name="{{ c.name }}"
+                data-count="{{ m.unvisited }}"
+                style="background:#fff0f0;color:#b91c1c;border:1px solid #fca5a5;font-size:11px;font-weight:700"
+                title="Remove unvisited leads from this campaign">
+                <i class="bi bi-trash3 me-1"></i>Remove
+              </button>
+              {% endif %}
             </div>
           </td>
         </tr>
@@ -115,6 +125,57 @@
         <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-dismiss="modal">Cancel</button>
         <button type="button" class="btn btn-sm fw-bold" id="confirmSaveBtn"
           style="background:#1F3864;color:white">Confirm Save</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Remove Leads Modal -->
+<div class="modal fade" id="removeLeadsModal" tabindex="-1">
+  <div class="modal-dialog modal-dialog-centered">
+    <div class="modal-content" style="border-radius:16px;border:none;overflow:hidden">
+      <div style="background:#b91c1c;padding:20px 24px;display:flex;align-items:center;gap:12px">
+        <div style="width:40px;height:40px;background:rgba(255,255,255,0.15);border-radius:10px;
+                    display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0">🗑️</div>
+        <div>
+          <div style="font-size:16px;font-weight:800;color:white">Remove Leads</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.75)" id="removeModalSubtitle"></div>
+        </div>
+      </div>
+      <div class="modal-body p-4">
+        <div style="background:#fff5f5;border:1px solid #fca5a5;border-radius:12px;padding:14px 16px;margin-bottom:16px">
+          <div style="font-size:12px;font-weight:800;color:#b91c1c;margin-bottom:6px">⚠️ What will be removed</div>
+          <ul style="font-size:12px;color:#7f1d1d;margin:0;padding-left:16px;line-height:1.8">
+            <li>All <strong id="removeCount"></strong> unvisited leads from <strong id="removeCampaignName"></strong></li>
+            <li>Leads that already have visit records will <strong>NOT</strong> be removed</li>
+            <li>This action can be reviewed in the Audit Log</li>
+          </ul>
+        </div>
+        <div style="background:#f8fafc;border-radius:10px;padding:12px 14px;margin-bottom:16px;font-size:12px;color:#374151">
+          <strong>Why remove leads?</strong><br>
+          Use this when leads were uploaded by mistake, are duplicates, or belong to the wrong campaign. Removed leads are kept in the system for audit purposes but will no longer appear in agent queues.
+        </div>
+        <label style="font-size:12px;font-weight:700;color:#374151;display:block;margin-bottom:6px">
+          Type the campaign name to confirm:
+        </label>
+        <input type="text" id="removeConfirmInput" class="form-control"
+               placeholder="" autocomplete="off"
+               style="border:2px solid #e2e8f0;border-radius:8px;font-size:13px;padding:10px 12px">
+        <div id="removeConfirmError" style="font-size:11px;color:#b91c1c;margin-top:5px;display:none">
+          Campaign name doesn't match. Please try again.
+        </div>
+      </div>
+      <div class="modal-footer" style="border-top:1px solid #f1f5f9;padding:12px 20px;gap:8px">
+        <button type="button" class="btn" data-bs-dismiss="modal"
+                style="background:#f1f5f9;color:#374151;font-weight:700;border-radius:8px;padding:8px 18px">
+          Cancel
+        </button>
+        <button type="button" id="confirmRemoveBtn"
+                style="background:#b91c1c;color:white;border:none;border-radius:8px;
+                       padding:8px 20px;font-weight:800;font-size:13px;cursor:pointer;opacity:0.4"
+                disabled>
+          <i class="bi bi-trash3 me-1"></i>Remove <span id="removeBtnCount"></span> Leads
+        </button>
       </div>
     </div>
   </div>
@@ -186,6 +247,68 @@ document.querySelectorAll('.archive-btn').forEach(btn => {
         }
       });
   });
+});
+
+// Remove Leads
+let removeTarget = null;
+const removeModal = new bootstrap.Modal(document.getElementById('removeLeadsModal'));
+
+document.querySelectorAll('.remove-leads-btn').forEach(btn => {
+  btn.addEventListener('click', function() {
+    removeTarget = { id: this.dataset.id, name: this.dataset.name, count: this.dataset.count };
+    document.getElementById('removeModalSubtitle').textContent = removeTarget.name;
+    document.getElementById('removeCount').textContent = removeTarget.count;
+    document.getElementById('removeCampaignName').textContent = removeTarget.name;
+    document.getElementById('removeBtnCount').textContent = removeTarget.count;
+    document.getElementById('removeConfirmInput').value = '';
+    document.getElementById('removeConfirmInput').placeholder = removeTarget.name;
+    document.getElementById('removeConfirmError').style.display = 'none';
+    const btn = document.getElementById('confirmRemoveBtn');
+    btn.disabled = true;
+    btn.style.opacity = '0.4';
+    removeModal.show();
+    setTimeout(() => document.getElementById('removeConfirmInput').focus(), 400);
+  });
+});
+
+document.getElementById('removeConfirmInput').addEventListener('input', function() {
+  const match = this.value.trim() === removeTarget?.name;
+  const btn = document.getElementById('confirmRemoveBtn');
+  btn.disabled = !match;
+  btn.style.opacity = match ? '1' : '0.4';
+  document.getElementById('removeConfirmError').style.display = 'none';
+});
+
+document.getElementById('confirmRemoveBtn').addEventListener('click', function() {
+  if (!removeTarget) return;
+  const typed = document.getElementById('removeConfirmInput').value.trim();
+  if (typed !== removeTarget.name) {
+    document.getElementById('removeConfirmError').style.display = 'block';
+    return;
+  }
+  this.disabled = true;
+  this.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Removing…';
+  fetch(`/campaigns/manage/remove-leads/${removeTarget.id}`, { method: 'POST' })
+    .then(r => r.json()).then(d => {
+      removeModal.hide();
+      if (d.ok) {
+        const row = document.getElementById(`row-${removeTarget.id}`);
+        if (row) {
+          const unvisitedCell = row.querySelectorAll('td')[5];
+          if (unvisitedCell) unvisitedCell.textContent = '0';
+          const totalCell = row.querySelectorAll('td')[2];
+          if (totalCell) totalCell.textContent = parseInt(totalCell.textContent) - d.removed;
+          const removeBtn = row.querySelector('.remove-leads-btn');
+          if (removeBtn) removeBtn.remove();
+        }
+        showToast(`✅ ${d.removed} leads removed from "${d.campaign}"`);
+      }
+      removeTarget = null;
+    }).catch(() => {
+      showToast('❌ Error removing leads. Please try again.');
+      this.disabled = false;
+      this.innerHTML = `<i class="bi bi-trash3 me-1"></i>Remove ${removeTarget?.count} Leads`;
+    });
 });
 
 function showToast(msg) {

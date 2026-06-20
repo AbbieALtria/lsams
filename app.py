@@ -4564,6 +4564,27 @@ def campaign_set_priority():
     return jsonify({'ok': True, 'name': campaign.name, 'priority': campaign.priority})
 
 
+@app.route('/campaigns/manage/remove-leads/<int:campaign_id>', methods=['POST'])
+@login_required
+def campaign_remove_leads(campaign_id):
+    """Soft-remove unvisited pool leads from a campaign. Leads with visits are untouched."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign = Campaign.query.get_or_404(campaign_id)
+    # Only remove leads that have never been visited (status = pool or assigned with no visits)
+    removable = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.status.in_(['pool', 'assigned']),
+        ~Lead.id.in_(db.session.query(Visit.lead_id))
+    ).all()
+    count = len(removable)
+    for lead in removable:
+        lead.status = 'removed'
+        lead.gabay_id = None
+    db.session.commit()
+    return jsonify({'ok': True, 'removed': count, 'campaign': campaign.name})
+
+
 @app.route('/campaigns/manage/archive/<int:campaign_id>', methods=['POST'])
 @login_required
 def campaign_archive(campaign_id):
