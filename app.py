@@ -4896,7 +4896,8 @@ def campaign_overlap_report():
                     'status_b': match.status,
                     'visit_count': visit_count,
                     'visited': visit_count > 0,
-                    'lead_id_b': match.id,
+                    'lead_id_a': la.id,      # Wave 2 lead ID
+                    'lead_id_b': match.id,   # Legacy lead ID
                     'gabay': match.assigned_gabay.full_name if match.assigned_gabay else '—'
                 })
 
@@ -4911,13 +4912,12 @@ def campaign_overlap_report():
             'rows': overlap
         }
 
-    # Sync: copy gabay + status from camp_b (source) → camp_a (destination)
+    # Sync: copy gabay + status from camp_b (Legacy) → camp_a (Wave 2) using stored lead IDs
     if request.args.get('sync') == '1' and results and camp_a_id and camp_b_id:
         synced = 0
         for r in results['rows']:
-            # Get both leads fresh
-            dest_lead = Lead.query.filter_by(campaign_id=camp_a_id, contact_number=r['phone']).first() if r['phone'] != '—' else None
-            src_lead  = Lead.query.filter_by(campaign_id=camp_b_id, contact_number=r['phone']).first() if r['phone'] != '—' else None
+            dest_lead = Lead.query.get(r['lead_id_a'])  # Wave 2 lead (direct by ID)
+            src_lead  = Lead.query.get(r['lead_id_b'])  # Legacy lead (direct by ID)
             if dest_lead and src_lead:
                 if src_lead.gabay_id:
                     dest_lead.gabay_id    = src_lead.gabay_id
