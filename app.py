@@ -973,6 +973,31 @@ def import_update_confirm():
 
         db.session.commit()
 
+        # Notify all managers about skipped duplicates (sellers already visited)
+        skipped_items = [r for r in file_data if r.get('action') == 'duplicate' and duplicate_action == 'skip']
+        if skipped_items:
+            camp_name = campaign.name if campaign else 'Unknown Campaign'
+            dup_lines = '\n'.join(
+                f"• {r['seller']} ({r.get('phone','—')}) — {r.get('visit_count',0)} visit(s), currently in {r.get('current_campaign','—')}"
+                for r in skipped_items[:20]
+            )
+            if len(skipped_items) > 20:
+                dup_lines += f'\n…and {len(skipped_items)-20} more'
+            notif_msg = (
+                f"{len(skipped_items)} seller(s) from your upload were already visited in the system "
+                f"and were NOT imported to {camp_name}.\n\n{dup_lines}"
+            )
+            managers = User.query.filter(User.role.in_(['manager', 'supervisor']), User.is_active == True).all()
+            for mgr in managers:
+                db.session.add(Notification(
+                    user_id=mgr.id,
+                    type='import_duplicates',
+                    title=f'⚠️ {len(skipped_items)} Duplicate(s) Skipped — {camp_name}',
+                    message=notif_msg,
+                    link='/leads/import'
+                ))
+            db.session.commit()
+
         # Background enrich any new leads
         new_db_leads = Lead.query.filter_by(campaign_id=campaign_id, status='pool').filter(
             ~Lead.id.in_(db.session.query(LeadIntelligence.lead_id))
@@ -984,7 +1009,8 @@ def import_update_confirm():
             'created': created,
             'updated': updated,
             'reassigned': reassigned,
-            'skipped': skipped
+            'skipped': skipped,
+            'dup_notif_sent': len(skipped_items) if skipped_items else 0
         })
     except Exception as e:
         db.session.rollback()

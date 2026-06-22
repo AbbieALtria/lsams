@@ -445,7 +445,11 @@ async function confirmUpdate() {
     if (result.error) { alert('Error: ' + result.error); btn.disabled = false; btn.innerHTML = 'Confirm & Apply Changes'; return; }
 
     bootstrap.Modal.getInstance(document.getElementById('updatePreviewModal')).hide();
-    alert(`✅ Done!\n\nCreated: ${result.created} new leads\nUpdated: ${result.updated} existing leads\nReassigned: ${result.reassigned} duplicates\nSkipped: ${result.skipped} duplicates`);
+    let msg = `✅ Done!\n\nCreated: ${result.created} new leads\nUpdated: ${result.updated} existing leads\nReassigned: ${result.reassigned} duplicates\nSkipped: ${result.skipped} duplicates`;
+    if (result.dup_notif_sent > 0) {
+      msg += `\n\n⚠️ ${result.dup_notif_sent} skipped duplicate(s) saved to your Notifications — check the bell icon.`;
+    }
+    alert(msg);
     window.location.href = '/leads';
   } catch(e) {
     alert('Network error: ' + e.message);
