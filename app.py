@@ -4806,7 +4806,27 @@ def campaign_manage():
     campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     for c in campaigns:
         c._metrics = c.metrics()
-    return render_template('campaigns/manage.html', campaigns=campaigns)
+    unassigned_count = Lead.query.filter(
+        Lead.campaign_id.is_(None), Lead.status != 'removed'
+    ).count()
+    return render_template('campaigns/manage.html', campaigns=campaigns, unassigned_count=unassigned_count)
+
+
+@app.route('/campaigns/manage/bulk-assign', methods=['POST'])
+@login_required
+def campaign_bulk_assign():
+    """Assign all campaign-less leads to a selected campaign."""
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign_id = request.json.get('campaign_id')
+    if not campaign_id:
+        return jsonify({'error': 'No campaign selected'}), 400
+    campaign = Campaign.query.get_or_404(campaign_id)
+    updated = Lead.query.filter(
+        Lead.campaign_id.is_(None), Lead.status != 'removed'
+    ).update({'campaign_id': campaign_id}, synchronize_session=False)
+    db.session.commit()
+    return jsonify({'updated': updated, 'campaign': campaign.name})
 
 
 @app.route('/campaigns/manage/set-priority', methods=['POST'])
