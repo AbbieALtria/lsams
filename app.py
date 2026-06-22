@@ -2441,12 +2441,17 @@ def report_registrations_status():
     if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
-    regs = Registration.query.order_by(Registration.submitted_at.desc()).all()
+    campaign_id = request.args.get('campaign_id', type=int)
+    regs_q = Registration.query
+    if campaign_id:
+        regs_q = regs_q.join(Lead, Registration.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
+    regs = regs_q.order_by(Registration.submitted_at.desc()).all()
     for r in regs:
         r._lead = Lead.query.get(r.lead_id) if r.lead_id else None
         r._gabay = User.query.get(r._lead.gabay_id) if r._lead and r._lead.gabay_id else None
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/registrations_status.html',
-        regs=regs, now=datetime.utcnow())
+        regs=regs, now=datetime.utcnow(), campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/reports/campaign-roi')
@@ -2477,8 +2482,11 @@ def report_lead_scoring():
     gabay_filter = request.args.get('gabay', type=int)
     tier_filter  = request.args.get('tier', '')
     status_filter = request.args.get('status', '')
+    campaign_id = request.args.get('campaign_id', type=int)
 
     q = Lead.query.filter(Lead.status.notin_(['pool', 'live', 'matched', 'closed']))
+    if campaign_id:
+        q = q.filter(Lead.campaign_id == campaign_id)
     if gabay_filter:
         q = q.filter_by(gabay_id=gabay_filter)
     if status_filter:
@@ -2498,10 +2506,12 @@ def report_lead_scoring():
     for l in leads:
         tier_counts[l.conversion_tier[0]] += 1
 
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/lead_scoring.html',
         leads=scored, gabay_users=gabay_users,
         gabay_filter=gabay_filter, tier_filter=tier_filter,
         status_filter=status_filter, tier_counts=tier_counts,
+        campaigns=campaigns, campaign_id=campaign_id,
         now=datetime.utcnow())
 
 
@@ -2511,14 +2521,20 @@ def report_gabay_pipeline():
     if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
+    campaign_id = request.args.get('campaign_id', type=int)
     gabay_users = User.query.filter_by(role='gabay').order_by(User.full_name).all()
     report_rows = []
     for g in gabay_users:
-        total   = Lead.query.filter_by(gabay_id=g.id).count()
-        visits  = Visit.query.filter_by(gabay_id=g.id).count()
+        def lq(**kwargs):
+            q = Lead.query.filter_by(gabay_id=g.id, **kwargs)
+            if campaign_id:
+                q = q.filter(Lead.campaign_id == campaign_id)
+            return q
+        total  = lq().count()
+        visits = Visit.query.filter_by(gabay_id=g.id).count()
         by_status = {}
         for s in ('assigned','attempting','negotiation','registration','live','matched','closed'):
-            by_status[s] = Lead.query.filter_by(gabay_id=g.id, status=s).count()
+            by_status[s] = lq(status=s).count()
         advanced = by_status['negotiation'] + by_status['registration'] + by_status['live'] + by_status['matched']
         last_visit = Visit.query.filter_by(gabay_id=g.id).order_by(Visit.visited_at.desc()).first()
         report_rows.append({
@@ -2531,10 +2547,12 @@ def report_gabay_pipeline():
             'last_visit': last_visit.visited_at if last_visit else None,
         })
     report_rows.sort(key=lambda r: r['visits'], reverse=True)
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/gabay_pipeline.html',
         rows=report_rows, now=datetime.utcnow(),
-        total_leads=Lead.query.count(),
-        total_visits=Visit.query.count())
+        total_leads=Lead.query.filter(Lead.campaign_id == campaign_id).count() if campaign_id else Lead.query.count(),
+        total_visits=Visit.query.count(),
+        campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/api/reports/kpi')
@@ -2895,16 +2913,16 @@ def report_hot_prospects():
 
     gabay_filter = request.args.get('gabay_id', '', type=str)
     project_filter = request.args.get('project', '')
+    campaign_id = request.args.get('campaign_id', type=int)
     today = date.today()
     week_start = today - _dt.timedelta(days=today.weekday())
 
     # Hot prospects = leads showing positive re-engagement signals
-    # Criteria: last visit outcome in (interested, callback, follow_up)
-    #           OR follow_up_date due within 7 days
-    #           AND status NOT live/matched/closed
     active_statuses = ['assigned', 'attempting', 'negotiation', 'registration']
 
     q = Lead.query.filter(Lead.status.in_(active_statuses))
+    if campaign_id:
+        q = q.filter(Lead.campaign_id == campaign_id)
     if gabay_filter:
         q = q.filter(Lead.gabay_id == int(gabay_filter))
     if project_filter:
@@ -2970,6 +2988,7 @@ def report_hot_prospects():
 
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
 
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/hot_prospects.html',
         hot_prospects=hot_prospects,
         visits_this_week=visits_this_week,
@@ -2979,6 +2998,7 @@ def report_hot_prospects():
         gabays=gabays,
         gabay_filter=gabay_filter,
         project_filter=project_filter,
+        campaigns=campaigns, campaign_id=campaign_id,
     )
 
 
