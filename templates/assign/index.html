@@ -240,8 +240,16 @@
             <option value="{{ c }}" {% if city_filter == c %}selected{% endif %}>{{ c }}</option>
             {% endfor %}
           </select>
+          {% if campaigns %}
+          <select name="campaign_id" class="form-select form-select-sm" style="max-width:180px">
+            <option value="">All Active Campaigns</option>
+            {% for c in campaigns %}
+            <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+            {% endfor %}
+          </select>
+          {% endif %}
           <button type="submit" class="btn btn-sm btn-primary">Filter</button>
-          {% if search or city_filter %}<a href="{{ url_for('assign_center') }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
+          {% if search or city_filter or campaign_id %}<a href="{{ url_for('assign_center') }}" class="btn btn-sm btn-outline-secondary">Clear</a>{% endif %}
         </form>
       </div>
 

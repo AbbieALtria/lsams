@@ -33,7 +33,16 @@
         </select>
       </div>
       <div class="col-sm-4">
-        <button type="submit" class="btn btn-sm btn-outline-primary w-100">
+        <label class="form-label fw-bold mb-1" style="font-size:12px">Campaign</label>
+        <select name="campaign_id" class="form-select form-select-sm" onchange="this.form.submit()">
+          <option value="">All Campaigns</option>
+          {% for c in campaigns %}
+          <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-sm-12 col-md-auto">
+        <button type="submit" class="btn btn-sm btn-outline-primary">
           <i class="bi bi-funnel me-1"></i>Apply Filter
         </button>
       </div>

@@ -7,7 +7,18 @@
     <div class="page-title"><i class="bi bi-funnel-fill me-2"></i>Lead Pipeline Report</div>
     <div style="color:#9aabc5;font-size:12px">Funnel breakdown by status and city</div>
   </div>
-  <div class="d-flex gap-2">
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    {% if campaigns %}
+    <form method="get" class="d-flex gap-2 align-items-center mb-0">
+      <select name="campaign_id" class="form-select form-select-sm" style="font-size:13px;min-width:180px;border-radius:8px" onchange="this.form.submit()">
+        <option value="">All Campaigns</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+        {% endfor %}
+      </select>
+      {% if campaign_id %}<a href="{{ url_for('report_pipeline_detail') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>{% endif %}
+    </form>
+    {% endif %}
     <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
     <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
       <i class="bi bi-file-pdf me-1"></i>Download PDF

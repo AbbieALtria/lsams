@@ -1,8 +1,19 @@
 ﻿{% extends "base.html" %}
 {% block title %}Visits{% endblock %}
 {% block content %}
-<div class="page-header">
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
   <div class="page-title"><i class="bi bi-geo-alt me-2"></i>Visit Log</div>
+  {% if current_user.is_supervisor and campaigns %}
+  <form method="get" class="d-flex gap-2 align-items-center mb-0">
+    <select name="campaign_id" class="form-select form-select-sm" style="font-size:13px;min-width:200px;border-radius:8px" onchange="this.form.submit()">
+      <option value="">All Campaigns</option>
+      {% for c in campaigns %}
+      <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+      {% endfor %}
+    </select>
+    {% if campaign_id %}<a href="{{ url_for('visits') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>{% endif %}
+  </form>
+  {% endif %}
 </div>
 <div class="card">
   <div class="card-header d-flex align-items-center justify-content-between">

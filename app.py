@@ -598,11 +598,14 @@ def leads():
     status_filter = request.args.get('status', '')
     gabay_filter = request.args.get('gabay', '', type=str)
     search = request.args.get('q', '')
+    campaign_id = request.args.get('campaign_id', type=int)
     per_page = 20
 
     query = Lead.query
     if current_user.role == 'gabay':
         query = query.filter_by(gabay_id=current_user.id)
+    if campaign_id:
+        query = query.filter(Lead.campaign_id == campaign_id)
     if status_filter:
         query = query.filter_by(status=status_filter)
     if gabay_filter:
@@ -617,9 +620,13 @@ def leads():
 
     pagination = query.order_by(Lead.imported_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
     gabay_users = User.query.filter_by(role='gabay', is_active=True).all()
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    selected_campaign = Campaign.query.get(campaign_id) if campaign_id else None
     return render_template('leads/list.html', pagination=pagination,
                            status_filter=status_filter, gabay_filter=gabay_filter,
-                           search=search, gabay_users=gabay_users)
+                           search=search, gabay_users=gabay_users,
+                           campaigns=campaigns, campaign_id=campaign_id,
+                           selected_campaign=selected_campaign)
 
 
 @app.route('/leads/radar')
@@ -631,8 +638,11 @@ def leads_radar():
 
     city_filter = request.args.get('city', '').strip().lower()
     priority_filter = request.args.get('priority', '').strip()
+    campaign_id = request.args.get('campaign_id', type=int)
 
     pool_q = Lead.query.filter(Lead.status == 'pool', Lead.gabay_id.is_(None))
+    if campaign_id:
+        pool_q = pool_q.filter(Lead.campaign_id == campaign_id)
     if city_filter:
         pool_q = pool_q.filter(func.lower(Lead.city) == city_filter)
     if priority_filter:
@@ -648,6 +658,7 @@ def leads_radar():
     cities = [r[0] for r in city_rows]
 
     gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
 
     return render_template('leads/radar.html',
         pool_leads=pool_leads,
@@ -656,6 +667,7 @@ def leads_radar():
         city_filter=city_filter,
         priority_filter=priority_filter,
         total_pool=Lead.query.filter(Lead.status == 'pool', Lead.gabay_id.is_(None)).count(),
+        campaigns=campaigns, campaign_id=campaign_id,
     )
 
 
@@ -1131,11 +1143,16 @@ def update_lead_status(lead_id):
 @login_required
 def visits():
     page = request.args.get('page', 1, type=int)
+    campaign_id = request.args.get('campaign_id', type=int)
     query = Visit.query
     if current_user.role == 'gabay':
         query = query.filter_by(gabay_id=current_user.id)
+    if campaign_id:
+        query = query.join(Lead, Visit.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
     pagination = query.order_by(Visit.visited_at.desc()).paginate(page=page, per_page=20, error_out=False)
-    return render_template('visits/list.html', pagination=pagination)
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    return render_template('visits/list.html', pagination=pagination,
+                           campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/visits/backfill', methods=['GET', 'POST'])
@@ -1289,6 +1306,7 @@ def gabay_new_lead():
             flash('Shop name is required.', 'danger')
             return redirect(url_for('gabay_new_lead'))
 
+        p1 = _priority1_campaign()
         lead = Lead(
             seller_name    = seller_name,
             contact_number = request.form.get('contact_number') or None,
@@ -1301,6 +1319,7 @@ def gabay_new_lead():
             link           = request.form.get('social_media') or None,
             status         = 'assigned',
             gabay_id       = current_user.id,
+            campaign_id    = p1.id if p1 else None,
             assigned_at    = datetime.utcnow(),
             imported_at    = datetime.utcnow(),
         )
@@ -1391,15 +1410,19 @@ def gabay_plan_route():
 
     gid = current_user.id
     maps_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
+    p1 = _priority1_campaign()
 
-    # Fetch today's unvisited / priority leads that have an address
+    # Fetch today's unvisited / priority leads that have an address (priority1 campaign only)
     from datetime import date as _date
-    active_leads = Lead.query.filter(
+    route_q = Lead.query.filter(
         Lead.gabay_id == gid,
         Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration']),
         Lead.address != None,
         Lead.address != ''
-    ).all()
+    )
+    if p1:
+        route_q = route_q.filter(Lead.campaign_id == p1.id)
+    active_leads = route_q.all()
 
     if not active_leads:
         return render_template('gabay_app/route.html',
@@ -1522,13 +1545,18 @@ def new_visit(lead_id):
 def registrations():
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', '')
-    query = Registration.query
+    campaign_id = request.args.get('campaign_id', type=int)
+    query = Registration.query.join(Lead)
     if current_user.role == 'gabay':
-        query = query.join(Lead).filter(Lead.gabay_id == current_user.id)
+        query = query.filter(Lead.gabay_id == current_user.id)
+    if campaign_id:
+        query = query.filter(Lead.campaign_id == campaign_id)
     if status_filter:
-        query = query.filter_by(status=status_filter)
+        query = query.filter(Registration.status == status_filter)
     pagination = query.order_by(Registration.created_at.desc()).paginate(page=page, per_page=20, error_out=False)
-    return render_template('registrations/list.html', pagination=pagination, status_filter=status_filter)
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    return render_template('registrations/list.html', pagination=pagination,
+                           status_filter=status_filter, campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/registrations/new/<int:lead_id>', methods=['GET', 'POST'])
@@ -1714,8 +1742,11 @@ def assign_center():
     city_filter = request.args.get('city', '')
 
     # Only show pool leads from ACTIVE campaigns (exclude archived/legacy)
+    campaign_id = request.args.get('campaign_id', type=int)
     active_campaign_ids = [c.id for c in Campaign.query.filter_by(status='active').all()]
     query = Lead.query.filter(Lead.status == 'pool', Lead.campaign_id.in_(active_campaign_ids))
+    if campaign_id:
+        query = query.filter(Lead.campaign_id == campaign_id)
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
@@ -1725,8 +1756,14 @@ def assign_center():
     if city_filter:
         query = query.filter_by(city=city_filter)
 
-    pagination = query.order_by(Lead.imported_at.asc()).paginate(page=page, per_page=25, error_out=False)
-    pool_count = Lead.query.filter(Lead.status == 'pool', Lead.campaign_id.in_(active_campaign_ids)).count()
+    # Sort: P1 campaign leads first, then by imported_at
+    pagination = query.outerjoin(Campaign, Lead.campaign_id == Campaign.id)\
+        .order_by(Campaign.priority.asc().nullslast(), Lead.imported_at.asc())\
+        .paginate(page=page, per_page=25, error_out=False)
+    pool_count_q = Lead.query.filter(Lead.status == 'pool', Lead.campaign_id.in_(active_campaign_ids))
+    if campaign_id:
+        pool_count_q = pool_count_q.filter(Lead.campaign_id == campaign_id)
+    pool_count = pool_count_q.count()
 
     gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     gabay_counts = {}
@@ -1760,12 +1797,13 @@ def assign_center():
             orphan_cities.append((city, count, gabay.full_name, gabay.id))
     orphan_cities.sort(key=lambda x: -x[1])  # highest count first
 
+    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority, Campaign.name).all()
     return render_template('assign/index.html',
         pagination=pagination, pool_leads=pagination.items,
         pool_count=pool_count, gabay_users=gabay_users,
         gabay_counts=gabay_counts, cities=cities,
         recent_assigned=recent_assigned, search=search, city_filter=city_filter,
-        orphan_cities=orphan_cities)
+        orphan_cities=orphan_cities, campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/assign/do', methods=['POST'])
@@ -2249,8 +2287,11 @@ def report_daily_field():
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     today = date.today()
-    visits = Visit.query.filter(func.date(Visit.visited_at) == today)\
-        .order_by(Visit.gabay_id, Visit.visited_at).all()
+    campaign_id = request.args.get('campaign_id', type=int)
+    visits_q = Visit.query.filter(func.date(Visit.visited_at) == today)
+    if campaign_id:
+        visits_q = visits_q.join(Lead, Visit.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
+    visits = visits_q.order_by(Visit.gabay_id, Visit.visited_at).all()
     for v in visits:
         v._gabay = User.query.get(v.gabay_id)
         v._lead = Lead.query.get(v.lead_id)
@@ -2261,8 +2302,10 @@ def report_daily_field():
         gabay_summary[gname]['visits'] += 1
         if v.outcome in ('interested', 'registered', 'callback'):
             gabay_summary[gname][v.outcome] += 1
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/daily_field.html',
-        visits=visits, today=today, gabay_summary=gabay_summary, now=datetime.utcnow())
+        visits=visits, today=today, gabay_summary=gabay_summary, now=datetime.utcnow(),
+        campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/reports/gabay-performance')
@@ -2324,10 +2367,18 @@ def report_pipeline_detail():
     if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
+    campaign_id = request.args.get('campaign_id', type=int)
     statuses = ['pool', 'assigned', 'attempting', 'negotiation', 'registration', 'live', 'matched', 'closed']
-    totals = {s: Lead.query.filter_by(status=s).count() for s in statuses}
-    city_raw = db.session.query(Lead.city, Lead.status, func.count(Lead.id))\
-        .group_by(Lead.city, Lead.status).all()
+    def _lead_q(**kwargs):
+        q = Lead.query.filter_by(**kwargs)
+        if campaign_id:
+            q = q.filter(Lead.campaign_id == campaign_id)
+        return q
+    totals = {s: _lead_q(status=s).count() for s in statuses}
+    city_raw_q = db.session.query(Lead.city, Lead.status, func.count(Lead.id))
+    if campaign_id:
+        city_raw_q = city_raw_q.filter(Lead.campaign_id == campaign_id)
+    city_raw = city_raw_q.group_by(Lead.city, Lead.status).all()
     cities = {}
     for city, status, count in city_raw:
         c = city or 'Unknown'
@@ -2335,8 +2386,10 @@ def report_pipeline_detail():
         if status in cities[c]:
             cities[c][status] += count
     cities = sorted(cities.items(), key=lambda x: sum(x[1].values()), reverse=True)[:20]
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     return render_template('reports/pipeline_detail.html',
-        totals=totals, cities=cities, statuses=statuses, now=datetime.utcnow())
+        totals=totals, cities=cities, statuses=statuses, now=datetime.utcnow(),
+        campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/reports/stalled')
@@ -2346,15 +2399,21 @@ def report_stalled():
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     from datetime import timedelta
+    campaign_id = request.args.get('campaign_id', type=int)
     cutoff = datetime.utcnow() - timedelta(days=7)
-    leads = Lead.query.filter(
+    stalled_q = Lead.query.filter(
         Lead.status.in_(['assigned', 'attempting']),
         ~Lead.id.in_(db.session.query(Visit.lead_id).filter(Visit.visited_at >= cutoff))
-    ).order_by(Lead.gabay_id, Lead.assigned_at.asc()).all()
+    )
+    if campaign_id:
+        stalled_q = stalled_q.filter(Lead.campaign_id == campaign_id)
+    leads = stalled_q.order_by(Lead.gabay_id, Lead.assigned_at.asc()).all()
     for l in leads:
         l._gabay = User.query.get(l.gabay_id) if l.gabay_id else None
         l._last_visit = Visit.query.filter_by(lead_id=l.id).order_by(Visit.visited_at.desc()).first()
-    return render_template('reports/stalled.html', leads=leads, now=datetime.utcnow())
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    return render_template('reports/stalled.html', leads=leads, now=datetime.utcnow(),
+                           campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/reports/city-coverage')
@@ -5205,50 +5264,70 @@ def _gabay_stats(gabay_id):
                 visits_this_month=visits_this_month, conversion_rate=conversion_rate)
 
 
+def _priority1_campaign():
+    """Return the active campaign with the lowest priority number (P1 = most important)."""
+    return (Campaign.query
+            .filter_by(status='active')
+            .order_by(Campaign.priority.asc())
+            .first())
+
+
 @app.route('/gabay/app')
 @login_required
 def gabay_home():
     if current_user.role not in ('gabay', 'admin', 'manager', 'supervisor'):
         return redirect(url_for('dashboard'))
     gid = current_user.id
+    p1 = _priority1_campaign()
+    p1_id = p1.id if p1 else None
     stats = _gabay_stats(gid)
     hour = datetime.now().hour
     greeting = 'Good morning' if hour < 12 else ('Good afternoon' if hour < 18 else 'Good evening')
     today_str = datetime.now().strftime('%A, %B %d, %Y')
-    followups = Lead.query.filter(
+    followup_q = Lead.query.filter(
         Lead.gabay_id == gid,
         Lead.status.in_(['assigned', 'attempting', 'negotiation'])
-    ).join(Visit, Lead.id == Visit.lead_id).filter(
+    )
+    if p1_id:
+        followup_q = followup_q.filter(Lead.campaign_id == p1_id)
+    followups = followup_q.join(Visit, Lead.id == Visit.lead_id).filter(
         func.date(Visit.follow_up_date) == date.today()
     ).limit(5).all()
-    priority_leads = (Lead.query
+    priority_leads_q = (Lead.query
         .outerjoin(Campaign, Lead.campaign_id == Campaign.id)
         .filter(
             Lead.gabay_id == gid,
             Lead.status.in_(['negotiation', 'attempting', 'assigned'])
-        )
-        .order_by(
+        ))
+    if p1_id:
+        priority_leads_q = priority_leads_q.filter(Lead.campaign_id == p1_id)
+    priority_leads = priority_leads_q.order_by(
             Campaign.priority.asc().nullslast(),
-            Lead.ai_score.desc().nullslast(),   # Phase 3: highest-potential leads first
+            Lead.ai_score.desc().nullslast(),
             Lead.assigned_at.asc()
-        )
-        .limit(8).all())
+        ).limit(8).all()
     stalled_cutoff = datetime.utcnow().replace(hour=0, minute=0, second=0) - \
         __import__('datetime').timedelta(days=7)
-    stalled_count = Lead.query.filter(
+    stalled_q = Lead.query.filter(
         Lead.gabay_id == gid,
         Lead.status.in_(['assigned', 'attempting']),
         ~Lead.id.in_(
             db.session.query(Visit.lead_id).filter(Visit.visited_at >= stalled_cutoff)
         )
-    ).count()
+    )
+    if p1_id:
+        stalled_q = stalled_q.filter(Lead.campaign_id == p1_id)
+    stalled_count = stalled_q.count()
 
     # Smart suggestions: group active leads by city, rank by never-visited then stalled
     from collections import defaultdict
-    active_leads = Lead.query.filter(
+    active_leads_q = Lead.query.filter(
         Lead.gabay_id == gid,
         Lead.status.in_(['assigned', 'attempting', 'negotiation'])
-    ).all()
+    )
+    if p1_id:
+        active_leads_q = active_leads_q.filter(Lead.campaign_id == p1_id)
+    active_leads = active_leads_q.all()
     # Mark each lead with last_visit info
     visited_lead_ids = {v.lead_id for v in Visit.query.filter_by(gabay_id=gid).all()}
     city_groups = defaultdict(list)
@@ -5333,17 +5412,30 @@ def gabay_home():
 @login_required
 def gabay_app_leads():
     gid = current_user.id
+    p1 = _priority1_campaign()
+    p1_id = p1.id if p1 else None
     active_status = request.args.get('status', 'all')
     q = request.args.get('q', '')
+
+    def _c(status=None):
+        qry = Lead.query.filter_by(gabay_id=gid)
+        if p1_id:
+            qry = qry.filter(Lead.campaign_id == p1_id)
+        if status:
+            qry = qry.filter_by(status=status)
+        return qry.count()
+
     status_tabs = [
-        ('All', 'all', Lead.query.filter_by(gabay_id=gid).count()),
-        ('Assigned', 'assigned', Lead.query.filter_by(gabay_id=gid, status='assigned').count()),
-        ('Attempting', 'attempting', Lead.query.filter_by(gabay_id=gid, status='attempting').count()),
-        ('Negotiation', 'negotiation', Lead.query.filter_by(gabay_id=gid, status='negotiation').count()),
-        ('Registration', 'registration', Lead.query.filter_by(gabay_id=gid, status='registration').count()),
-        ('Live', 'live', Lead.query.filter_by(gabay_id=gid, status='live').count()),
+        ('All', 'all', _c()),
+        ('Assigned', 'assigned', _c('assigned')),
+        ('Attempting', 'attempting', _c('attempting')),
+        ('Negotiation', 'negotiation', _c('negotiation')),
+        ('Registration', 'registration', _c('registration')),
+        ('Live', 'live', _c('live')),
     ]
     query = Lead.query.filter_by(gabay_id=gid)
+    if p1_id:
+        query = query.filter(Lead.campaign_id == p1_id)
     if active_status != 'all':
         query = query.filter_by(status=active_status)
     leads = query.order_by(Lead.assigned_at.desc()).all()
@@ -5351,7 +5443,7 @@ def gabay_app_leads():
         last = Visit.query.filter_by(lead_id=lead.id).order_by(Visit.visited_at.desc()).first()
         lead.last_visit_date = last.visited_at.strftime('%b %d') if last else None
     return render_template('gabay_app/leads.html',
-        leads=leads, total=Lead.query.filter_by(gabay_id=gid).count(),
+        leads=leads, total=_c(),
         status_tabs=status_tabs, active_status=active_status)
 
 

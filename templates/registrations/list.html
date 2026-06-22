@@ -2,15 +2,29 @@
 {% block title %}Registrations{% endblock %}
 {% block content %}
 
-<div class="d-flex align-items-center justify-content-between mb-3">
+<div class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
   <div>
     <h4 class="fw-bold mb-0" style="color:#1F3864"><i class="bi bi-file-earmark-check me-2"></i>Registrations</h4>
     <small class="text-muted">Track sellers submitted for Lazada onboarding</small>
   </div>
-  <button class="btn btn-sm" style="background:#f0f4ff;color:#1F3864;font-weight:600;border:1px solid #c7d2fe"
-          onclick="document.getElementById('helpPanel').classList.toggle('d-none')">
-    <i class="bi bi-question-circle me-1"></i> How it works
-  </button>
+  <div class="d-flex gap-2 align-items-center">
+    {% if current_user.is_supervisor and campaigns %}
+    <form method="get" class="d-flex gap-2 align-items-center mb-0">
+      {% if status_filter %}<input type="hidden" name="status" value="{{ status_filter }}">{% endif %}
+      <select name="campaign_id" class="form-select form-select-sm" style="font-size:13px;min-width:200px;border-radius:8px" onchange="this.form.submit()">
+        <option value="">All Campaigns</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+        {% endfor %}
+      </select>
+      {% if campaign_id %}<a href="{{ url_for('registrations') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>{% endif %}
+    </form>
+    {% endif %}
+    <button class="btn btn-sm" style="background:#f0f4ff;color:#1F3864;font-weight:600;border:1px solid #c7d2fe"
+            onclick="document.getElementById('helpPanel').classList.toggle('d-none')">
+      <i class="bi bi-question-circle me-1"></i> How it works
+    </button>
+  </div>
 </div>
 
 <!-- Help Panel -->

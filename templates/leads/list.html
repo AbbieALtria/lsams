@@ -31,6 +31,12 @@
         <option value="{{ g.id }}" {% if gabay_filter == g.id|string %}selected{% endif %}>{{ g.display_name }}</option>
         {% endfor %}
       </select>
+      <select name="campaign_id" class="form-select form-select-sm" style="max-width:200px">
+        <option value="">All Campaigns</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+        {% endfor %}
+      </select>
       {% endif %}
       <button type="submit" class="btn btn-sm btn-primary">Filter</button>
       <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
