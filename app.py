@@ -2272,24 +2272,50 @@ def report_gabay_performance():
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
     today = date.today()
+    campaign_id = request.args.get('campaign_id', type=int)
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    selected_campaign = Campaign.query.get(campaign_id) if campaign_id else None
+
     agents = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     rows = []
     for a in agents:
-        total = Lead.query.filter_by(gabay_id=a.id).count()
-        live = Lead.query.filter_by(gabay_id=a.id, status='live').count()
-        matched = Lead.query.filter_by(gabay_id=a.id, status='matched').count()
-        visits_month = Visit.query.filter(
-            Visit.gabay_id == a.id,
-            extract('year', Visit.visited_at) == today.year,
-            extract('month', Visit.visited_at) == today.month
-        ).count()
-        visits_total = Visit.query.filter_by(gabay_id=a.id).count()
+        def lq(**kwargs):
+            q = Lead.query.filter_by(gabay_id=a.id, **kwargs)
+            if campaign_id:
+                q = q.filter_by(campaign_id=campaign_id)
+            return q
+
+        total   = lq().count()
+        live    = lq(status='live').count()
+        matched = lq(status='matched').count()
+
+        # Visits scoped to campaign leads if filter active
+        if campaign_id:
+            campaign_lead_ids = db.session.query(Lead.id).filter_by(
+                gabay_id=a.id, campaign_id=campaign_id)
+            visits_month = Visit.query.filter(
+                Visit.lead_id.in_(campaign_lead_ids),
+                extract('year', Visit.visited_at) == today.year,
+                extract('month', Visit.visited_at) == today.month
+            ).count()
+            visits_total = Visit.query.filter(
+                Visit.lead_id.in_(campaign_lead_ids)
+            ).count()
+        else:
+            visits_month = Visit.query.filter(
+                Visit.gabay_id == a.id,
+                extract('year', Visit.visited_at) == today.year,
+                extract('month', Visit.visited_at) == today.month
+            ).count()
+            visits_total = Visit.query.filter_by(gabay_id=a.id).count()
+
         conv = round(live / total * 100, 1) if total else 0
         rows.append({'gabay': a, 'total': total, 'live': live, 'matched': matched,
                      'visits_month': visits_month, 'visits_total': visits_total, 'conv': conv})
     rows.sort(key=lambda x: x['live'], reverse=True)
     return render_template('reports/gabay_performance.html',
-        rows=rows, month=today.strftime('%B %Y'), now=datetime.utcnow())
+        rows=rows, month=today.strftime('%B %Y'), now=datetime.utcnow(),
+        campaigns=campaigns, selected_campaign=selected_campaign, campaign_id=campaign_id)
 
 
 @app.route('/reports/pipeline-detail')
