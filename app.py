@@ -2332,25 +2332,14 @@ def report_gabay_performance():
         live    = lq(status='live').count()
         matched = lq(status='matched').count()
 
-        # Visits scoped to campaign leads if filter active
-        if campaign_id:
-            campaign_lead_ids = db.session.query(Lead.id).filter_by(
-                gabay_id=a.id, campaign_id=campaign_id)
-            visits_month = Visit.query.filter(
-                Visit.lead_id.in_(campaign_lead_ids),
-                extract('year', Visit.visited_at) == today.year,
-                extract('month', Visit.visited_at) == today.month
-            ).count()
-            visits_total = Visit.query.filter(
-                Visit.lead_id.in_(campaign_lead_ids)
-            ).count()
-        else:
-            visits_month = Visit.query.filter(
-                Visit.gabay_id == a.id,
-                extract('year', Visit.visited_at) == today.year,
-                extract('month', Visit.visited_at) == today.month
-            ).count()
-            visits_total = Visit.query.filter_by(gabay_id=a.id).count()
+        # Visits always counted by gabay_id — visit history may live in a different campaign's
+        # lead records (e.g. Legacy) but the agent is the same person across campaigns
+        visits_month = Visit.query.filter(
+            Visit.gabay_id == a.id,
+            extract('year', Visit.visited_at) == today.year,
+            extract('month', Visit.visited_at) == today.month
+        ).count()
+        visits_total = Visit.query.filter_by(gabay_id=a.id).count()
 
         conv = round(live / total * 100, 1) if total else 0
         rows.append({'gabay': a, 'total': total, 'live': live, 'matched': matched,
