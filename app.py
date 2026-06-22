@@ -4844,6 +4844,61 @@ def campaign_bulk_assign():
     return jsonify({'updated': updated, 'campaign': campaign.name})
 
 
+@app.route('/campaigns/overlap-report')
+@login_required
+def campaign_overlap_report():
+    """Compare two campaigns — find leads that exist in both (by phone or lazada_id)."""
+    if not current_user.is_manager:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    camp_a_id = request.args.get('camp_a', type=int)
+    camp_b_id = request.args.get('camp_b', type=int)
+    results = None
+
+    if camp_a_id and camp_b_id and camp_a_id != camp_b_id:
+        leads_a = Lead.query.filter_by(campaign_id=camp_a_id).filter(Lead.status != 'removed').all()
+        leads_b = Lead.query.filter_by(campaign_id=camp_b_id).filter(Lead.status != 'removed').all()
+
+        phones_b = {l.contact_number: l for l in leads_b if l.contact_number}
+        ids_b    = {l.lazada_id: l for l in leads_b if l.lazada_id}
+
+        overlap = []
+        for la in leads_a:
+            match = None
+            if la.contact_number and la.contact_number in phones_b:
+                match = phones_b[la.contact_number]
+            elif la.lazada_id and la.lazada_id in ids_b:
+                match = ids_b[la.lazada_id]
+            if match:
+                visit_count = match.visits.count()
+                overlap.append({
+                    'seller': la.seller_name,
+                    'phone': la.contact_number or '—',
+                    'status_a': la.status,
+                    'status_b': match.status,
+                    'visit_count': visit_count,
+                    'visited': visit_count > 0,
+                    'lead_id_b': match.id,
+                    'gabay': match.assigned_gabay.full_name if match.assigned_gabay else '—'
+                })
+
+        visited   = [o for o in overlap if o['visited']]
+        unvisited = [o for o in overlap if not o['visited']]
+        results = {
+            'total_a': len(leads_a),
+            'total_b': len(leads_b),
+            'overlap': len(overlap),
+            'visited': len(visited),
+            'unvisited': len(unvisited),
+            'rows': overlap
+        }
+
+    return render_template('campaigns/overlap_report.html',
+        campaigns=campaigns, results=results,
+        camp_a_id=camp_a_id, camp_b_id=camp_b_id)
+
+
 @app.route('/campaigns/manage/set-priority', methods=['POST'])
 @login_required
 def campaign_set_priority():

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% block title %}Campaign Overlap Report{% endblock %}
+{% block content %}
+<div class="page-header">
+  <div>
+    <div class="page-title"><i class="bi bi-intersect me-2"></i>Campaign Overlap Report</div>
+    <div style="color:#9aabc5;font-size:12px">Compare two campaigns — find leads that exist in both</div>
+  </div>
+  <a href="{{ url_for('campaign_manage') }}" class="btn btn-sm btn-outline-secondary">Back to Campaigns</a>
+</div>
+
+<!-- Campaign Selector -->
+<div class="card mb-4">
+  <div class="card-body">
+    <form method="get" class="row g-3 align-items-end">
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:12px">Campaign A (new upload)</label>
+        <select name="camp_a" class="form-select" style="font-size:13px">
+          <option value="">— Select campaign —</option>
+          {% for c in campaigns %}
+          <option value="{{ c.id }}" {% if camp_a_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-1 text-center" style="font-size:20px;color:#9aabc5;padding-bottom:8px">
+        <i class="bi bi-intersect"></i>
+      </div>
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:12px">Campaign B (compare against)</label>
+        <select name="camp_b" class="form-select" style="font-size:13px">
+          <option value="">— Select campaign —</option>
+          {% for c in campaigns %}
+          <option value="{{ c.id }}" {% if camp_b_id == c.id %}selected{% endif %}>{{ c.name }}</option>
+          {% endfor %}
+        </select>
+      </div>
+      <div class="col-md-3">
+        <button type="submit" class="btn fw-bold w-100" style="background:#1F3864;color:white">
+          <i class="bi bi-search me-1"></i>Compare
+        </button>
+      </div>
+    </form>
+  </div>
+</div>
+
+{% if results %}
+<!-- Summary Cards -->
+<div class="row g-3 mb-4">
+  <div class="col-md-3">
+    <div class="kpi-card" style="border-left-color:#1F3864">
+      <div class="kpi-lbl">Wave 2 Total</div>
+      <div class="kpi-val">{{ results.total_a }}</div>
+      <div class="kpi-sub">leads in campaign A</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card" style="border-left-color:#9aabc5">
+      <div class="kpi-lbl">Legacy Total</div>
+      <div class="kpi-val">{{ results.total_b }}</div>
+      <div class="kpi-sub">leads in campaign B</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card" style="border-left-color:#d97706">
+      <div class="kpi-lbl">Overlap</div>
+      <div class="kpi-val" style="color:#d97706">{{ results.overlap }}</div>
+      <div class="kpi-sub">exist in both campaigns</div>
+    </div>
+  </div>
+  <div class="col-md-3">
+    <div class="kpi-card" style="border-left-color:#16a34a">
+      <div class="kpi-lbl">Already Visited</div>
+      <div class="kpi-val" style="color:#16a34a">{{ results.visited }}</div>
+      <div class="kpi-sub" style="color:#ef4444">{{ results.unvisited }} not yet visited</div>
+    </div>
+  </div>
+</div>
+
+{% if results.rows %}
+<!-- Summary Banner -->
+<div class="alert py-3 px-4 mb-3" style="background:#fefce8;border-left:4px solid #ca8a04;font-size:13px">
+  <strong>{{ results.visited }}</strong> out of {{ results.overlap }} overlapping sellers were
+  <strong>already visited</strong> in Campaign B — their visit history is safe in the system.
+  <strong>{{ results.unvisited }}</strong> overlapping sellers have <strong>not been visited yet</strong>.
+</div>
+
+<!-- Overlap Table -->
+<div class="card">
+  <div class="card-header fw-bold" style="background:#1F3864;color:white">
+    <i class="bi bi-table me-2"></i>Overlapping Sellers ({{ results.overlap }} total)
+  </div>
+  <div class="card-body p-0">
+    <table class="table table-sm table-hover mb-0" style="font-size:13px">
+      <thead style="background:#f0f4fa">
+        <tr>
+          <th>Seller</th>
+          <th>Phone</th>
+          <th>Status in B</th>
+          <th>Assigned Gabay</th>
+          <th class="text-center">Visits</th>
+          <th class="text-center">Visited?</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for r in results.rows|sort(attribute='visit_count', reverse=True) %}
+        <tr style="{% if r.visited %}background:#f0fdf4{% endif %}">
+          <td class="fw-bold">{{ r.seller }}</td>
+          <td>{{ r.phone }}</td>
+          <td><span class="badge" style="background:{% if r.status_b in ['live','matched'] %}#16a34a{% elif r.status_b == 'negotiation' %}#7c3aed{% elif r.status_b == 'attempting' %}#d97706{% else %}#9aabc5{% endif %}">{{ r.status_b }}</span></td>
+          <td>{{ r.gabay }}</td>
+          <td class="text-center fw-bold">{{ r.visit_count }}</td>
+          <td class="text-center">
+            {% if r.visited %}
+            <span class="badge bg-success">✓ Visited</span>
+            {% else %}
+            <span class="badge bg-secondary">Not yet</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% else %}
+<div class="alert alert-success">
+  <i class="bi bi-check-circle me-2"></i>No overlap found — no sellers appear in both campaigns.
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
