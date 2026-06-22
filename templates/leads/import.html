@@ -6,11 +6,26 @@
   <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Back to Leads</a>
 </div>
 
+<!-- Mode Toggle -->
+<div class="d-flex gap-2 mb-3 align-items-center">
+  <button type="button" class="btn btn-sm fw-bold px-4" id="btnModeNormal"
+    style="background:#1F3864;color:white;border-radius:8px" onclick="setMode('normal')">
+    <i class="bi bi-upload me-1"></i> Normal Import
+  </button>
+  <button type="button" class="btn btn-sm fw-bold px-4" id="btnModeUpdate"
+    style="background:#EEF2FF;color:#4338ca;border-radius:8px" onclick="setMode('update')">
+    <i class="bi bi-arrow-repeat me-1"></i> Update Mode
+  </button>
+  <span id="modeLabel" style="font-size:12px;color:#9aabc5">Normal Import: add new leads to a campaign, skip existing</span>
+</div>
+
 <div class="row g-4">
 
   <!-- Upload Form -->
   <div class="col-md-5">
-    <div class="card">
+
+    <!-- NORMAL IMPORT FORM -->
+    <div id="normalImportCard" class="card">
       <div class="card-header fw-bold"><i class="bi bi-cloud-upload me-2"></i>Upload File</div>
       <div class="card-body">
         <form method="POST" enctype="multipart/form-data" id="importForm">
@@ -54,19 +69,14 @@
               <select name="existing_campaign_id" class="form-select" style="font-size:13px">
                 <option value="">— Select existing campaign —</option>
                 {% for c in campaigns %}
-                <option value="{{ c.id }}">
-                  [P{{ c.priority }}] {{ c.name }}
-                  ({{ c.lead_count }} leads)
-                </option>
+                <option value="{{ c.id }}">[P{{ c.priority }}] {{ c.name }} ({{ c.lead_count }} leads)</option>
                 {% endfor %}
               </select>
               <div style="font-size:11px;color:#9aabc5;margin-top:4px">
                 New leads will be appended. Existing leads and their statuses are not affected.
               </div>
               {% else %}
-              <div class="alert alert-warning py-2 px-3" style="font-size:12px">
-                No active campaigns yet. Create a new one.
-              </div>
+              <div class="alert alert-warning py-2 px-3" style="font-size:12px">No active campaigns yet. Create a new one.</div>
               {% endif %}
             </div>
           </div>
@@ -91,11 +101,73 @@
         </form>
       </div>
     </div>
+
+    <!-- UPDATE MODE FORM -->
+    <div id="updateModeCard" class="card" style="display:none">
+      <div class="card-header fw-bold" style="background:#4338ca;color:white">
+        <i class="bi bi-arrow-repeat me-2"></i>Update Mode
+      </div>
+      <div class="card-body">
+        <div class="alert py-2 px-3 mb-3" style="background:#f0f4ff;border-left:3px solid #4338ca;font-size:12px;color:#3730a3">
+          <strong>How it works:</strong><br>
+          • Matched by phone or Leads ID across <em>all</em> existing leads<br>
+          • <span class="text-success fw-bold">New</span> — not found → create in selected campaign<br>
+          • <span class="text-primary fw-bold">Update</span> — found, no visits → update fields<br>
+          • <span class="text-warning fw-bold">⚠ Duplicate</span> — found, has visits → protect visit history<br>
+          Nothing is saved until you review and confirm.
+        </div>
+
+        <!-- Campaign for new leads -->
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:12px">Campaign for new leads</label>
+          {% if campaigns %}
+          <select id="updateCampaignId" class="form-select" style="font-size:13px">
+            <option value="">— No campaign (pool only) —</option>
+            {% for c in campaigns %}
+            <option value="{{ c.id }}">[P{{ c.priority }}] {{ c.name }}</option>
+            {% endfor %}
+          </select>
+          {% else %}
+          <div style="font-size:12px;color:#9aabc5">No active campaigns — new leads will not be assigned to a campaign.</div>
+          <input type="hidden" id="updateCampaignId" value="">
+          {% endif %}
+        </div>
+
+        <!-- Duplicate action -->
+        <div class="mb-3">
+          <label class="form-label fw-bold" style="font-size:12px">For leads with visit history (⚠ Duplicates)</label>
+          <select id="duplicateAction" class="form-select" style="font-size:13px">
+            <option value="skip">Skip — keep as-is, do not change</option>
+            <option value="reassign">Reassign only — update Gabay/Campaign only</option>
+          </select>
+        </div>
+
+        <!-- File Upload -->
+        <div class="mb-3 p-4 rounded text-center" style="background:#F0F4FA;border:2px dashed #4338ca">
+          <i class="bi bi-file-earmark-spreadsheet" style="font-size:48px;color:#4338ca"></i>
+          <p class="mt-2 mb-1 fw-bold" style="color:#1F3864">Click to select your Excel file</p>
+          <small class="text-muted">Supports .xlsx, .xls, .csv — Max 16MB</small>
+          <input type="file" id="updateFile" class="form-control mt-3" accept=".xlsx,.xls,.csv">
+        </div>
+
+        <div class="alert alert-warning py-2 px-3" style="font-size:12px">
+          <i class="bi bi-info-circle me-1"></i>
+          Add a <strong>Gabay Name</strong> column in your Excel to auto-assign leads to a Gabay.
+          Names are matched by partial name (case-insensitive).
+        </div>
+
+        <button type="button" class="btn w-100 fw-bold py-3" style="background:#4338ca;color:white;font-size:16px"
+          onclick="runUpdatePreview()">
+          <i class="bi bi-search me-2"></i>Preview Changes
+        </button>
+      </div>
+    </div>
+
   </div>
 
   <!-- Field Guide -->
   <div class="col-md-7">
-    <div class="card">
+    <div id="normalFieldGuide" class="card">
       <div class="card-header fw-bold" style="background:#1F3864;color:white">
         <i class="bi bi-table me-2"></i>Required Excel Column Headers
       </div>
@@ -135,12 +207,92 @@
         Upload the file exactly as exported from Lazada.
       </div>
     </div>
+
+    <div id="updateFieldGuide" class="card" style="display:none">
+      <div class="card-header fw-bold" style="background:#4338ca;color:white">
+        <i class="bi bi-table me-2"></i>Update Mode — Excel Columns
+      </div>
+      <div class="card-body p-0">
+        <table class="table table-sm table-bordered mb-0" style="font-size:13px">
+          <thead style="background:#f0f4fa">
+            <tr>
+              <th style="width:30px;text-align:center">#</th>
+              <th>Column Header</th>
+              <th>Description</th>
+              <th style="width:100px;text-align:center">Used For</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr style="background:#fff8f0"><td class="text-center fw-bold text-danger">1</td><td><code>Shop Name</code></td><td>Seller / store name</td><td class="text-center"><span class="badge bg-danger">Matching</span></td></tr>
+            <tr><td class="text-center fw-bold">2</td><td><code>Contact Number</code></td><td>Phone — primary match key</td><td class="text-center"><span class="badge" style="background:#4338ca">Matching</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">3</td><td><code>Leads ID</code></td><td>Lazada UUID — secondary match key</td><td class="text-center"><span class="badge" style="background:#4338ca">Matching</span></td></tr>
+            <tr><td class="text-center fw-bold">4</td><td><code>Gabay Name</code></td><td>Name of Gabay to assign (partial match OK)</td><td class="text-center"><span class="badge bg-success">Updated</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">5</td><td><code>Project</code></td><td>Project code (e.g. TIKTOK, TOP COFFEE)</td><td class="text-center"><span class="badge bg-success">Updated</span></td></tr>
+            <tr><td class="text-center fw-bold">6</td><td><code>Cluster</code></td><td>FMCG, FA, EL, GM…</td><td class="text-center"><span class="badge bg-success">Updated</span></td></tr>
+            <tr style="background:#f8fafc"><td class="text-center fw-bold">7</td><td><code>Priority</code></td><td>P0–P3</td><td class="text-center"><span class="badge bg-info text-dark">New only</span></td></tr>
+            <tr><td class="text-center fw-bold">8</td><td><code>City / Province</code></td><td>Location fields</td><td class="text-center"><span class="badge bg-info text-dark">New only</span></td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="card-footer" style="background:#f0f4ff;border-top:2px solid #4338ca;font-size:12px;color:#3730a3">
+        <i class="bi bi-shield-check me-1"></i>
+        <strong>Visit history is protected.</strong> Leads with visits are flagged as ⚠ Duplicates — only Gabay/Campaign can be reassigned, never overwritten.
+      </div>
+    </div>
   </div>
 
 </div>
+
+<!-- Update Preview Modal -->
+<div class="modal fade" id="updatePreviewModal" tabindex="-1">
+  <div class="modal-dialog modal-xl modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header" style="background:#4338ca;color:white">
+        <h5 class="modal-title fw-bold"><i class="bi bi-arrow-repeat me-2"></i>Update Preview — Review Before Saving</h5>
+        <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal"></button>
+      </div>
+      <div class="modal-body" id="updatePreviewBody">
+        <div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2">Analyzing Excel file…</p></div>
+      </div>
+      <div class="modal-footer" id="updatePreviewFooter" style="display:none">
+        <div id="dupActionWrap" class="me-auto" style="display:none">
+          <label style="font-size:12px;font-weight:700">For ⚠ Duplicates:</label>
+          <select id="dupActionFinal" class="form-select form-select-sm d-inline-block ms-2" style="width:auto">
+            <option value="skip">Skip — do not change</option>
+            <option value="reassign">Reassign only (Gabay/Campaign)</option>
+          </select>
+        </div>
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancel</button>
+        <button type="button" class="btn fw-bold" style="background:#4338ca;color:white" onclick="confirmUpdate()">
+          <i class="bi bi-check-circle me-1"></i>Confirm & Apply Changes
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 {% block scripts %}
 <script>
+let currentMode = 'normal';
+let previewData = null;
+
+function setMode(mode) {
+  currentMode = mode;
+  const isNormal = mode === 'normal';
+  document.getElementById('normalImportCard').style.display = isNormal ? 'block' : 'none';
+  document.getElementById('updateModeCard').style.display = isNormal ? 'none' : 'block';
+  document.getElementById('normalFieldGuide').style.display = isNormal ? 'block' : 'none';
+  document.getElementById('updateFieldGuide').style.display = isNormal ? 'none' : 'block';
+  document.getElementById('btnModeNormal').style.background = isNormal ? '#1F3864' : '#EEF2FF';
+  document.getElementById('btnModeNormal').style.color = isNormal ? 'white' : '#4338ca';
+  document.getElementById('btnModeUpdate').style.background = isNormal ? '#EEF2FF' : '#4338ca';
+  document.getElementById('btnModeUpdate').style.color = isNormal ? '#4338ca' : 'white';
+  document.getElementById('modeLabel').textContent = isNormal
+    ? 'Normal Import: add new leads to a campaign, skip existing'
+    : 'Update Mode: match by phone, detect duplicates, preview before saving';
+}
+
 function setCampaignMode(mode) {
   document.getElementById('campaignMode').value = mode;
   const isNew = mode === 'new';
@@ -151,6 +303,155 @@ function setCampaignMode(mode) {
   document.getElementById('btnExist').style.background = isNew ? '#EEF2FF' : '#1F3864';
   document.getElementById('btnExist').style.color = isNew ? '#4338ca' : 'white';
   if (isNew) document.getElementById('newCampName').focus();
+}
+
+async function runUpdatePreview() {
+  const fileInput = document.getElementById('updateFile');
+  if (!fileInput.files.length) {
+    alert('Please select an Excel file first.');
+    return;
+  }
+
+  // Show modal with spinner
+  document.getElementById('updatePreviewBody').innerHTML =
+    '<div class="text-center py-5"><div class="spinner-border text-primary"></div><p class="mt-2 text-muted">Analyzing Excel file…</p></div>';
+  document.getElementById('updatePreviewFooter').style.display = 'none';
+  new bootstrap.Modal(document.getElementById('updatePreviewModal')).show();
+
+  const fd = new FormData();
+  fd.append('file', fileInput.files[0]);
+
+  try {
+    const res = await fetch('/leads/import/update-preview', { method: 'POST', body: fd });
+    const data = await res.json();
+    if (data.error) { showPreviewError(data.error); return; }
+    previewData = data;
+    renderPreview(data);
+  } catch(e) {
+    showPreviewError('Network error: ' + e.message);
+  }
+}
+
+function showPreviewError(msg) {
+  document.getElementById('updatePreviewBody').innerHTML =
+    `<div class="alert alert-danger m-3"><i class="bi bi-exclamation-triangle me-2"></i>${msg}</div>`;
+}
+
+function renderPreview(data) {
+  const hasDups = data.duplicate.length > 0;
+
+  let html = `
+    <div class="d-flex gap-3 mb-4 flex-wrap">
+      <div class="rounded p-3 text-center flex-fill" style="background:#f0fdf4;border:2px solid #16a34a;min-width:130px">
+        <div style="font-size:28px;font-weight:800;color:#16a34a">${data.new.length}</div>
+        <div style="font-size:12px;font-weight:700;color:#15803d">New Leads</div>
+        <div style="font-size:11px;color:#86efac">Will be created</div>
+      </div>
+      <div class="rounded p-3 text-center flex-fill" style="background:#eff6ff;border:2px solid #2563eb;min-width:130px">
+        <div style="font-size:28px;font-weight:800;color:#2563eb">${data.update.length}</div>
+        <div style="font-size:12px;font-weight:700;color:#1d4ed8">Updates</div>
+        <div style="font-size:11px;color:#93c5fd">No visits — safe to update</div>
+      </div>
+      <div class="rounded p-3 text-center flex-fill" style="background:#fffbeb;border:2px solid #d97706;min-width:130px">
+        <div style="font-size:28px;font-weight:800;color:#d97706">${data.duplicate.length}</div>
+        <div style="font-size:12px;font-weight:700;color:#b45309">⚠ Duplicates</div>
+        <div style="font-size:11px;color:#fcd34d">Has visit history</div>
+      </div>
+    </div>`;
+
+  if (data.new.length) {
+    html += renderTable('🟢 New Leads — Will Be Created', data.new, '#f0fdf4', '#16a34a', 'new');
+  }
+  if (data.update.length) {
+    html += renderTable('🔵 Updates — No Visits, Safe to Update', data.update, '#eff6ff', '#2563eb', 'update');
+  }
+  if (data.duplicate.length) {
+    html += renderTable('⚠️ Duplicates — Has Visit History (Protected)', data.duplicate, '#fffbeb', '#d97706', 'duplicate');
+  }
+
+  document.getElementById('updatePreviewBody').innerHTML = html || '<div class="text-center text-muted py-4">No rows found in file.</div>';
+
+  if (hasDups) {
+    document.getElementById('dupActionWrap').style.display = 'block';
+    // Sync with the select in the form
+    const da = document.getElementById('duplicateAction');
+    if (da) document.getElementById('dupActionFinal').value = da.value;
+  } else {
+    document.getElementById('dupActionWrap').style.display = 'none';
+  }
+
+  document.getElementById('updatePreviewFooter').style.display = 'flex';
+}
+
+function renderTable(title, rows, bg, border, type) {
+  if (!rows.length) return '';
+  let html = `<div class="mb-4">
+    <div class="fw-bold mb-2" style="color:${border};font-size:13px">${title}</div>
+    <div class="table-responsive">
+    <table class="table table-sm table-bordered mb-0" style="font-size:12px">
+    <thead style="background:${bg}">
+      <tr>
+        <th>Seller</th><th>Phone</th><th>Project</th><th>Gabay Name (Excel)</th>`;
+  if (type === 'update' || type === 'duplicate') {
+    html += `<th>Current Campaign</th><th>Current Gabay</th>`;
+  }
+  if (type === 'duplicate') {
+    html += `<th>Visits</th>`;
+  }
+  html += `</tr></thead><tbody>`;
+  rows.forEach(r => {
+    html += `<tr>
+      <td class="fw-bold">${r.seller}</td>
+      <td>${r.phone}</td>
+      <td>${r.project}</td>
+      <td>${r.gabay_name}</td>`;
+    if (type === 'update' || type === 'duplicate') {
+      html += `<td>${r.current_campaign || '—'}</td><td>${r.current_gabay || '—'}</td>`;
+    }
+    if (type === 'duplicate') {
+      html += `<td><span class="badge bg-warning text-dark">${r.visit_count} visit${r.visit_count !== 1 ? 's' : ''}</span></td>`;
+    }
+    html += `</tr>`;
+  });
+  html += `</tbody></table></div></div>`;
+  return html;
+}
+
+async function confirmUpdate() {
+  if (!previewData) return;
+
+  const campaignId = document.getElementById('updateCampaignId') ?
+    document.getElementById('updateCampaignId').value : '';
+  const dupAction = document.getElementById('dupActionFinal').value;
+
+  // Build flat rows list with action tags
+  const rows = [
+    ...previewData.new.map(r => ({...r, action: 'new'})),
+    ...previewData.update.map(r => ({...r, action: 'update'})),
+    ...previewData.duplicate.map(r => ({...r, action: 'duplicate'})),
+  ];
+
+  const btn = document.querySelector('#updatePreviewFooter .btn[onclick="confirmUpdate()"]');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Saving…';
+
+  try {
+    const res = await fetch('/leads/import/update-confirm', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ campaign_id: campaignId || null, rows, duplicate_action: dupAction })
+    });
+    const result = await res.json();
+    if (result.error) { alert('Error: ' + result.error); btn.disabled = false; btn.innerHTML = 'Confirm & Apply Changes'; return; }
+
+    bootstrap.Modal.getInstance(document.getElementById('updatePreviewModal')).hide();
+    alert(`✅ Done!\n\nCreated: ${result.created} new leads\nUpdated: ${result.updated} existing leads\nReassigned: ${result.reassigned} duplicates\nSkipped: ${result.skipped} duplicates`);
+    window.location.href = '/leads';
+  } catch(e) {
+    alert('Network error: ' + e.message);
+    btn.disabled = false;
+    btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Confirm & Apply Changes';
+  }
 }
 </script>
 {% endblock %}

@@ -774,6 +774,223 @@ def import_leads():
     return render_template('leads/import.html', campaigns=campaigns)
 
 
+# ─── EXCEL UPDATE MODE ────────────────────────────────────────────────────────
+
+@app.route('/leads/import/update-preview', methods=['POST'])
+@login_required
+def import_update_preview():
+    """Stage 1: Parse Excel and return breakdown without saving."""
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+
+    file = request.files.get('file')
+    if not file or not file.filename.endswith(('.xlsx', '.xls', '.csv')):
+        return jsonify({'error': 'Please upload a valid Excel or CSV file.'}), 400
+
+    try:
+        if file.filename.endswith('.csv'):
+            df = pd.read_csv(file)
+        else:
+            df = pd.read_excel(file, header=1)
+
+        df.columns = [str(c).strip() for c in df.columns]
+
+        def val(row, *keys):
+            for k in keys:
+                v = row.get(k)
+                if v is not None and str(v).strip() not in ('', 'nan', '0', 'None'):
+                    return str(v).strip()
+            return None
+
+        new_leads, update_leads, duplicate_leads = [], [], []
+        seen_phones = set()
+
+        for _, row in df.iterrows():
+            seller = val(row, 'Shop Name', 'shop_name', 'Seller Name', 'seller_name', 'Name')
+            if not seller:
+                continue
+
+            phone = val(row, 'Contact Number', 'contact_number', 'Mobile', 'Phone')
+            lazada_id = val(row, 'Leads ID', 'leads_id', 'Leads Id', 'lazada_id', 'ID')
+            project = val(row, 'Project', 'project')
+            gabay_name = val(row, 'Gabay Name', 'gabay_name', 'Assigned To', 'assigned_to', 'Gabay')
+
+            # Skip if we already processed this phone in this file
+            if phone and phone in seen_phones:
+                continue
+            if phone:
+                seen_phones.add(phone)
+
+            # Match by phone first, then lazada_id
+            existing = None
+            if phone:
+                existing = Lead.query.filter_by(contact_number=phone).filter(
+                    Lead.status != 'removed'
+                ).first()
+            if not existing and lazada_id:
+                existing = Lead.query.filter_by(lazada_id=lazada_id).filter(
+                    Lead.status != 'removed'
+                ).first()
+
+            entry = {
+                'seller': seller,
+                'phone': phone or '—',
+                'project': project or '—',
+                'gabay_name': gabay_name or '—',
+                'lazada_id': lazada_id,
+                'row_data': {k: val(row, k) for k in df.columns}
+            }
+
+            if existing:
+                entry['lead_id'] = existing.id
+                entry['current_status'] = existing.status
+                entry['current_campaign'] = existing.campaign.name if existing.campaign else '—'
+                entry['current_gabay'] = existing.gabay.name if existing.gabay else 'Unassigned'
+                visit_count = existing.visits.count()
+                entry['visit_count'] = visit_count
+                if visit_count > 0:
+                    duplicate_leads.append(entry)
+                else:
+                    update_leads.append(entry)
+            else:
+                new_leads.append(entry)
+
+        return jsonify({
+            'new': new_leads,
+            'update': update_leads,
+            'duplicate': duplicate_leads,
+            'total': len(new_leads) + len(update_leads) + len(duplicate_leads)
+        })
+    except Exception as e:
+        return jsonify({'error': str(e)}), 500
+
+
+@app.route('/leads/import/update-confirm', methods=['POST'])
+@login_required
+def import_update_confirm():
+    """Stage 2: Apply the update — create new, update no-visit, skip or reassign duplicates."""
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+
+    try:
+        data = request.get_json()
+        campaign_id = data.get('campaign_id')
+        file_data = data.get('rows', [])          # all rows from preview
+        duplicate_action = data.get('duplicate_action', 'skip')  # 'skip' or 'reassign'
+
+        campaign = Campaign.query.get(campaign_id) if campaign_id else None
+
+        created, updated, reassigned, skipped = 0, 0, 0, 0
+
+        for item in file_data:
+            action = item.get('action')  # 'new', 'update', 'duplicate'
+            lead_id = item.get('lead_id')
+            seller = item.get('seller')
+            phone = item.get('phone') if item.get('phone') != '—' else None
+            lazada_id = item.get('lazada_id')
+            row_data = item.get('row_data', {})
+            gabay_name = item.get('gabay_name') if item.get('gabay_name') != '—' else None
+
+            # Resolve gabay user
+            gabay_user = None
+            if gabay_name:
+                gabay_user = User.query.filter(
+                    User.name.ilike(f'%{gabay_name}%'),
+                    User.role == 'gabay',
+                    User.is_active == True
+                ).first()
+
+            def get_val(key, *aliases):
+                v = row_data.get(key)
+                if v and str(v) not in ('', 'nan', 'None'):
+                    return str(v).strip()
+                for a in aliases:
+                    v = row_data.get(a)
+                    if v and str(v) not in ('', 'nan', 'None'):
+                        return str(v).strip()
+                return None
+
+            if action == 'new':
+                lead = Lead(
+                    seller_name=seller,
+                    lazada_id=lazada_id,
+                    priority_tier=get_val('Priority'),
+                    project=get_val('Project'),
+                    cluster=get_val('Cluster'),
+                    category=get_val('Category'),
+                    link=get_val('Link'),
+                    barangay=get_val('Barangay'),
+                    city=get_val('City'),
+                    province=get_val('Province'),
+                    address=get_val('Complete Address'),
+                    sender_name=get_val('Sender Name'),
+                    contact_number=phone,
+                    email=get_val('Email Address'),
+                    social_media_link=get_val('Social Media Link'),
+                    batch_ref='update_mode',
+                    campaign_id=campaign_id,
+                    status='pool'
+                )
+                if gabay_user:
+                    lead.gabay_id = gabay_user.id
+                    lead.status = 'assigned'
+                    lead.assigned_at = datetime.utcnow()
+                db.session.add(lead)
+                created += 1
+
+            elif action == 'update':
+                lead = Lead.query.get(lead_id)
+                if lead:
+                    if campaign_id:
+                        lead.campaign_id = campaign_id
+                    if gabay_user:
+                        lead.gabay_id = gabay_user.id
+                        if lead.status == 'pool':
+                            lead.status = 'assigned'
+                        lead.assigned_at = datetime.utcnow()
+                    proj = get_val('Project')
+                    if proj:
+                        lead.project = proj
+                    cluster = get_val('Cluster')
+                    if cluster:
+                        lead.cluster = cluster
+                    updated += 1
+
+            elif action == 'duplicate':
+                if duplicate_action == 'reassign':
+                    lead = Lead.query.get(lead_id)
+                    if lead and gabay_user:
+                        lead.gabay_id = gabay_user.id
+                        lead.assigned_at = datetime.utcnow()
+                        reassigned += 1
+                    elif lead and campaign_id:
+                        lead.campaign_id = campaign_id
+                        reassigned += 1
+                    else:
+                        skipped += 1
+                else:
+                    skipped += 1
+
+        db.session.commit()
+
+        # Background enrich any new leads
+        new_db_leads = Lead.query.filter_by(campaign_id=campaign_id, status='pool').filter(
+            ~Lead.id.in_(db.session.query(LeadIntelligence.lead_id))
+        ).all() if campaign_id else []
+        for _l in new_db_leads:
+            _enrich_lead_background(_l.id, trigger='auto')
+
+        return jsonify({
+            'created': created,
+            'updated': updated,
+            'reassigned': reassigned,
+            'skipped': skipped
+        })
+    except Exception as e:
+        db.session.rollback()
+        return jsonify({'error': str(e)}), 500
+
+
 @app.route('/leads/<int:lead_id>')
 @login_required
 def lead_detail(lead_id):
