@@ -2411,19 +2411,28 @@ def report_city_coverage():
     if not current_user.is_supervisor and not current_user.is_lazada:
         flash('Access denied.', 'danger')
         return redirect(url_for('reports'))
+    campaign_id = request.args.get('campaign_id', type=int)
     visited_ids = {v.lead_id for v in Visit.query.with_entities(Visit.lead_id).all()}
-    city_raw = db.session.query(Lead.city, func.count(Lead.id)).group_by(Lead.city).all()
+    city_q = db.session.query(Lead.city, func.count(Lead.id)).filter(Lead.status != 'removed')
+    if campaign_id:
+        city_q = city_q.filter(Lead.campaign_id == campaign_id)
+    city_raw = city_q.group_by(Lead.city).all()
     rows = []
     for city, total in city_raw:
         city_name = city or 'Unknown'
-        leads_in = Lead.query.filter_by(city=city).with_entities(Lead.id, Lead.status).all()
+        leads_q = Lead.query.filter(Lead.city == city, Lead.status != 'removed')
+        if campaign_id:
+            leads_q = leads_q.filter(Lead.campaign_id == campaign_id)
+        leads_in = leads_q.with_entities(Lead.id, Lead.status).all()
         visited = sum(1 for l in leads_in if l.id in visited_ids)
         live = sum(1 for l in leads_in if l.status == 'live')
         rows.append({'city': city_name, 'total': total, 'visited': visited,
                      'unvisited': total - visited, 'live': live,
                      'coverage': round(visited / total * 100) if total else 0})
     rows.sort(key=lambda x: x['total'], reverse=True)
-    return render_template('reports/city_coverage.html', cities=rows, now=datetime.utcnow())
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    return render_template('reports/city_coverage.html', cities=rows, now=datetime.utcnow(),
+                           campaigns=campaigns, campaign_id=campaign_id)
 
 
 @app.route('/reports/registrations-status')
