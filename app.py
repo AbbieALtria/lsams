@@ -4813,6 +4813,44 @@ def campaign_manage():
     return render_template('campaigns/manage.html', campaigns=campaigns, unassigned_count=unassigned_count)
 
 
+@app.route('/campaigns/<int:campaign_id>/status-breakdown')
+@login_required
+def campaign_status_breakdown(campaign_id):
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    campaign = Campaign.query.get_or_404(campaign_id)
+    statuses = ['pool', 'assigned', 'attempting', 'negotiation', 'registration', 'live', 'matched', 'closed', 'removed']
+    breakdown = {}
+    for s in statuses:
+        breakdown[s] = Lead.query.filter_by(campaign_id=campaign_id, status=s).count()
+    with_gabay = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.gabay_id.isnot(None),
+        Lead.status != 'removed'
+    ).count()
+    no_gabay = Lead.query.filter(
+        Lead.campaign_id == campaign_id,
+        Lead.gabay_id.is_(None),
+        Lead.status != 'removed'
+    ).count()
+    # Per-gabay count
+    from sqlalchemy import func
+    gabay_counts = db.session.query(
+        User.full_name, func.count(Lead.id)
+    ).join(Lead, Lead.gabay_id == User.id)\
+     .filter(Lead.campaign_id == campaign_id, Lead.status != 'removed')\
+     .group_by(User.full_name).order_by(func.count(Lead.id).desc()).all()
+
+    return jsonify({
+        'campaign': campaign.name,
+        'total': sum(v for k,v in breakdown.items() if k != 'removed'),
+        'status_breakdown': breakdown,
+        'with_gabay': with_gabay,
+        'no_gabay_pool': no_gabay,
+        'per_gabay': [{'gabay': g, 'count': c} for g, c in gabay_counts]
+    })
+
+
 @app.route('/campaigns/set-migration-priority', methods=['POST'])
 @login_required
 def campaign_set_migration_priority():
