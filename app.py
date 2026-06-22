@@ -517,7 +517,7 @@ def dashboard():
 
     # Campaign filter
     campaign_id = request.args.get('campaign_id', type=int)
-    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority, Campaign.name).all()
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     selected_campaign = Campaign.query.get(campaign_id) if campaign_id else None
 
     def base_q():
