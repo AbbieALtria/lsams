@@ -513,28 +513,50 @@ def logout():
 @app.route('/dashboard')
 @login_required
 def dashboard():
+    from datetime import timedelta
+
+    # Campaign filter
+    campaign_id = request.args.get('campaign_id', type=int)
+    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority, Campaign.name).all()
+    selected_campaign = Campaign.query.get(campaign_id) if campaign_id else None
+
+    def base_q():
+        q = Lead.query.filter(Lead.status != 'removed')
+        if campaign_id:
+            q = q.filter_by(campaign_id=campaign_id)
+        return q
+
     # KPI totals
-    total_pool = Lead.query.count()
-    assigned = Lead.query.filter_by(status='assigned').count()
-    attempting = Lead.query.filter_by(status='attempting').count()
-    negotiation = Lead.query.filter_by(status='negotiation').count()
-    registration = Lead.query.filter_by(status='registration').count()
-    live = Lead.query.filter_by(status='live').count()
-    matched = Lead.query.filter_by(status='matched').count()
+    total_pool = base_q().count()
+    assigned   = base_q().filter_by(status='assigned').count()
+    attempting = base_q().filter_by(status='attempting').count()
+    negotiation = base_q().filter_by(status='negotiation').count()
+    registration = base_q().filter_by(status='registration').count()
+    live    = base_q().filter_by(status='live').count()
+    matched = base_q().filter_by(status='matched').count()
 
     # Per-gabay summary for table
     gabay_users = User.query.filter_by(role='gabay', is_active=True).all()
     gabay_stats = []
     for g in gabay_users:
-        pool = Lead.query.filter_by(gabay_id=g.id).count() + Lead.query.filter_by(status='pool').count() // max(len(gabay_users), 1)
-        g_assigned = Lead.query.filter_by(gabay_id=g.id, status='assigned').count()
-        g_attempting = Lead.query.filter_by(gabay_id=g.id, status='attempting').count()
-        g_negotiation = Lead.query.filter_by(gabay_id=g.id, status='negotiation').count()
-        g_registration = Lead.query.filter_by(gabay_id=g.id, status='registration').count()
-        g_live = Lead.query.filter_by(gabay_id=g.id, status='live').count()
-        g_matched = Lead.query.filter_by(gabay_id=g.id, status='matched').count()
+        def gq(status=None):
+            q = Lead.query.filter(Lead.gabay_id == g.id, Lead.status != 'removed')
+            if campaign_id:
+                q = q.filter_by(campaign_id=campaign_id)
+            if status:
+                q = q.filter_by(status=status)
+            return q
+        g_total      = gq().count()
+        g_assigned   = gq('assigned').count()
+        g_attempting = gq('attempting').count()
+        g_negotiation = gq('negotiation').count()
+        g_registration = gq('registration').count()
+        g_live    = gq('live').count()
+        g_matched = gq('matched').count()
+        if g_total == 0 and not campaign_id:
+            pass  # skip gabays with zero leads only in all-campaign view? No, show all
         gabay_stats.append({
-            'name': g.full_name, 'pool': pool, 'assigned': g_assigned,
+            'name': g.full_name, 'pool': g_total, 'assigned': g_assigned,
             'attempting': g_attempting, 'negotiation': g_negotiation,
             'registration': g_registration, 'live': g_live, 'matched': g_matched,
         })
@@ -542,17 +564,20 @@ def dashboard():
     forecast = round(negotiation * 0.6 + registration * 0.85)
 
     # Recent activity
-    recent_visits = Visit.query.order_by(Visit.visited_at.desc()).limit(10).all()
+    rv_q = Visit.query.order_by(Visit.visited_at.desc())
+    if campaign_id:
+        rv_q = rv_q.join(Lead).filter(Lead.campaign_id == campaign_id)
+    recent_visits = rv_q.limit(10).all()
 
-    # Aging leads — assigned/attempting with no visit in 14+ days
-    from datetime import timedelta
+    # Aging leads
     aging_cutoff = datetime.utcnow() - timedelta(days=14)
-    aging_leads = Lead.query.filter(
+    aging_q = base_q().filter(
         Lead.status.in_(['assigned', 'attempting']),
         ~Lead.id.in_(
             db.session.query(Visit.lead_id).filter(Visit.visited_at >= aging_cutoff)
         )
-    ).order_by(Lead.assigned_at.asc()).limit(20).all()
+    ).order_by(Lead.assigned_at.asc()).limit(20)
+    aging_leads = aging_q.all()
     for al in aging_leads:
         al._gabay = User.query.get(al.gabay_id) if al.gabay_id else None
 
@@ -560,7 +585,8 @@ def dashboard():
         total_pool=total_pool, assigned=assigned, attempting=attempting,
         negotiation=negotiation, registration=registration, live=live,
         matched=matched, forecast=forecast, gabay_stats=gabay_stats,
-        recent_visits=recent_visits, aging_leads=aging_leads)
+        recent_visits=recent_visits, aging_leads=aging_leads,
+        campaigns=campaigns, selected_campaign=selected_campaign, campaign_id=campaign_id)
 
 
 # ─── LEADS ───────────────────────────────────────────────────────────────────

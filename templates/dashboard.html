@@ -3,8 +3,32 @@
 {% block content %}
 
 <div class="page-header">
-  <div class="page-title"><i class="bi bi-speedometer2 me-2"></i>Dashboard</div>
-  <div style="color:#9aabc5;font-size:12px"><i class="bi bi-calendar3 me-1"></i>{{ now.strftime('%B %Y') if now else 'Live Data' }}</div>
+  <div class="page-title"><i class="bi bi-speedometer2 me-2"></i>Dashboard
+    {% if selected_campaign %}
+    <span class="ms-2 badge" style="background:#2E75B6;font-size:13px;font-weight:600;vertical-align:middle">
+      {{ selected_campaign.name }}
+    </span>
+    {% endif %}
+  </div>
+  <div class="ms-auto d-flex align-items-center gap-2">
+    <form method="get" action="/dashboard" class="d-flex align-items-center gap-2 mb-0">
+      <select name="campaign_id" class="form-select form-select-sm" style="font-size:13px;min-width:220px;border-radius:8px"
+        onchange="this.form.submit()">
+        <option value="">All Campaigns</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>
+          [P{{ c.priority }}] {{ c.name }}
+        </option>
+        {% endfor %}
+      </select>
+      {% if campaign_id %}
+      <a href="/dashboard" class="btn btn-sm btn-outline-secondary" style="border-radius:8px;font-size:12px">
+        <i class="bi bi-x"></i> Clear
+      </a>
+      {% endif %}
+    </form>
+    <div style="color:#9aabc5;font-size:12px"><i class="bi bi-calendar3 me-1"></i>{{ now.strftime('%B %Y') if now else 'Live Data' }}</div>
+  </div>
 </div>
 
 <!-- KPI CARDS -->
