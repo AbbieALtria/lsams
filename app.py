@@ -1714,7 +1714,9 @@ def assign_center():
     search = request.args.get('q', '')
     city_filter = request.args.get('city', '')
 
-    query = Lead.query.filter_by(status='pool')
+    # Only show pool leads from ACTIVE campaigns (exclude archived/legacy)
+    active_campaign_ids = [c.id for c in Campaign.query.filter_by(status='active').all()]
+    query = Lead.query.filter(Lead.status == 'pool', Lead.campaign_id.in_(active_campaign_ids))
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
@@ -1725,7 +1727,7 @@ def assign_center():
         query = query.filter_by(city=city_filter)
 
     pagination = query.order_by(Lead.imported_at.asc()).paginate(page=page, per_page=25, error_out=False)
-    pool_count = Lead.query.filter_by(status='pool').count()
+    pool_count = Lead.query.filter(Lead.status == 'pool', Lead.campaign_id.in_(active_campaign_ids)).count()
 
     gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     gabay_counts = {}
@@ -1750,7 +1752,8 @@ def assign_center():
 
     orphan_cities = []
     pool_by_city = db.session.query(Lead.city, db.func.count(Lead.id))\
-        .filter(Lead.status == 'pool', Lead.city != None, Lead.city != '')\
+        .filter(Lead.status == 'pool', Lead.city != None, Lead.city != '',
+                Lead.campaign_id.in_(active_campaign_ids))\
         .group_by(Lead.city).all()
     for city, count in pool_by_city:
         gabay = city_to_gabay.get(city.lower())
