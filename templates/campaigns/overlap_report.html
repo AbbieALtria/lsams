@@ -44,6 +44,14 @@
 </div>
 
 {% if results %}
+<!-- Download Button -->
+<div class="d-flex justify-content-end mb-3">
+  <a href="?camp_a={{ camp_a_id }}&camp_b={{ camp_b_id }}&download=1"
+    class="btn fw-bold" style="background:#16a34a;color:white;border-radius:8px">
+    <i class="bi bi-file-earmark-excel me-2"></i>Download as Excel (CSV)
+  </a>
+</div>
+
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
   <div class="col-md-3">

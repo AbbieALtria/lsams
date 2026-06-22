@@ -4894,6 +4894,23 @@ def campaign_overlap_report():
             'rows': overlap
         }
 
+    # CSV download
+    if request.args.get('download') == '1' and results:
+        import csv, io
+        camp_a = Campaign.query.get(camp_a_id)
+        camp_b = Campaign.query.get(camp_b_id)
+        si = io.StringIO()
+        w = csv.writer(si)
+        w.writerow(['Seller', 'Phone', f'Status in {camp_b.name}', 'Assigned Gabay', 'Visit Count', 'Visited?'])
+        for r in sorted(results['rows'], key=lambda x: x['visit_count'], reverse=True):
+            w.writerow([r['seller'], r['phone'], r['status_b'], r['gabay'],
+                        r['visit_count'], 'Yes' if r['visited'] else 'No'])
+        output = si.getvalue().encode('utf-8-sig')
+        filename = f"overlap_{camp_a.name}_vs_{camp_b.name}.csv".replace(' ', '_')
+        from flask import Response
+        return Response(output, mimetype='text/csv',
+            headers={'Content-Disposition': f'attachment; filename="{filename}"'})
+
     return render_template('campaigns/overlap_report.html',
         campaigns=campaigns, results=results,
         camp_a_id=camp_a_id, camp_b_id=camp_b_id)
