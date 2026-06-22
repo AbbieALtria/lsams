@@ -4812,6 +4812,22 @@ def campaign_manage():
     return render_template('campaigns/manage.html', campaigns=campaigns, unassigned_count=unassigned_count)
 
 
+@app.route('/campaigns/set-migration-priority', methods=['POST'])
+@login_required
+def campaign_set_migration_priority():
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    wave2 = Campaign.query.get_or_404(data.get('wave2_id'))
+    legacy = Campaign.query.get_or_404(data.get('legacy_id'))
+    wave2.priority = 1
+    wave2.status = 'active'
+    legacy.priority = 99
+    legacy.status = 'archived'
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
 @app.route('/campaigns/manage/rename', methods=['POST'])
 @login_required
 def campaign_rename():
@@ -4893,6 +4909,23 @@ def campaign_overlap_report():
             'unvisited': len(unvisited),
             'rows': overlap
         }
+
+    # Sync: copy gabay + status from camp_b (source) → camp_a (destination)
+    if request.args.get('sync') == '1' and results and camp_a_id and camp_b_id:
+        synced = 0
+        for r in results['rows']:
+            # Get both leads fresh
+            dest_lead = Lead.query.filter_by(campaign_id=camp_a_id, contact_number=r['phone']).first() if r['phone'] != '—' else None
+            src_lead  = Lead.query.filter_by(campaign_id=camp_b_id, contact_number=r['phone']).first() if r['phone'] != '—' else None
+            if dest_lead and src_lead:
+                if src_lead.gabay_id:
+                    dest_lead.gabay_id    = src_lead.gabay_id
+                    dest_lead.assigned_at = src_lead.assigned_at
+                if src_lead.status not in ('pool', 'removed'):
+                    dest_lead.status = src_lead.status
+                synced += 1
+        db.session.commit()
+        return jsonify({'synced': synced})
 
     # CSV download
     if request.args.get('download') == '1' and results:

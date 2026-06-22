@@ -44,13 +44,32 @@
 </div>
 
 {% if results %}
-<!-- Download Button -->
-<div class="d-flex justify-content-end mb-3">
+<!-- Action Buttons -->
+<div class="d-flex justify-content-between align-items-center mb-3 flex-wrap gap-2">
+  <div class="d-flex gap-2 flex-wrap">
+
+    {% if results.overlap > 0 %}
+    <button class="btn fw-bold" style="background:#1F3864;color:white;border-radius:8px"
+      onclick="confirmSync()">
+      <i class="bi bi-arrow-left-right me-2"></i>Sync Assignments &amp; Status → Wave 2
+    </button>
+    {% endif %}
+
+    <button class="btn fw-bold" style="background:#ef4444;color:white;border-radius:8px"
+      onclick="confirmSetPriority()">
+      <i class="bi bi-flag me-2"></i>Set Legacy → P99 · Set Wave 2 → P1 Active
+    </button>
+
+  </div>
+
   <a href="?camp_a={{ camp_a_id }}&camp_b={{ camp_b_id }}&download=1"
     class="btn fw-bold" style="background:#16a34a;color:white;border-radius:8px">
-    <i class="bi bi-file-earmark-excel me-2"></i>Download as Excel (CSV)
+    <i class="bi bi-file-earmark-excel me-2"></i>Download CSV
   </a>
 </div>
+
+<!-- Sync Result Banner (hidden until sync runs) -->
+<div id="syncBanner" style="display:none" class="alert alert-success fw-bold mb-3"></div>
 
 <!-- Summary Cards -->
 <div class="row g-3 mb-4">
@@ -136,4 +155,37 @@
 </div>
 {% endif %}
 {% endif %}
+{% endblock %}
+{% block scripts %}
+<script>
+async function confirmSync() {
+  if (!confirm('Sync {{ results.overlap if results else 0 }} overlapping sellers?\n\nThis will copy the Gabay assignment and status from Legacy to RRLD Wave 2.\nVisit history stays in Legacy. Nothing is deleted.')) return;
+  const btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Syncing…';
+  const res = await fetch('?camp_a={{ camp_a_id }}&camp_b={{ camp_b_id }}&sync=1');
+  const data = await res.json();
+  if (data.error) { alert('Error: ' + data.error); btn.disabled = false; return; }
+  document.getElementById('syncBanner').style.display = 'block';
+  document.getElementById('syncBanner').innerHTML =
+    '✅ Synced! ' + data.synced + ' sellers now have their Gabay assignment and status copied to RRLD Wave 2.';
+  btn.disabled = true; btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Synced';
+}
+
+async function confirmSetPriority() {
+  if (!confirm('This will:\n• Set Legacy → Priority 99 (keep archived)\n• Set RRLD Wave 2 → Priority 1, Active\n\nContinue?')) return;
+  const btn = event.target.closest('button');
+  btn.disabled = true; btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>Updating…';
+  const res = await fetch('/campaigns/set-migration-priority', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ wave2_id: {{ camp_a_id or 0 }}, legacy_id: {{ camp_b_id or 0 }} })
+  });
+  const data = await res.json();
+  if (data.error) { alert('Error: ' + data.error); btn.disabled = false; return; }
+  btn.innerHTML = '<i class="bi bi-check-circle me-1"></i>Done';
+  document.getElementById('syncBanner').style.display = 'block';
+  document.getElementById('syncBanner').innerHTML =
+    '✅ Legacy set to Priority 99. RRLD Wave 2 is now Priority 1 Active.';
+}
+</script>
 {% endblock %}
