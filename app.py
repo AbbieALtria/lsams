@@ -527,10 +527,11 @@ def dashboard():
         return q
 
     # KPI totals
-    total_pool = base_q().count()
-    assigned   = base_q().filter_by(status='assigned').count()
-    attempting = base_q().filter_by(status='attempting').count()
-    negotiation = base_q().filter_by(status='negotiation').count()
+    total_pool   = base_q().count()
+    assigned     = base_q().filter(Lead.gabay_id.isnot(None),
+                       Lead.status.in_(['assigned','attempting','negotiation','registration'])).count()
+    attempting   = base_q().filter_by(status='attempting').count()
+    negotiation  = base_q().filter_by(status='negotiation').count()
     registration = base_q().filter_by(status='registration').count()
     live    = base_q().filter_by(status='live').count()
     matched = base_q().filter_by(status='matched').count()
