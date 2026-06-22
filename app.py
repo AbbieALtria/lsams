@@ -4812,6 +4812,21 @@ def campaign_manage():
     return render_template('campaigns/manage.html', campaigns=campaigns, unassigned_count=unassigned_count)
 
 
+@app.route('/campaigns/manage/rename', methods=['POST'])
+@login_required
+def campaign_rename():
+    if not current_user.is_manager:
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    campaign = Campaign.query.get_or_404(data.get('campaign_id'))
+    name = (data.get('name') or '').strip()
+    if not name:
+        return jsonify({'error': 'Name cannot be empty'}), 400
+    campaign.name = name
+    db.session.commit()
+    return jsonify({'ok': True, 'name': name})
+
+
 @app.route('/campaigns/manage/bulk-assign', methods=['POST'])
 @login_required
 def campaign_bulk_assign():
