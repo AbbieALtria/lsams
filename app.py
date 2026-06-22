@@ -845,7 +845,7 @@ def import_update_preview():
                 entry['lead_id'] = existing.id
                 entry['current_status'] = existing.status
                 entry['current_campaign'] = existing.campaign.name if existing.campaign else '—'
-                entry['current_gabay'] = existing.gabay.name if existing.gabay else 'Unassigned'
+                entry['current_gabay'] = existing.assigned_gabay.name if existing.assigned_gabay else 'Unassigned'
                 visit_count = existing.visits.count()
                 entry['visit_count'] = visit_count
                 if visit_count > 0:
