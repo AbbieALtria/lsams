@@ -6281,10 +6281,135 @@ def activity_log():
         gabay_filter=gabay_filter, days=days, action_type=action_type)
 
 
-@app.route('/presentation')
+# ── Cloudinary helper ────────────────────────────────────────────────────────
+def _cloudinary_upload(file_obj, folder='lsams/presentations', resource_type='raw'):
+    import cloudinary
+    import cloudinary.uploader
+    cloudinary.config(
+        cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+        api_key=os.environ.get('CLOUDINARY_API_KEY'),
+        api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+    )
+    result = cloudinary.uploader.upload(
+        file_obj,
+        folder=folder,
+        resource_type=resource_type,
+        use_filename=True,
+        unique_filename=True,
+    )
+    return result  # keys: public_id, secure_url, format, bytes
+
+
+# ── Presentations library ─────────────────────────────────────────────────────
+@app.route('/presentations')
 @login_required
-def presentation():
-    return render_template('presentation.html')
+def presentations_list():
+    cat = request.args.get('cat', '')
+    q   = request.args.get('q', '').strip()
+    role = current_user.role
+
+    query = Presentation.query
+    # Visibility filter
+    if role in ('gabay',):
+        query = query.filter(Presentation.visible_to == 'all')
+    elif role in ('supervisor',):
+        query = query.filter(Presentation.visible_to.in_(['all', 'supervisor']))
+    # managers/admins see everything
+
+    if cat:
+        query = query.filter(Presentation.category == cat)
+    if q:
+        query = query.filter(Presentation.title.ilike(f'%{q}%'))
+
+    items = query.order_by(Presentation.uploaded_at.desc()).all()
+    can_upload = role in ('supervisor', 'manager', 'admin', 'superadmin')
+    return render_template('presentations/list.html',
+                           items=items, cat=cat, q=q, can_upload=can_upload)
+
+
+@app.route('/presentations/upload', methods=['GET', 'POST'])
+@login_required
+def presentations_upload():
+    if current_user.role not in ('supervisor', 'manager', 'admin', 'superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+
+    if request.method == 'POST':
+        title      = request.form.get('title', '').strip()
+        description= request.form.get('description', '').strip()
+        category   = request.form.get('category', 'general')
+        visible_to = request.form.get('visible_to', 'all')
+        f          = request.files.get('file')
+
+        if not title or not f or not f.filename:
+            flash('Title and file are required.', 'danger')
+            return redirect(url_for('presentations_upload'))
+
+        ext = f.filename.rsplit('.', 1)[-1].lower()
+        if ext not in ('pdf', 'pptx', 'ppt'):
+            flash('Only PDF and PPTX files are allowed.', 'danger')
+            return redirect(url_for('presentations_upload'))
+
+        cld_key = os.environ.get('CLOUDINARY_API_KEY', '')
+        if not cld_key:
+            flash('Cloudinary not configured. Contact admin.', 'danger')
+            return redirect(url_for('presentations_upload'))
+
+        try:
+            result = _cloudinary_upload(f, folder='lsams/presentations', resource_type='raw')
+            pres = Presentation(
+                title=title, description=description, category=category,
+                file_type=ext, visible_to=visible_to,
+                cloudinary_id=result['public_id'],
+                cloudinary_url=result['secure_url'],
+                uploaded_by=current_user.id,
+            )
+            db.session.add(pres)
+            db.session.commit()
+            flash(f'"{title}" uploaded successfully!', 'success')
+            return redirect(url_for('presentations_list'))
+        except Exception as ex:
+            flash(f'Upload failed: {str(ex)}', 'danger')
+            return redirect(url_for('presentations_upload'))
+
+    return render_template('presentations/upload.html')
+
+
+@app.route('/presentations/view/<int:pid>')
+@login_required
+def presentations_view(pid):
+    pres = Presentation.query.get_or_404(pid)
+    role = current_user.role
+    if pres.visible_to == 'supervisor' and role not in ('supervisor','manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    if pres.visible_to == 'manager' and role not in ('manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    return render_template('presentations/view.html', pres=pres)
+
+
+@app.route('/presentations/delete/<int:pid>', methods=['POST'])
+@login_required
+def presentations_delete(pid):
+    if current_user.role not in ('manager', 'admin', 'superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    pres = Presentation.query.get_or_404(pid)
+    try:
+        import cloudinary, cloudinary.uploader
+        cloudinary.config(
+            cloud_name=os.environ.get('CLOUDINARY_CLOUD_NAME'),
+            api_key=os.environ.get('CLOUDINARY_API_KEY'),
+            api_secret=os.environ.get('CLOUDINARY_API_SECRET'),
+        )
+        cloudinary.uploader.destroy(pres.cloudinary_id, resource_type='raw')
+    except Exception:
+        pass
+    db.session.delete(pres)
+    db.session.commit()
+    flash(f'"{pres.title}" deleted.', 'success')
+    return redirect(url_for('presentations_list'))
 
 
 # ─── CITY NORMALIZATION ───────────────────────────────────────────────────────

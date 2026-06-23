@@ -572,3 +572,18 @@ class LeadIntelligence(db.Model):
     @property
     def active_platforms(self):
         return [p for p in self.platforms if p.get('status') == 'active']
+
+
+class Presentation(db.Model):
+    __tablename__ = 'presentations'
+    id            = db.Column(db.Integer, primary_key=True)
+    title         = db.Column(db.String(200), nullable=False)
+    description   = db.Column(db.Text)
+    category      = db.Column(db.String(50), default='general')   # training/sales/report/general
+    file_type     = db.Column(db.String(10))                       # pdf / pptx
+    cloudinary_id = db.Column(db.String(200))                      # public_id in Cloudinary
+    cloudinary_url= db.Column(db.String(500))                      # direct URL
+    visible_to    = db.Column(db.String(20), default='all')        # all / supervisor / manager
+    uploaded_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
+    uploaded_at   = db.Column(db.DateTime, default=datetime.utcnow)
+    uploader      = db.relationship('User', foreign_keys=[uploaded_by])

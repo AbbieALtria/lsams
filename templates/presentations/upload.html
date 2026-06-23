@@ -1,0 +1,143 @@
+{% extends "base.html" %}
+{% block title %}Upload Presentation{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center gap-3">
+  <a href="{{ url_for('presentations_list') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left"></i>
+  </a>
+  <div class="page-title"><i class="bi bi-cloud-upload me-2"></i>Upload Presentation</div>
+</div>
+
+<div class="card" style="max-width:600px;margin:0 auto">
+  <div class="card-body" style="padding:28px">
+    <form method="POST" enctype="multipart/form-data" id="uploadForm">
+
+      <!-- Title -->
+      <div class="mb-3">
+        <label class="form-label fw-700" style="font-size:13px;color:#1F3864">
+          Title <span style="color:#dc2626">*</span>
+        </label>
+        <input type="text" name="title" class="form-control" required
+               placeholder="e.g. Lazada Onboarding Guide Q2 2026"
+               style="border-radius:10px;font-size:14px">
+      </div>
+
+      <!-- Description -->
+      <div class="mb-3">
+        <label class="form-label fw-700" style="font-size:13px;color:#1F3864">
+          Description <span style="font-weight:400;color:#9aabc5">(optional)</span>
+        </label>
+        <textarea name="description" class="form-control" rows="3"
+                  placeholder="Brief description of what this presentation covers…"
+                  style="border-radius:10px;font-size:14px"></textarea>
+      </div>
+
+      <!-- Category + Visible To -->
+      <div class="row g-3 mb-3">
+        <div class="col-6">
+          <label class="form-label fw-700" style="font-size:13px;color:#1F3864">Category</label>
+          <select name="category" class="form-select" style="border-radius:10px;font-size:14px">
+            <option value="training">📚 Training</option>
+            <option value="sales">💼 Sales Pitch</option>
+            <option value="report">📊 Report</option>
+            <option value="general">📁 General</option>
+          </select>
+        </div>
+        <div class="col-6">
+          <label class="form-label fw-700" style="font-size:13px;color:#1F3864">Visible To</label>
+          <select name="visible_to" class="form-select" style="border-radius:10px;font-size:14px">
+            <option value="all">👥 Everyone</option>
+            <option value="supervisor">👔 Supervisors+</option>
+            <option value="manager">🏢 Managers only</option>
+          </select>
+        </div>
+      </div>
+
+      <!-- File upload -->
+      <div class="mb-4">
+        <label class="form-label fw-700" style="font-size:13px;color:#1F3864">
+          File <span style="color:#dc2626">*</span>
+          <span style="font-weight:400;color:#9aabc5;margin-left:6px">PDF or PPTX · Max 20MB</span>
+        </label>
+        <div id="dropZone"
+             style="border:2px dashed #CBD5E1;border-radius:14px;padding:32px 20px;
+                    text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s"
+             onclick="document.getElementById('fileInput').click()"
+             ondragover="event.preventDefault();this.style.borderColor='#F57224';this.style.background='#FFF7F0'"
+             ondragleave="this.style.borderColor='#CBD5E1';this.style.background='#F8FAFD'"
+             ondrop="handleDrop(event)">
+          <i class="bi bi-cloud-upload" style="font-size:36px;color:#9aabc5;display:block;margin-bottom:8px"></i>
+          <div style="font-size:14px;font-weight:700;color:#4a5568">Drag & drop or tap to browse</div>
+          <div style="font-size:12px;color:#9aabc5;margin-top:4px">PDF, PPT, PPTX</div>
+          <div id="fileLabel" style="display:none;margin-top:12px;font-size:13px;font-weight:700;color:#15803d"></div>
+        </div>
+        <input type="file" name="file" id="fileInput" accept=".pdf,.ppt,.pptx"
+               style="display:none" onchange="showFile(this)">
+      </div>
+
+      <!-- Upload progress -->
+      <div id="progressWrap" style="display:none;margin-bottom:16px">
+        <div style="font-size:12px;color:#6b7280;margin-bottom:6px">Uploading to cloud…</div>
+        <div style="background:#F0F4FA;border-radius:8px;height:8px;overflow:hidden">
+          <div id="progressBar"
+               style="background:linear-gradient(90deg,#F57224,#F5225B);height:8px;
+                      width:0%;transition:width 0.3s;border-radius:8px"></div>
+        </div>
+      </div>
+
+      <button type="submit" id="submitBtn"
+              style="width:100%;background:linear-gradient(135deg,#1F3864,#2E75B6);
+                     color:white;border:none;border-radius:12px;padding:14px;
+                     font-size:15px;font-weight:800;cursor:pointer">
+        <i class="bi bi-cloud-upload-fill me-2"></i>Upload Presentation
+      </button>
+    </form>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+function showFile(input) {
+  const f = input.files[0];
+  if (!f) return;
+  const label = document.getElementById('fileLabel');
+  const drop  = document.getElementById('dropZone');
+  label.textContent = '📎 ' + f.name + ' (' + (f.size/1024/1024).toFixed(1) + ' MB)';
+  label.style.display = 'block';
+  drop.style.borderColor = '#15803d';
+  drop.style.background  = '#f0fdf4';
+}
+
+function handleDrop(e) {
+  e.preventDefault();
+  const dt = e.dataTransfer;
+  document.getElementById('dropZone').style.borderColor = '#CBD5E1';
+  document.getElementById('dropZone').style.background  = '#F8FAFD';
+  if (dt.files.length) {
+    const inp = document.getElementById('fileInput');
+    // DataTransfer trick to set files
+    const dta = new DataTransfer();
+    dta.items.add(dt.files[0]);
+    inp.files = dta.files;
+    showFile(inp);
+  }
+}
+
+document.getElementById('uploadForm').addEventListener('submit', function() {
+  const btn  = document.getElementById('submitBtn');
+  const prog = document.getElementById('progressWrap');
+  const bar  = document.getElementById('progressBar');
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Uploading…';
+  prog.style.display = 'block';
+  let w = 0;
+  const iv = setInterval(() => {
+    w = Math.min(w + Math.random() * 15, 90);
+    bar.style.width = w + '%';
+    if (w >= 90) clearInterval(iv);
+  }, 300);
+});
+</script>
+{% endblock %}

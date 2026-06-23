@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+{% block title %}Presentations{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div class="page-title"><i class="bi bi-collection-play me-2"></i>Presentations & Resources</div>
+  {% if can_upload %}
+  <a href="{{ url_for('presentations_upload') }}"
+     style="background:linear-gradient(135deg,#F57224,#F5225B);color:white;border:none;
+            border-radius:10px;padding:8px 18px;font-size:13px;font-weight:700;text-decoration:none">
+    <i class="bi bi-cloud-upload me-1"></i>Upload
+  </a>
+  {% endif %}
+</div>
+
+<!-- FILTER BAR -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
+      <input type="text" name="q" value="{{ q }}" placeholder="Search presentations…"
+             class="form-control form-control-sm" style="max-width:220px">
+      <select name="cat" class="form-select form-select-sm" style="max-width:180px" onchange="this.form.submit()">
+        <option value="">All Categories</option>
+        <option value="training"   {% if cat=='training'   %}selected{% endif %}>📚 Training</option>
+        <option value="sales"      {% if cat=='sales'      %}selected{% endif %}>💼 Sales Pitch</option>
+        <option value="report"     {% if cat=='report'     %}selected{% endif %}>📊 Reports</option>
+        <option value="general"    {% if cat=='general'    %}selected{% endif %}>📁 General</option>
+      </select>
+      <button type="submit" class="btn btn-sm btn-primary">Search</button>
+      <a href="{{ url_for('presentations_list') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+    </form>
+  </div>
+</div>
+
+{% if items %}
+<div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
+  {% for p in items %}
+  {% set cat_color = {'training':'#2563eb','sales':'#be185d','report':'#15803d','general':'#6b7280'} %}
+  {% set cat_icon  = {'training':'📚','sales':'💼','report':'📊','general':'📁'} %}
+  {% set col = cat_color.get(p.category,'#6b7280') %}
+  <div style="background:white;border-radius:16px;overflow:hidden;
+              box-shadow:0 2px 12px rgba(31,56,100,0.08);
+              border-top:4px solid {{ col }};display:flex;flex-direction:column">
+    <!-- File type banner -->
+    <div style="background:{{ col }}12;padding:20px;text-align:center">
+      {% if p.file_type == 'pdf' %}
+      <i class="bi bi-file-earmark-pdf-fill" style="font-size:48px;color:#dc2626"></i>
+      {% else %}
+      <i class="bi bi-file-earmark-slides-fill" style="font-size:48px;color:#c2410c"></i>
+      {% endif %}
+      <div style="font-size:11px;font-weight:800;color:{{ col }};margin-top:6px;text-transform:uppercase">
+        {{ cat_icon.get(p.category,'📁') }} {{ p.category }}
+      </div>
+    </div>
+    <div style="padding:14px 16px;flex:1;display:flex;flex-direction:column">
+      <div style="font-size:14px;font-weight:800;color:#1F3864;margin-bottom:4px;line-height:1.3">
+        {{ p.title }}
+      </div>
+      {% if p.description %}
+      <div style="font-size:12px;color:#6b7280;margin-bottom:8px;line-height:1.4;flex:1">
+        {{ p.description[:100] }}{% if p.description|length > 100 %}…{% endif %}
+      </div>
+      {% endif %}
+      <div style="font-size:11px;color:#9aabc5;margin-bottom:12px">
+        <i class="bi bi-person me-1"></i>{{ p.uploader.full_name if p.uploader else '—' }}
+        · {{ p.uploaded_at.strftime('%b %d, %Y') }}
+        <span style="background:{{ col }}18;color:{{ col }};font-weight:700;
+                     padding:1px 6px;border-radius:6px;margin-left:6px">
+          {{ p.file_type|upper }}
+        </span>
+      </div>
+      <div style="display:flex;gap:8px">
+        <a href="{{ url_for('presentations_view', pid=p.id) }}"
+           style="flex:2;background:#1F3864;color:white;border-radius:10px;padding:9px;
+                  text-align:center;font-size:13px;font-weight:700;text-decoration:none">
+          <i class="bi bi-eye me-1"></i>View
+        </a>
+        <a href="{{ p.cloudinary_url }}" target="_blank" download
+           style="flex:1;background:#F0F4FA;color:#1F3864;border-radius:10px;padding:9px;
+                  text-align:center;font-size:13px;font-weight:700;text-decoration:none">
+          <i class="bi bi-download"></i>
+        </a>
+        {% if current_user.role in ('manager','admin','superadmin') %}
+        <form method="POST" action="{{ url_for('presentations_delete', pid=p.id) }}"
+              onsubmit="return confirm('Delete this file?')" style="flex:none">
+          <button type="submit"
+                  style="background:#fee2e2;color:#b91c1c;border:none;border-radius:10px;
+                         padding:9px 12px;font-size:13px;cursor:pointer">
+            <i class="bi bi-trash"></i>
+          </button>
+        </form>
+        {% endif %}
+      </div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+{% else %}
+<div style="text-align:center;padding:60px 20px;color:#9aabc5">
+  <i class="bi bi-collection" style="font-size:48px;display:block;margin-bottom:12px"></i>
+  <div style="font-size:16px;font-weight:700">No presentations yet</div>
+  {% if can_upload %}
+  <div style="font-size:13px;margin-top:6px">
+    <a href="{{ url_for('presentations_upload') }}">Upload the first one</a>
+  </div>
+  {% endif %}
+</div>
+{% endif %}
+
+{% endblock %}
