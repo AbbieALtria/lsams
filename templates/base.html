@@ -164,25 +164,22 @@
                   border-radius: 10px; font-size: 9px; font-weight: 800; padding: 1px 5px;
                   min-width: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.5); }
 
-  /* CUSTOM TOOLTIPS — override Bootstrap black */
+  /* CUSTOM TOOLTIPS — Lazada deep red-orange secondary */
   .tooltip .tooltip-inner {
-    background: white;
-    color: #2D2D2D;
+    background: linear-gradient(135deg, #CC2900 0%, #E8430A 100%);
+    color: white;
     font-size: 12px;
     font-weight: 500;
     border-radius: 10px;
-    padding: 8px 12px;
-    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
-    border: 1px solid #EDE8E3;
-    max-width: 220px;
+    padding: 10px 14px;
+    box-shadow: 0 6px 20px rgba(204,41,0,0.35);
+    max-width: 230px;
     text-align: left;
+    line-height: 1.5;
   }
-  .tooltip .tooltip-arrow::before {
-    border-top-color: white !important;
-    border-bottom-color: white !important;
-  }
-  .tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: white !important; }
-  .tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: white !important; }
+  .tooltip .tooltip-arrow::before { border-top-color: #CC2900 !important; border-bottom-color: #CC2900 !important; }
+  .tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: #CC2900 !important; }
+  .tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: #CC2900 !important; }
 </style>
 {% block extra_head %}{% endblock %}
 </head>
