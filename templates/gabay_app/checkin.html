@@ -253,17 +253,29 @@
     <!-- SELFIE -->
     <div>
       <input type="file" name="photo_selfie" id="selfieInput"
-             accept="image/*" capture="user" style="display:none"
+             accept="image/*" style="display:none"
              onchange="previewPhoto(this,'selfiePreview')">
-      <div onclick="document.getElementById('selfieInput').click()"
-           id="selfieBox"
-           style="border:2px dashed #CBD5E1;border-radius:16px;padding:16px 8px;
-                  text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s;
-                  min-height:110px;display:flex;flex-direction:column;
-                  align-items:center;justify-content:center">
-        <div style="font-size:32px;margin-bottom:6px">🤳</div>
-        <div style="font-size:11px;font-weight:700;color:#4a5568">Take Selfie</div>
-        <div style="font-size:10px;color:#9aabc5;margin-top:2px">Front camera — at seller location</div>
+      <div id="selfieBox"
+           style="border:2px dashed #CBD5E1;border-radius:16px;padding:12px 6px;
+                  text-align:center;background:#F8FAFD;transition:all 0.2s;
+                  min-height:120px;display:flex;flex-direction:column;
+                  align-items:center;justify-content:center;gap:8px">
+        <div style="font-size:28px">🤳</div>
+        <div style="font-size:11px;font-weight:700;color:#4a5568">Selfie</div>
+        <div style="display:flex;flex-direction:column;gap:5px;width:100%;padding:0 6px">
+          <button type="button"
+                  onclick="document.getElementById('selfieInput').removeAttribute('capture');document.getElementById('selfieInput').setAttribute('capture','user');document.getElementById('selfieInput').click()"
+                  style="background:#1F3864;color:white;border:none;border-radius:8px;
+                         padding:6px 4px;font-size:11px;font-weight:700;cursor:pointer;width:100%">
+            📷 Camera
+          </button>
+          <button type="button"
+                  onclick="document.getElementById('selfieInput').removeAttribute('capture');document.getElementById('selfieInput').click()"
+                  style="background:white;color:#1F3864;border:1.5px solid #1F3864;
+                         border-radius:8px;padding:6px 4px;font-size:11px;font-weight:700;cursor:pointer;width:100%">
+            🖼️ Gallery
+          </button>
+        </div>
       </div>
       <img id="selfiePreview" src="" alt=""
            style="display:none;width:100%;border-radius:14px;margin-top:6px;
@@ -272,17 +284,29 @@
     <!-- PROOF PHOTO -->
     <div>
       <input type="file" name="photo_proof" id="proofInput"
-             accept="image/*" capture="environment" style="display:none"
+             accept="image/*" style="display:none"
              onchange="previewPhoto(this,'proofPreview')">
-      <div onclick="document.getElementById('proofInput').click()"
-           id="proofBox"
-           style="border:2px dashed #CBD5E1;border-radius:16px;padding:16px 8px;
-                  text-align:center;cursor:pointer;background:#F8FAFD;transition:all 0.2s;
-                  min-height:110px;display:flex;flex-direction:column;
-                  align-items:center;justify-content:center">
-        <div style="font-size:32px;margin-bottom:6px">📸</div>
+      <div id="proofBox"
+           style="border:2px dashed #CBD5E1;border-radius:16px;padding:12px 6px;
+                  text-align:center;background:#F8FAFD;transition:all 0.2s;
+                  min-height:120px;display:flex;flex-direction:column;
+                  align-items:center;justify-content:center;gap:8px">
+        <div style="font-size:28px">📸</div>
         <div style="font-size:11px;font-weight:700;color:#4a5568">Proof Photo</div>
-        <div style="font-size:10px;color:#9aabc5;margin-top:2px">Store / meeting</div>
+        <div style="display:flex;flex-direction:column;gap:5px;width:100%;padding:0 6px">
+          <button type="button"
+                  onclick="document.getElementById('proofInput').removeAttribute('capture');document.getElementById('proofInput').setAttribute('capture','environment');document.getElementById('proofInput').click()"
+                  style="background:#1F3864;color:white;border:none;border-radius:8px;
+                         padding:6px 4px;font-size:11px;font-weight:700;cursor:pointer;width:100%">
+            📷 Camera
+          </button>
+          <button type="button"
+                  onclick="document.getElementById('proofInput').removeAttribute('capture');document.getElementById('proofInput').click()"
+                  style="background:white;color:#1F3864;border:1.5px solid #1F3864;
+                         border-radius:8px;padding:6px 4px;font-size:11px;font-weight:700;cursor:pointer;width:100%">
+            🖼️ Gallery
+          </button>
+        </div>
       </div>
       <img id="proofPreview" src="" alt=""
            style="display:none;width:100%;border-radius:14px;margin-top:6px;
