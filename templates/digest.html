@@ -126,7 +126,7 @@
         {% for v in visits_today[:15] %}
         <div style="padding:8px 16px;border-bottom:1px solid #F0F4FA;font-size:12px">
           <div style="font-weight:700;color:#1F3864">{{ v.lead.seller_name if v.lead else '—' }}</div>
-          <div style="color:#9aabc5">{{ v.gabay.display_name.split()[0] if v.gabay else '—' }} · {{ v.visited_at.strftime('%I:%M %p') }} · <span style="color:#4a5568">{{ (v.outcome or '—').replace('_',' ').title() }}</span></div>
+          <div style="color:#9aabc5">{{ v.gabay.display_name.split()[0] if v.gabay else '—' }} · {{ v.visited_at|pht_time }} · <span style="color:#4a5568">{{ (v.outcome or '—').replace('_',' ').title() }}</span></div>
         </div>
         {% endfor %}
         {% if visits_today|length > 15 %}

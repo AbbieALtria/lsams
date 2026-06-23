@@ -23,6 +23,26 @@ login_manager.login_message_category = 'warning'
 os.makedirs(app.config['UPLOAD_FOLDER'], exist_ok=True)
 os.makedirs('instance', exist_ok=True)
 
+# ── Timezone: all DB timestamps are UTC; display in Philippine Time (UTC+8) ──
+from datetime import timezone, timedelta as _td
+_PHT = timezone(_td(hours=8))
+
+@app.template_filter('pht')
+def to_pht(dt, fmt='%b %d, %Y %I:%M %p'):
+    if dt is None:
+        return '—'
+    if dt.tzinfo is None:
+        dt = dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(_PHT).strftime(fmt)
+
+@app.template_filter('pht_date')
+def to_pht_date(dt, fmt='%b %d, %Y'):
+    return to_pht(dt, fmt)
+
+@app.template_filter('pht_time')
+def to_pht_time(dt, fmt='%I:%M %p'):
+    return to_pht(dt, fmt)
+
 with app.app_context():
     db.create_all()
     # Add new User columns if they don't exist (safe for existing Railway DB)

@@ -72,12 +72,12 @@
                 {% elif diff_secs < 3600 %}
                   <span style="color:#b45309;font-weight:600">{{ (diff_secs // 60)|int }}m ago</span>
                 {% elif diff_secs < 86400 %}
-                  {{ u.last_seen.strftime('%b %d %H:%M') }}
+                  {{ u.last_seen|pht('%b %d %I:%M %p') }}
                 {% else %}
                   {{ u.last_seen.strftime('%b %d') }}
                 {% endif %}
               {% else %}
-                {{ u.last_login.strftime('%b %d %H:%M') if u.last_login else 'Never' }}
+                {{ u.last_login|pht('%b %d %I:%M %p') if u.last_login else 'Never' }}
               {% endif %}
               {% if role == 'gabay' and u.latest_gps %}
                 <div style="font-size:10px;color:#6b7280;margin-top:2px" title="{{ u.latest_gps }}">

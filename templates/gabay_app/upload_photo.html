@@ -25,7 +25,7 @@
   </div>
   <div style="font-size:11px;color:#6366f1">
     <i class="bi bi-calendar3 me-1"></i>
-    Visit on {{ visit.visited_at.strftime('%b %d, %Y at %I:%M %p') }}
+    Visit on {{ visit.visited_at|pht('%b %d, %Y at %I:%M %p') }}
   </div>
   {% if visit.gps_address %}
   <div style="font-size:11px;color:#9aabc5;margin-top:3px">

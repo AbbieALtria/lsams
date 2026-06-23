@@ -379,7 +379,7 @@ const autoPoll = setInterval(() => {
   <div style="padding:12px 0;border-bottom:1px solid #F0F4FA{% if loop.last %};border-bottom:none{% endif %}">
     <div style="display:flex;justify-content:space-between;align-items:center">
       <div style="font-size:12px;font-weight:700;color:#1F3864">
-        {{ v.visited_at.strftime('%b %d, %Y · %I:%M %p') }}
+        {{ v.visited_at|pht('%b %d, %Y · %I:%M %p') }}
       </div>
       {% set oc = {'interested':'#15803d','callback':'#2E75B6','not_home':'#E07B00','rejected':'#b91c1c','registered':'#7c3aed','follow_up':'#be185d'} %}
       <span style="font-size:10px;font-weight:700;padding:2px 8px;border-radius:8px;

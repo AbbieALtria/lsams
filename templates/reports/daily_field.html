@@ -59,7 +59,7 @@
       <tbody>
         {% for v in visits %}
         <tr>
-          <td style="font-size:12px;color:#9aabc5;white-space:nowrap">{{ v.visited_at.strftime('%I:%M %p') }}</td>
+          <td style="font-size:12px;color:#9aabc5;white-space:nowrap">{{ v.visited_at|pht_time }}</td>
           <td><strong style="color:#1F3864">{{ v._gabay.display_name if v._gabay else '—' }}</strong></td>
           <td>
             {% if v._lead %}

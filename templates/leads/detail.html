@@ -119,7 +119,7 @@
           <div class="d-flex justify-content-between align-items-start">
             <div>
               <span class="badge bg-{{ v.outcome_color }} me-2">{{ v.outcome_label }}</span>
-              <small style="color:#9aabc5">{{ v.visited_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+              <small style="color:#9aabc5">{{ v.visited_at|pht }}</small>
             </div>
             <small style="color:#9aabc5">{{ v.gabay.display_name if v.gabay else '' }}</small>
           </div>
@@ -167,7 +167,7 @@
               <strong>{{ h.gabay_user.full_name if h.gabay_user else 'Unknown' }}</strong>
               <span style="color:#9aabc5"> assigned by {{ h.assigned_by_user.full_name if h.assigned_by_user else 'System' }}</span>
             </div>
-            <small style="color:#9aabc5">{{ h.assigned_at.strftime('%b %d, %Y %I:%M %p') }}</small>
+            <small style="color:#9aabc5">{{ h.assigned_at|pht }}</small>
           </div>
         </div>
         {% endfor %}

@@ -252,7 +252,7 @@ async function sendBriefing(type) {
           <td>
             <span class="badge bg-{{ v.outcome_color }}">{{ v.outcome_label }}</span>
           </td>
-          <td style="color:#9aabc5;font-size:12px">{{ v.visited_at.strftime('%b %d, %Y %I:%M %p') }}</td>
+          <td style="color:#9aabc5;font-size:12px">{{ v.visited_at|pht }}</td>
         </tr>
         {% else %}
         <tr><td colspan="4" class="text-center text-muted py-3">No visits recorded yet.</td></tr>

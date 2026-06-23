@@ -10,7 +10,7 @@
 {% if visits %}
   {% set ns = namespace(current_date='') %}
   {% for v in visits %}
-    {% set day = v.visited_at.strftime('%B %d, %Y') %}
+    {% set day = v.visited_at|pht_date('%B %d, %Y') %}
     {% if day != ns.current_date %}
       {% set ns.current_date = day %}
       <div class="section-hdr">{{ day }}</div>
@@ -37,7 +37,7 @@
             {{ v.lead.seller_name if v.lead else '—' }}
           </div>
           <div style="font-size:11px;color:#9aabc5;margin-top:2px">
-            {{ v.visited_at.strftime('%I:%M %p') }}
+            {{ v.visited_at|pht_time }}
             {% if v.gps_address %}· {{ v.gps_address[:40] }}…{% endif %}
           </div>
           {% if v.notes %}
