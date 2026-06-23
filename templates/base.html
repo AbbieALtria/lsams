@@ -11,24 +11,34 @@
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <style>
   :root {
-    --lz-orange: #F57224;
-    --lz-orange-dark: #D45A10;
+    /* ── Lazada Full Brand Palette ── */
+    --lz-orange:       #F57224;
+    --lz-orange-dark:  #D45A10;
     --lz-orange-light: #FEF0E8;
-    --lz-text: #2D2D2D;
-    --bs-primary: #F57224;
-    --bs-primary-rgb: 245,114,36;
+    --lz-pink:         #F5225B;
+    --lz-pink-dark:    #C4114A;
+    --lz-pink-light:   #FDE8EF;
+    --lz-purple:       #8B2BE2;
+    --lz-purple-dark:  #6A1BB5;
+    --lz-purple-light: #F3E8FF;
+    --lz-blue:         #1565C0;
+    --lz-blue-dark:    #0D47A1;
+    --lz-blue-light:   #E3F0FF;
+    --lz-text:         #1A1A2E;
+    --bs-primary:      #F57224;
+    --bs-primary-rgb:  245,114,36;
     --sidebar-w: 240px;
     --topbar-h: 56px;
   }
-  body { background: #F7F5F3; font-size: 14px; }
+  body { background: #F5F5F8; font-size: 14px; }
 
-  /* TOPBAR */
+  /* ── TOPBAR: Lazada full-spectrum gradient ── */
   .topbar {
     height: var(--topbar-h);
-    background: linear-gradient(135deg, #F57224 0%, #FF8C42 100%);
+    background: linear-gradient(110deg, #F57224 0%, #F5225B 50%, #8B2BE2 100%);
     position: fixed; top: 0; left: 0; right: 0; z-index: 1040;
     display: flex; align-items: center; padding: 0 16px; gap: 12px;
-    box-shadow: 0 2px 12px rgba(245,114,36,0.35);
+    box-shadow: 0 3px 16px rgba(139,43,226,0.30);
   }
   .topbar .brand {
     color: white; font-weight: 800; font-size: 17px; letter-spacing: 0.5px;
@@ -36,71 +46,88 @@
   }
   .topbar .brand .lz-heart {
     width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
-    background: white; border-radius: 8px;
-    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+    background: white; border-radius: 8px; box-shadow: 0 2px 6px rgba(0,0,0,0.2);
   }
   .topbar .brand .lz-heart svg { width: 18px; height: 18px; }
   .topbar .ms-auto { margin-left: auto !important; }
   .topbar .user-pill {
-    background: rgba(255,255,255,0.2); color: white; border-radius: 20px;
-    padding: 5px 12px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+    background: rgba(255,255,255,0.18); color: white; border-radius: 20px;
+    padding: 5px 12px; font-size: 12px; font-weight: 600;
+    display: flex; align-items: center; gap: 6px;
     border: 1px solid rgba(255,255,255,0.3);
   }
   .topbar .role-badge {
-    background: white; color: var(--lz-orange); border-radius: 10px;
+    background: white; color: var(--lz-purple); border-radius: 10px;
     padding: 1px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase;
   }
 
-  /* SIDEBAR */
+  /* ── SIDEBAR ── */
   .sidebar {
     width: var(--sidebar-w); background: #fff; position: fixed;
     top: var(--topbar-h); bottom: 0; left: 0; z-index: 1030;
-    overflow-y: auto; border-right: 1px solid #EDE8E3;
+    overflow-y: auto; border-right: 1px solid #E8E4EE;
     transition: transform 0.3s ease;
   }
-  .sidebar .nav-section { padding: 16px 16px 4px; font-size: 10px; font-weight: 700; color: #B0A89E; text-transform: uppercase; letter-spacing: 1px; }
+
+  /* Section labels cycle through Lazada colors */
+  .sidebar .nav-section {
+    padding: 16px 16px 4px; font-size: 10px; font-weight: 800;
+    text-transform: uppercase; letter-spacing: 1.2px;
+  }
+  .sidebar .nav-section.sec-main     { color: var(--lz-blue); }
+  .sidebar .nav-section.sec-ops      { color: var(--lz-orange); }
+  .sidebar .nav-section.sec-mgmt     { color: var(--lz-pink); }
+  .sidebar .nav-section.sec-analytics{ color: var(--lz-purple); }
+  .sidebar .nav-section.sec-support  { color: var(--lz-blue); }
+
   .sidebar .nav-link {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 16px; color: #4a5568; font-weight: 500; font-size: 13px;
     border-radius: 8px; margin: 1px 8px; text-decoration: none;
     transition: background 0.15s, color 0.15s;
   }
-  .sidebar .nav-link:hover { background: var(--lz-orange-light); color: var(--lz-orange); }
-  .sidebar .nav-link.active {
-    background: var(--lz-orange-light); color: var(--lz-orange); font-weight: 700;
-    border-left: 3px solid var(--lz-orange); margin-left: 8px; padding-left: 13px;
-  }
+
+  /* Hover + active per section */
+  .sidebar .sec-main     ~ .nav-link:hover,
+  .sidebar .nav-link.active-blue   { background: var(--lz-blue-light);   color: var(--lz-blue);   font-weight:700; border-left:3px solid var(--lz-blue);   margin-left:8px; padding-left:13px; }
+  .sidebar .nav-link.active-orange { background: var(--lz-orange-light); color: var(--lz-orange); font-weight:700; border-left:3px solid var(--lz-orange); margin-left:8px; padding-left:13px; }
+  .sidebar .nav-link.active-pink   { background: var(--lz-pink-light);   color: var(--lz-pink);   font-weight:700; border-left:3px solid var(--lz-pink);   margin-left:8px; padding-left:13px; }
+  .sidebar .nav-link.active-purple { background: var(--lz-purple-light); color: var(--lz-purple); font-weight:700; border-left:3px solid var(--lz-purple); margin-left:8px; padding-left:13px; }
+
+  /* Generic active fallback */
+  .sidebar .nav-link.active { background: var(--lz-purple-light); color: var(--lz-purple); font-weight:700; border-left:3px solid var(--lz-purple); margin-left:8px; padding-left:13px; }
+  .sidebar .nav-link:hover  { background: var(--lz-purple-light); color: var(--lz-purple); }
   .sidebar .nav-link i { font-size: 16px; width: 20px; text-align: center; }
   .sidebar .nav-link .badge { margin-left: auto; }
 
-  /* MAIN */
+  /* ── MAIN ── */
   .main-content { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); padding: 24px; min-height: calc(100vh - var(--topbar-h)); }
 
-  /* KPI CARDS */
-  .kpi-card { background: white; border-radius: 12px; padding: 18px 16px; box-shadow: 0 2px 8px rgba(245,114,36,0.08); border-left: 4px solid var(--lz-orange); }
+  /* ── KPI CARDS ── */
+  .kpi-card { background: white; border-radius: 12px; padding: 18px 16px; box-shadow: 0 2px 10px rgba(139,43,226,0.08); border-left: 4px solid var(--lz-purple); }
   .kpi-card .kpi-val { font-size: 32px; font-weight: 800; color: var(--lz-text); line-height: 1; }
   .kpi-card .kpi-lbl { font-size: 11px; font-weight: 700; color: #9aabc5; text-transform: uppercase; letter-spacing: 0.5px; }
   .kpi-card .kpi-sub { font-size: 11px; color: #27ae60; font-weight: 600; }
 
-  /* CARDS */
-  .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(245,114,36,0.07); }
-  .card-header { background: white; border-bottom: 1px solid #EDE8E3; font-weight: 700; color: var(--lz-text); padding: 14px 18px; }
-  .card-header.dark { background: var(--lz-orange); color: white; }
+  /* ── CARDS ── */
+  .card { border: none; border-radius: 12px; box-shadow: 0 2px 10px rgba(139,43,226,0.07); }
+  .card-header { background: white; border-bottom: 1px solid #EDE8F5; font-weight: 700; color: var(--lz-text); padding: 14px 18px; }
+  .card-header.dark { background: linear-gradient(110deg, #F57224, #F5225B, #8B2BE2); color: white; }
 
-  /* TABLE */
-  .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aabc5; font-weight: 700; border-bottom: 2px solid #EDE8E3; }
+  /* ── TABLE ── */
+  .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aabc5; font-weight: 700; border-bottom: 2px solid #EDE8F5; }
   .table td { vertical-align: middle; font-size: 13px; }
-  .table-hover tbody tr:hover { background: var(--lz-orange-light); }
+  .table-hover tbody tr:hover { background: var(--lz-purple-light); }
 
-  /* STATUS BADGES */
-  .badge-pool { background: #e2e8f0; color: #4a5568; }
-  .badge-assigned { background: #dbeafe; color: #1d4ed8; }
-  .badge-attempting { background: #fef3c7; color: #b45309; }
-  .badge-negotiation { background: #e0e7ff; color: #4338ca; }
-  .badge-registration { background: #fce7f3; color: #be185d; }
-  .badge-live { background: #dcfce7; color: #15803d; }
-  .badge-matched { background: #d1fae5; color: #065f46; }
-  .badge-closed { background: #fee2e2; color: #b91c1c; }
+  /* ── STATUS BADGES (Lazada palette) ── */
+  .badge-pool        { background: #E8E4EE; color: var(--lz-purple); }
+  .badge-assigned    { background: var(--lz-blue-light); color: var(--lz-blue); }
+  .badge-attempting  { background: var(--lz-orange-light); color: var(--lz-orange-dark); }
+  .badge-negotiation { background: var(--lz-purple-light); color: var(--lz-purple); }
+  .badge-registration{ background: var(--lz-pink-light); color: var(--lz-pink-dark); }
+  .badge-live        { background: #dcfce7; color: #15803d; }
+  .badge-matched     { background: #d1fae5; color: #065f46; }
+  .badge-closed      { background: #fee2e2; color: #b91c1c; }
 
   /* MOBILE SIDEBAR TOGGLE */
   .sidebar-toggle { display: none; background: none; border: none; color: white; font-size: 22px; }
@@ -416,101 +443,100 @@
   </div>
   {% endif %}
 
-  <div class="nav-section">Main</div>
-  <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active{% endif %}">
-    <i class="bi bi-speedometer2"></i> Dashboard
+  <div class="nav-section sec-main">Main</div>
+  <a href="{{ url_for('dashboard') }}" class="nav-link {% if request.endpoint == 'dashboard' %}active-blue{% endif %}">
+    <i class="bi bi-speedometer2" style="color:var(--lz-blue)"></i> Dashboard
   </a>
 
-  <div class="nav-section">Operations</div>
+  <div class="nav-section sec-ops">Operations</div>
   {% if current_user.is_supervisor %}
-  <a href="{{ url_for('assign_center') }}" class="nav-link {% if request.endpoint == 'assign_center' or request.endpoint == 'do_assign' %}active{% endif %}"
-     style="{% if pool_nav_count and pool_nav_count > 0 %}background:#FFF9E6{% endif %}">
-    <i class="bi bi-person-check" style="color:#E07B00"></i>
+  <a href="{{ url_for('assign_center') }}" class="nav-link {% if request.endpoint == 'assign_center' or request.endpoint == 'do_assign' %}active-orange{% endif %}">
+    <i class="bi bi-person-check" style="color:var(--lz-orange)"></i>
     <span style="font-weight:700">Assign Leads</span>
     {% if pool_nav_count and pool_nav_count > 0 %}
-    <span class="badge ms-auto" style="background:#E07B00;color:white">{{ pool_nav_count }}</span>
+    <span class="badge ms-auto" style="background:var(--lz-orange);color:white">{{ pool_nav_count }}</span>
     {% endif %}
   </a>
   {% endif %}
-  <a href="{{ url_for('leads') }}" class="nav-link {% if 'lead' in request.endpoint and request.endpoint != 'assign_center' and request.endpoint != 'do_assign' and request.endpoint != 'auto_distribute' %}active{% endif %}">
-    <i class="bi bi-people"></i> Leads
-    <span class="badge" style="background:#1F3864;color:white" id="nav-pool-count"></span>
+  <a href="{{ url_for('leads') }}" class="nav-link {% if 'lead' in request.endpoint and request.endpoint != 'assign_center' and request.endpoint != 'do_assign' and request.endpoint != 'auto_distribute' %}active-orange{% endif %}">
+    <i class="bi bi-people" style="color:var(--lz-orange)"></i> Leads
+    <span class="badge ms-auto" style="background:var(--lz-orange);color:white;display:none" id="nav-pool-count"></span>
   </a>
   {% if current_user.is_supervisor %}
-  <a href="{{ url_for('leads_radar') }}" class="nav-link {% if request.endpoint == 'leads_radar' %}active{% endif %}">
-    <i class="bi bi-broadcast"></i> Radar
+  <a href="{{ url_for('leads_radar') }}" class="nav-link {% if request.endpoint == 'leads_radar' %}active-orange{% endif %}">
+    <i class="bi bi-broadcast" style="color:var(--lz-orange)"></i> Radar
   </a>
   {% endif %}
-  <a href="{{ url_for('visits') }}" class="nav-link {% if request.endpoint == 'visits' %}active{% endif %}">
-    <i class="bi bi-geo-alt"></i> Visits
+  <a href="{{ url_for('visits') }}" class="nav-link {% if request.endpoint == 'visits' %}active-orange{% endif %}">
+    <i class="bi bi-geo-alt" style="color:var(--lz-orange)"></i> Visits
   </a>
   {% if current_user.is_supervisor %}
-  <a href="{{ url_for('visits_backfill') }}" class="nav-link {% if request.endpoint == 'visits_backfill' %}active{% endif %}">
-    <i class="bi bi-journal-plus"></i> Data Entry
-    <span class="badge ms-1" style="background:#E07B00;color:white;font-size:9px">BACKFILL</span>
+  <a href="{{ url_for('visits_backfill') }}" class="nav-link {% if request.endpoint == 'visits_backfill' %}active-orange{% endif %}">
+    <i class="bi bi-journal-plus" style="color:var(--lz-orange)"></i> Data Entry
+    <span class="badge ms-auto" style="background:var(--lz-orange);color:white;font-size:9px">BACKFILL</span>
   </a>
   {% endif %}
-  <a href="{{ url_for('registrations') }}" class="nav-link {% if 'registration' in request.endpoint %}active{% endif %}">
-    <i class="bi bi-file-earmark-check"></i> Registrations
+  <a href="{{ url_for('registrations') }}" class="nav-link {% if 'registration' in request.endpoint %}active-orange{% endif %}">
+    <i class="bi bi-file-earmark-check" style="color:var(--lz-orange)"></i> Registrations
   </a>
 
   {% if current_user.is_supervisor %}
-  <div class="nav-section">Management</div>
-  <a href="{{ url_for('gabay_list') }}" class="nav-link {% if 'gabay' in request.endpoint %}active{% endif %}">
-    <i class="bi bi-person-badge"></i> Gabay Agents
+  <div class="nav-section sec-mgmt">Management</div>
+  <a href="{{ url_for('gabay_list') }}" class="nav-link {% if 'gabay' in request.endpoint %}active-pink{% endif %}">
+    <i class="bi bi-person-badge" style="color:var(--lz-pink)"></i> Gabay Agents
   </a>
   {% endif %}
 
-  <div class="nav-section">Analytics</div>
-  <a href="{{ url_for('reports') }}" class="nav-link {% if 'report' in request.endpoint %}active{% endif %}">
-    <i class="bi bi-bar-chart-line"></i> Reports
+  <div class="nav-section sec-analytics">Analytics</div>
+  <a href="{{ url_for('reports') }}" class="nav-link {% if 'report' in request.endpoint %}active-purple{% endif %}">
+    <i class="bi bi-bar-chart-line" style="color:var(--lz-purple)"></i> Reports
   </a>
   {% if current_user.is_supervisor %}
-  <a href="{{ url_for('admin_ml_train') }}" class="nav-link {% if request.endpoint == 'admin_ml_train' %}active{% endif %}">
-    <i class="bi bi-cpu" style="color:#7c3aed"></i> Maria · Scoring
+  <a href="{{ url_for('admin_ml_train') }}" class="nav-link {% if request.endpoint == 'admin_ml_train' %}active-purple{% endif %}">
+    <i class="bi bi-cpu" style="color:var(--lz-purple)"></i> Maria · Scoring
   </a>
-  <a href="{{ url_for('admin_health') }}" class="nav-link {% if request.endpoint == 'admin_health' %}active{% endif %}">
-    <i class="bi bi-shield-check" style="color:#15803d"></i> Lead Health
+  <a href="{{ url_for('admin_health') }}" class="nav-link {% if request.endpoint == 'admin_health' %}active-purple{% endif %}">
+    <i class="bi bi-shield-check" style="color:var(--lz-purple)"></i> Lead Health
   </a>
-  <a href="{{ url_for('campaign_manage') }}" class="nav-link {% if request.endpoint in ('campaign_manage','campaign_dashboard','campaign_audit_log') %}active{% endif %}">
-    <i class="bi bi-flag-fill"></i> Campaigns
+  <a href="{{ url_for('campaign_manage') }}" class="nav-link {% if request.endpoint in ('campaign_manage','campaign_dashboard','campaign_audit_log') %}active-pink{% endif %}">
+    <i class="bi bi-flag-fill" style="color:var(--lz-pink)"></i> Campaigns
   </a>
   <a href="{{ url_for('export_leads') }}" class="nav-link">
-    <i class="bi bi-download"></i> Export Data
+    <i class="bi bi-download" style="color:var(--lz-blue)"></i> Export Data
   </a>
   {% endif %}
 
   {% if current_user.is_manager %}
-  <a href="{{ url_for('daily_digest') }}" class="nav-link {% if request.endpoint == 'daily_digest' %}active{% endif %}">
-    <i class="bi bi-newspaper"></i> Daily Digest
+  <a href="{{ url_for('daily_digest') }}" class="nav-link {% if request.endpoint == 'daily_digest' %}active-purple{% endif %}">
+    <i class="bi bi-newspaper" style="color:var(--lz-purple)"></i> Daily Digest
   </a>
-  <a href="{{ url_for('targets') }}" class="nav-link {% if request.endpoint == 'targets' %}active{% endif %}">
-    <i class="bi bi-bullseye"></i> Targets
+  <a href="{{ url_for('targets') }}" class="nav-link {% if request.endpoint == 'targets' %}active-purple{% endif %}">
+    <i class="bi bi-bullseye" style="color:var(--lz-pink)"></i> Targets
   </a>
-  <a href="{{ url_for('activity_log') }}" class="nav-link {% if request.endpoint == 'activity_log' %}active{% endif %}">
-    <i class="bi bi-clock-history"></i> Activity Log
+  <a href="{{ url_for('activity_log') }}" class="nav-link {% if request.endpoint == 'activity_log' %}active-purple{% endif %}">
+    <i class="bi bi-clock-history" style="color:var(--lz-purple)"></i> Activity Log
   </a>
   {% endif %}
 
-  <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active{% endif %}">
-    <i class="bi bi-play-circle"></i> Presentation
+  <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active-blue{% endif %}">
+    <i class="bi bi-play-circle" style="color:var(--lz-blue)"></i> Presentation
   </a>
   {% if current_user.is_supervisor %}
-  <a href="{{ url_for('supervisor_tutorial') }}" class="nav-link {% if request.endpoint == 'supervisor_tutorial' %}active{% endif %}">
-    <i class="bi bi-mortarboard"></i> Admin Tutorial
+  <a href="{{ url_for('supervisor_tutorial') }}" class="nav-link {% if request.endpoint == 'supervisor_tutorial' %}active-blue{% endif %}">
+    <i class="bi bi-mortarboard" style="color:var(--lz-blue)"></i> Admin Tutorial
   </a>
-  <a href="{{ url_for('gabay_tutorial') }}" class="nav-link {% if request.endpoint == 'gabay_tutorial' %}active{% endif %}">
-    <i class="bi bi-phone"></i> Gabay Tutorial
+  <a href="{{ url_for('gabay_tutorial') }}" class="nav-link {% if request.endpoint == 'gabay_tutorial' %}active-blue{% endif %}">
+    <i class="bi bi-phone" style="color:var(--lz-blue)"></i> Gabay Tutorial
   </a>
   {% endif %}
 
-  <div class="nav-section">Support</div>
-  <a href="{{ url_for('notifications') }}" class="nav-link {% if 'notification' in request.endpoint %}active{% endif %}">
-    <i class="bi bi-bell"></i> Notifications
-    {% if unread_notif > 0 %}<span class="badge ms-auto" style="background:#E07B00;color:white">{{ unread_notif }}</span>{% endif %}
+  <div class="nav-section sec-support">Support</div>
+  <a href="{{ url_for('notifications') }}" class="nav-link {% if 'notification' in request.endpoint %}active-blue{% endif %}">
+    <i class="bi bi-bell" style="color:var(--lz-blue)"></i> Notifications
+    {% if unread_notif > 0 %}<span class="badge ms-auto" style="background:var(--lz-pink);color:white">{{ unread_notif }}</span>{% endif %}
   </a>
-  <a href="{{ url_for('help_page') }}" class="nav-link {% if request.endpoint == 'help_page' %}active{% endif %}">
-    <i class="bi bi-question-circle"></i> Help & User Guide
+  <a href="{{ url_for('help_page') }}" class="nav-link {% if request.endpoint == 'help_page' %}active-blue{% endif %}">
+    <i class="bi bi-question-circle" style="color:var(--lz-blue)"></i> Help & User Guide
   </a>
 
   <div style="height:20px"></div>
