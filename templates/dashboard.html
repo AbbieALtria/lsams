@@ -82,6 +82,15 @@
       <div class="kpi-sub">{{ '%.1f'|format(matched/total_pool*100 if total_pool else 0) }}% match rate</div>
     </div>
   </div>
+  <div class="col-6 col-md-4 col-lg-2">
+    <a href="{{ url_for('report_daily_ops') }}" class="text-decoration-none">
+      <div class="kpi-card" style="border-left-color:#0891b2;cursor:pointer">
+        <div class="kpi-lbl">Visits Today</div>
+        <div class="kpi-val" style="color:#0891b2">{{ visits_today }}</div>
+        <div class="kpi-sub" style="color:#0891b2">{{ visits_total }} total all-time</div>
+      </div>
+    </a>
+  </div>
 </div>
 
 <!-- MARIA FORECAST + BRIEFING ACTIONS -->
