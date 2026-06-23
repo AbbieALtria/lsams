@@ -82,7 +82,7 @@ with app.app_context():
         for _col, _type in _new_user_cols:
             try:
                 _conn.execute(text(
-                    f"ALTER TABLE users ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                    f"ALTER TABLE users ADD COLUMN {_col} {_type}"
                 ))
                 _conn.commit()
             except Exception:
@@ -92,7 +92,7 @@ with app.app_context():
     with db.engine.connect() as _conn:
         try:
             _conn.execute(text(
-                "ALTER TABLE visits ADD COLUMN IF NOT EXISTS photo_pending BOOLEAN DEFAULT FALSE"
+                "ALTER TABLE visits ADD COLUMN photo_pending BOOLEAN DEFAULT FALSE"
             ))
             _conn.commit()
         except Exception:
@@ -124,7 +124,7 @@ with app.app_context():
         for _col, _type in _new_lead_cols:
             try:
                 _conn.execute(text(
-                    f"ALTER TABLE leads ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                    f"ALTER TABLE leads ADD COLUMN {_col} {_type}"
                 ))
                 _conn.commit()
             except Exception:
@@ -203,7 +203,7 @@ with app.app_context():
         for _col, _type in _new_intel_cols:
             try:
                 _conn.execute(text(
-                    f"ALTER TABLE lead_intelligence ADD COLUMN IF NOT EXISTS {_col} {_type}"
+                    f"ALTER TABLE lead_intelligence ADD COLUMN {_col} {_type}"
                 ))
                 _conn.commit()
             except Exception:
@@ -4293,7 +4293,7 @@ def migrate_gabay_name():
     try:
         # Add column safely
         db.session.execute(text(
-            "ALTER TABLE users ADD COLUMN IF NOT EXISTS gabay_name VARCHAR(100)"
+            "ALTER TABLE users ADD COLUMN gabay_name VARCHAR(100)"
         ))
         db.session.commit()
 
