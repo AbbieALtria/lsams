@@ -558,8 +558,8 @@
   </a>
   {% endif %}
 
-  <a href="{{ url_for('presentation') }}" class="nav-link {% if request.endpoint == 'presentation' %}active-blue{% endif %}">
-    <i class="bi bi-play-circle" style="color:var(--lz-blue)"></i> Presentation
+  <a href="{{ url_for('presentations_list') }}" class="nav-link {% if 'presentation' in (request.endpoint or '') %}active-purple{% endif %}">
+    <i class="bi bi-collection-play-fill" style="color:var(--lz-purple)"></i> Presentations
   </a>
   {% if current_user.is_supervisor %}
   <a href="{{ url_for('supervisor_tutorial') }}" class="nav-link {% if request.endpoint == 'supervisor_tutorial' %}active-blue{% endif %}">
