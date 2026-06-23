@@ -50,6 +50,51 @@
   </div>
 </div>
 
+<!-- NEW FEATURES NOTICE (shown once, dismissed via localStorage) -->
+<div id="newFeaturesNotice" style="display:none;background:linear-gradient(135deg,#1e1b4b,#4338ca);
+     border-radius:18px;padding:18px 16px;margin-bottom:16px;color:white;
+     box-shadow:0 4px 20px rgba(67,56,202,0.35)">
+  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:12px">
+    <div style="font-size:14px;font-weight:800">🆕 Bagong Features!</div>
+    <button onclick="dismissFeaturesNotice()"
+            style="background:rgba(255,255,255,0.15);border:none;border-radius:8px;
+                   color:white;width:28px;height:28px;font-size:14px;cursor:pointer;
+                   display:flex;align-items:center;justify-content:center;flex-shrink:0">✕</button>
+  </div>
+
+  <!-- Offline Check-In -->
+  <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px 14px;margin-bottom:10px">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px">📥 Offline Check-In</div>
+    <div style="font-size:12px;opacity:0.9;line-height:1.6">
+      <strong>Walang signal? Mag-check-in pa rin!</strong><br>
+      I-tap ang Check In → i-fill → i-submit. Naka-save sa phone mo at
+      auto-sync kapag may internet na. <span style="opacity:0.75">/ No signal? Still check in!
+      Fill the form → submit. Saved on your phone, auto-syncs when online.</span>
+    </div>
+  </div>
+
+  <!-- Voice Check-In -->
+  <div style="background:rgba(255,255,255,0.1);border-radius:12px;padding:12px 14px;margin-bottom:14px">
+    <div style="font-size:13px;font-weight:800;margin-bottom:6px">🎙 Voice Check-In</div>
+    <div style="font-size:12px;opacity:0.9;line-height:1.6">
+      <strong>Magsalita lang — punan ng AI ang form!</strong><br>
+      Sa Check In page, i-tap ang 🎙 mic, sabihin ang nangyari sa visit
+      (Tagalog, English, Bisaya, o Chinese), tapos i-tap ang <em>Apply to Form</em>.
+      <span style="opacity:0.75">/ Tap the mic, speak about the visit in any language, tap Apply.</span>
+    </div>
+    <div style="margin-top:8px;font-size:11px;opacity:0.75;font-style:italic">
+      "Bisita ko si Maria Santos, interested siya, follow up ko sa Monday."
+    </div>
+  </div>
+
+  <button onclick="dismissFeaturesNotice()"
+          style="width:100%;background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);
+                 color:white;border-radius:12px;padding:11px;font-size:13px;font-weight:800;
+                 cursor:pointer">
+    ✅ Nakuha ko na! / Got it!
+  </button>
+</div>
+
 <!-- OFFLINE PENDING SYNC CARD (shown by JS when queue > 0) -->
 <div id="pendingSyncCard" style="display:none;background:linear-gradient(135deg,#1F3864,#2E75B6);
      border-radius:16px;padding:14px 16px;margin-bottom:14px;color:white">
@@ -501,5 +546,21 @@ window.addEventListener('online', () => setTimeout(refreshPendingCard, 1500));
 
 // Run on page load
 refreshPendingCard();
+
+// ── New features notice (show once per device) ────────────────────────────
+const NOTICE_KEY = 'lsams_notice_offline_voice_v1';
+function showFeaturesNotice() {
+  if (!localStorage.getItem(NOTICE_KEY)) {
+    document.getElementById('newFeaturesNotice').style.display = 'block';
+  }
+}
+function dismissFeaturesNotice() {
+  localStorage.setItem(NOTICE_KEY, '1');
+  const el = document.getElementById('newFeaturesNotice');
+  el.style.opacity = '0';
+  el.style.transition = 'opacity 0.3s';
+  setTimeout(() => el.style.display = 'none', 300);
+}
+showFeaturesNotice();
 </script>
 {% endblock %}
