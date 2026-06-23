@@ -6,33 +6,48 @@
 <title>{% block title %}LSAMS{% endblock %} — Lazada Seller Activation</title>
 <link rel="manifest" href="/static/manifest.json">
 <link rel="apple-touch-icon" href="/static/icons/icon-192.png">
-<meta name="theme-color" content="#1F3864">
+<meta name="theme-color" content="#F57224">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
 <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css" rel="stylesheet">
 <style>
   :root {
-    --bs-primary: #1F3864;
-    --bs-primary-rgb: 31,56,100;
+    --lz-orange: #F57224;
+    --lz-orange-dark: #D45A10;
+    --lz-orange-light: #FEF0E8;
+    --lz-text: #2D2D2D;
+    --bs-primary: #F57224;
+    --bs-primary-rgb: 245,114,36;
     --sidebar-w: 240px;
     --topbar-h: 56px;
   }
-  body { background: #F0F4FA; font-size: 14px; }
+  body { background: #F7F5F3; font-size: 14px; }
 
   /* TOPBAR */
   .topbar {
-    height: var(--topbar-h); background: #1F3864;
+    height: var(--topbar-h);
+    background: linear-gradient(135deg, #F57224 0%, #FF8C42 100%);
     position: fixed; top: 0; left: 0; right: 0; z-index: 1040;
     display: flex; align-items: center; padding: 0 16px; gap: 12px;
+    box-shadow: 0 2px 12px rgba(245,114,36,0.35);
   }
-  .topbar .brand { color: white; font-weight: 800; font-size: 17px; letter-spacing: 0.5px; text-decoration: none; }
-  .topbar .brand span { color: #F90; }
+  .topbar .brand {
+    color: white; font-weight: 800; font-size: 17px; letter-spacing: 0.5px;
+    text-decoration: none; display: flex; align-items: center; gap: 7px;
+  }
+  .topbar .brand .lz-heart {
+    width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center;
+    background: white; border-radius: 8px;
+    box-shadow: 0 2px 6px rgba(0,0,0,0.15);
+  }
+  .topbar .brand .lz-heart svg { width: 18px; height: 18px; }
   .topbar .ms-auto { margin-left: auto !important; }
   .topbar .user-pill {
-    background: rgba(255,255,255,0.12); color: white; border-radius: 20px;
+    background: rgba(255,255,255,0.2); color: white; border-radius: 20px;
     padding: 5px 12px; font-size: 12px; font-weight: 600; display: flex; align-items: center; gap: 6px;
+    border: 1px solid rgba(255,255,255,0.3);
   }
   .topbar .role-badge {
-    background: #F90; color: #1F3864; border-radius: 10px;
+    background: white; color: var(--lz-orange); border-radius: 10px;
     padding: 1px 7px; font-size: 10px; font-weight: 800; text-transform: uppercase;
   }
 
@@ -40,17 +55,21 @@
   .sidebar {
     width: var(--sidebar-w); background: #fff; position: fixed;
     top: var(--topbar-h); bottom: 0; left: 0; z-index: 1030;
-    overflow-y: auto; border-right: 1px solid #E0E6EF;
+    overflow-y: auto; border-right: 1px solid #EDE8E3;
     transition: transform 0.3s ease;
   }
-  .sidebar .nav-section { padding: 16px 16px 4px; font-size: 10px; font-weight: 700; color: #9aabc5; text-transform: uppercase; letter-spacing: 1px; }
+  .sidebar .nav-section { padding: 16px 16px 4px; font-size: 10px; font-weight: 700; color: #B0A89E; text-transform: uppercase; letter-spacing: 1px; }
   .sidebar .nav-link {
     display: flex; align-items: center; gap: 10px;
     padding: 9px 16px; color: #4a5568; font-weight: 500; font-size: 13px;
     border-radius: 8px; margin: 1px 8px; text-decoration: none;
+    transition: background 0.15s, color 0.15s;
   }
-  .sidebar .nav-link:hover { background: #F0F4FA; color: #1F3864; }
-  .sidebar .nav-link.active { background: #E8EFF9; color: #1F3864; font-weight: 700; }
+  .sidebar .nav-link:hover { background: var(--lz-orange-light); color: var(--lz-orange); }
+  .sidebar .nav-link.active {
+    background: var(--lz-orange-light); color: var(--lz-orange); font-weight: 700;
+    border-left: 3px solid var(--lz-orange); margin-left: 8px; padding-left: 13px;
+  }
   .sidebar .nav-link i { font-size: 16px; width: 20px; text-align: center; }
   .sidebar .nav-link .badge { margin-left: auto; }
 
@@ -58,20 +77,20 @@
   .main-content { margin-left: var(--sidebar-w); margin-top: var(--topbar-h); padding: 24px; min-height: calc(100vh - var(--topbar-h)); }
 
   /* KPI CARDS */
-  .kpi-card { background: white; border-radius: 12px; padding: 18px 16px; box-shadow: 0 2px 8px rgba(31,56,100,0.07); border-left: 4px solid #2E75B6; }
-  .kpi-card .kpi-val { font-size: 32px; font-weight: 800; color: #1F3864; line-height: 1; }
+  .kpi-card { background: white; border-radius: 12px; padding: 18px 16px; box-shadow: 0 2px 8px rgba(245,114,36,0.08); border-left: 4px solid var(--lz-orange); }
+  .kpi-card .kpi-val { font-size: 32px; font-weight: 800; color: var(--lz-text); line-height: 1; }
   .kpi-card .kpi-lbl { font-size: 11px; font-weight: 700; color: #9aabc5; text-transform: uppercase; letter-spacing: 0.5px; }
   .kpi-card .kpi-sub { font-size: 11px; color: #27ae60; font-weight: 600; }
 
   /* CARDS */
-  .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(31,56,100,0.07); }
-  .card-header { background: white; border-bottom: 1px solid #E0E6EF; font-weight: 700; color: #1F3864; padding: 14px 18px; }
-  .card-header.dark { background: #1F3864; color: white; }
+  .card { border: none; border-radius: 12px; box-shadow: 0 2px 8px rgba(245,114,36,0.07); }
+  .card-header { background: white; border-bottom: 1px solid #EDE8E3; font-weight: 700; color: var(--lz-text); padding: 14px 18px; }
+  .card-header.dark { background: var(--lz-orange); color: white; }
 
   /* TABLE */
-  .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aabc5; font-weight: 700; border-bottom: 2px solid #E0E6EF; }
+  .table th { font-size: 11px; text-transform: uppercase; letter-spacing: 0.5px; color: #9aabc5; font-weight: 700; border-bottom: 2px solid #EDE8E3; }
   .table td { vertical-align: middle; font-size: 13px; }
-  .table-hover tbody tr:hover { background: #F0F4FA; }
+  .table-hover tbody tr:hover { background: var(--lz-orange-light); }
 
   /* STATUS BADGES */
   .badge-pool { background: #e2e8f0; color: #4a5568; }
@@ -97,7 +116,7 @@
 
   /* MISC */
   .page-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 20px; flex-wrap: wrap; gap: 10px; }
-  .page-title { font-size: 20px; font-weight: 800; color: #1F3864; }
+  .page-title { font-size: 20px; font-weight: 800; color: var(--lz-text); }
   .status-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
   .progress { height: 6px; }
 
@@ -141,9 +160,9 @@
   .notif-btn { position: relative; background: rgba(255,255,255,0.1); border: none;
                color: white; border-radius: 8px; padding: 6px 10px; cursor: pointer; font-size:16px; }
   .notif-btn:hover { background: rgba(255,255,255,0.2); }
-  .notif-badge { position: absolute; top: -4px; right: -4px; background: #E07B00; color: white;
+  .notif-badge { position: absolute; top: -4px; right: -4px; background: white; color: var(--lz-orange);
                   border-radius: 10px; font-size: 9px; font-weight: 800; padding: 1px 5px;
-                  min-width: 16px; text-align: center; }
+                  min-width: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.5); }
 </style>
 {% block extra_head %}{% endblock %}
 </head>
@@ -152,8 +171,22 @@
 <!-- TOPBAR -->
 <div class="topbar">
   <button class="sidebar-toggle" onclick="toggleSidebar()"><i class="bi bi-list"></i></button>
-  <a class="brand" href="{{ url_for('dashboard') }}">LSAMS <span>●</span></a>
-  <span class="d-none d-md-block" style="color:#8aaed4;font-size:12px;">Lazada Seller Activation</span>
+  <a class="brand" href="{{ url_for('dashboard') }}">
+    <span class="lz-heart">
+      <svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <linearGradient id="lzhg" x1="0%" y1="0%" x2="100%" y2="100%">
+            <stop offset="0%" style="stop-color:#FF6B35"/>
+            <stop offset="50%" style="stop-color:#F57224"/>
+            <stop offset="100%" style="stop-color:#E8430A"/>
+          </linearGradient>
+        </defs>
+        <path d="M50 85 C50 85 10 58 10 32 C10 18 21 8 35 8 C43 8 50 14 50 14 C50 14 57 8 65 8 C79 8 90 18 90 32 C90 58 50 85 50 85Z" fill="url(#lzhg)"/>
+      </svg>
+    </span>
+    LSAMS
+  </a>
+  <span class="d-none d-md-block" style="color:rgba(255,255,255,0.75);font-size:12px;font-weight:500;">Lazada Seller Activation</span>
   <div class="ms-auto d-flex align-items-center gap-2">
     <!-- Notification Bell -->
     <a href="{{ url_for('notifications') }}" class="notif-btn" id="notifBell" title="Notifications">
@@ -170,8 +203,8 @@
     </button>
     {% if current_user.is_supervisor or current_user.is_superadmin %}
     <button onclick="openShareModal()" title="Share App Link"
-            style="background:rgba(255,153,0,0.2);border:1px solid rgba(255,153,0,0.5);
-                   color:#FF9900;border-radius:10px;padding:5px 12px;
+            style="background:rgba(255,255,255,0.2);border:1px solid rgba(255,255,255,0.4);
+                   color:white;border-radius:10px;padding:5px 12px;
                    font-size:12px;font-weight:700;cursor:pointer;display:flex;
                    align-items:center;gap:5px">
       <i class="bi bi-share-fill"></i><span class="d-none d-sm-inline">Share App</span>
@@ -346,9 +379,9 @@
 <!-- SIDEBAR -->
 <nav class="sidebar" id="sidebar">
   <div style="padding:12px 8px 4px">
-    <div style="background:#F0F4FA;border-radius:10px;padding:10px 12px;margin-bottom:4px">
-      <div style="font-size:11px;color:#9aabc5;font-weight:700">Logged in as</div>
-      <div style="font-weight:700;color:#1F3864;font-size:13px">{{ current_user.full_name }}</div>
+    <div style="background:var(--lz-orange-light);border-radius:10px;padding:10px 12px;margin-bottom:4px;border-left:3px solid var(--lz-orange)">
+      <div style="font-size:11px;color:#B0A89E;font-weight:700">Logged in as</div>
+      <div style="font-weight:700;color:var(--lz-orange);font-size:13px">{{ current_user.full_name }}</div>
     </div>
   </div>
 
