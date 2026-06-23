@@ -596,7 +596,7 @@ def dashboard():
         if g_total == 0 and not campaign_id:
             pass  # skip gabays with zero leads only in all-campaign view? No, show all
         gabay_stats.append({
-            'name': g.full_name, 'pool': g_total, 'assigned': g_assigned,
+            'id': g.id, 'name': g.full_name, 'pool': g_total, 'assigned': g_assigned,
             'attempting': g_attempting, 'negotiation': g_negotiation,
             'registration': g_registration, 'live': g_live, 'matched': g_matched,
         })
@@ -4889,6 +4889,77 @@ def api_unread_notifications():
         'message': n.message, 'link': n.link,
         'icon': n.icon, 'color': n.color, 'age': n.age_label
     } for n in notifs])
+
+
+# ─── SMART HOVER CARDS ────────────────────────────────────────────────────────
+@app.route('/api/hover/gabay/<int:uid>')
+@login_required
+def hover_gabay(uid):
+    from datetime import date as _date
+    u = User.query.get_or_404(uid)
+    today = _date.today()
+    visits_month = Visit.query.filter(
+        Visit.gabay_id == uid,
+        extract('year',  Visit.visited_at) == today.year,
+        extract('month', Visit.visited_at) == today.month
+    ).count()
+    visits_total = Visit.query.filter_by(gabay_id=uid).count()
+    last_v = Visit.query.filter_by(gabay_id=uid).order_by(Visit.visited_at.desc()).first()
+    last_visit = last_v.visited_at.strftime('%b %d, %Y') if last_v else None
+    days_ago = (today - last_v.visited_at.date()).days if last_v else None
+
+    leads_q = Lead.query.filter(Lead.gabay_id == uid, Lead.status != 'removed')
+    assigned     = leads_q.count()
+    live         = leads_q.filter_by(status='live').count()
+    matched      = leads_q.filter_by(status='matched').count()
+    negotiation  = leads_q.filter_by(status='negotiation').count()
+    registration = leads_q.filter_by(status='registration').count()
+    conv = round((live + matched) / assigned * 100, 1) if assigned else 0
+
+    return jsonify({
+        'id': u.id, 'name': u.full_name, 'role': u.role,
+        'assigned': assigned, 'live': live, 'matched': matched,
+        'negotiation': negotiation, 'registration': registration,
+        'visits_month': visits_month, 'visits_total': visits_total,
+        'last_visit': last_visit, 'days_ago': days_ago, 'conversion': conv,
+    })
+
+
+@app.route('/api/hover/lead/<int:lid>')
+@login_required
+def hover_lead(lid):
+    from datetime import date as _date
+    lead = Lead.query.get_or_404(lid)
+    today = _date.today()
+    last_v = Visit.query.filter_by(lead_id=lid).order_by(Visit.visited_at.desc()).first()
+    last_visit = last_v.visited_at.strftime('%b %d, %Y') if last_v else None
+    days_since = (today - last_v.visited_at.date()).days if last_v else None
+    visits_total = Visit.query.filter_by(lead_id=lid).count()
+
+    # health signal
+    if days_since is None:
+        health = 'danger'
+    elif days_since <= 7:
+        health = 'good'
+    elif days_since <= 14:
+        health = 'warning'
+    else:
+        health = 'danger'
+
+    gabay_name = lead.assigned_gabay.full_name if lead.assigned_gabay else None
+    gabay_id   = lead.gabay_id
+    platform   = _mask_shopee(lead.project) if lead.project else None
+    assigned_days = (today - lead.assigned_at.date()).days if lead.assigned_at else None
+
+    return jsonify({
+        'id': lead.id, 'seller_name': lead.seller_name,
+        'status': lead.status, 'status_label': lead.status_label,
+        'city': lead.city, 'platform': platform,
+        'gabay': gabay_name, 'gabay_id': gabay_id,
+        'visits': visits_total, 'last_visit': last_visit,
+        'days_since': days_since, 'health': health,
+        'assigned_days': assigned_days,
+    })
 
 
 # ─── MANAGER DAILY DIGEST ─────────────────────────────────────────────────────

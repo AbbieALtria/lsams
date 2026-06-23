@@ -209,6 +209,40 @@
   .tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: #CC2900 !important; }
 </style>
 {% block extra_head %}{% endblock %}
+<style>
+/* ── SMART HOVER CARD ── */
+#hoverCard {
+  position: fixed; z-index: 9999; width: 270px;
+  background: white; border-radius: 14px;
+  box-shadow: 0 8px 32px rgba(139,43,226,0.18), 0 2px 8px rgba(0,0,0,0.10);
+  border: 1px solid #EDE8F5;
+  pointer-events: none; opacity: 0; transform: translateY(6px) scale(0.97);
+  transition: opacity 0.18s ease, transform 0.18s ease;
+  overflow: hidden;
+}
+#hoverCard.hc-visible { opacity: 1; transform: translateY(0) scale(1); }
+.hc-header {
+  padding: 12px 14px 10px;
+  background: linear-gradient(110deg, #F57224, #F5225B, #8B2BE2);
+  color: white;
+}
+.hc-header .hc-name { font-size: 14px; font-weight: 800; line-height: 1.2; }
+.hc-header .hc-sub  { font-size: 11px; opacity: 0.85; margin-top: 2px; }
+.hc-body { padding: 10px 14px 12px; }
+.hc-row  { display: flex; justify-content: space-between; align-items: center; padding: 4px 0; border-bottom: 1px solid #F5F0FF; font-size: 12px; }
+.hc-row:last-child { border-bottom: none; }
+.hc-row .hc-lbl  { color: #9aabc5; font-weight: 600; }
+.hc-row .hc-val  { font-weight: 700; color: #1A1A2E; }
+.hc-val.good    { color: #15803d; }
+.hc-val.warning { color: #d97706; }
+.hc-val.danger  { color: #dc2626; }
+.hc-chip {
+  display: inline-block; border-radius: 20px; padding: 2px 9px;
+  font-size: 11px; font-weight: 700;
+}
+[data-hv-gabay], [data-hv-lead] { cursor: pointer; }
+[data-hv-gabay]:hover, [data-hv-lead]:hover { text-decoration: underline dotted; }
+</style>
 </head>
 <body>
 
@@ -562,6 +596,113 @@
 
 <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+
+<!-- SMART HOVER CARD -->
+<div id="hoverCard"></div>
+<script>
+const HC = {
+  el: document.getElementById('hoverCard'),
+  cache: {},
+  showTimer: null,
+  hideTimer: null,
+
+  init() {
+    document.addEventListener('mouseover', e => {
+      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      if (t) { clearTimeout(this.hideTimer); this.trigger(t, e); }
+    });
+    document.addEventListener('mousemove', e => {
+      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      if (t && this.el.classList.contains('hc-visible')) this.pos(e);
+    });
+    document.addEventListener('mouseout', e => {
+      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      if (t) { clearTimeout(this.showTimer); this.hideTimer = setTimeout(() => this.hide(), 200); }
+    });
+  },
+
+  trigger(el, e) {
+    clearTimeout(this.showTimer);
+    this.showTimer = setTimeout(async () => {
+      const type = el.dataset.hvGabay ? 'gabay' : 'lead';
+      const id   = el.dataset.hvGabay || el.dataset.hvLead;
+      const key  = type + id;
+      if (!this.cache[key]) {
+        try {
+          const r = await fetch(`/api/hover/${type}/${id}`);
+          this.cache[key] = await r.json();
+        } catch { return; }
+      }
+      type === 'gabay' ? this.renderGabay(this.cache[key]) : this.renderLead(this.cache[key]);
+      this.pos(e);
+      this.el.classList.add('hc-visible');
+    }, 280);
+  },
+
+  hide() { this.el.classList.remove('hc-visible'); },
+
+  pos(e) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const cw = 270, ch = this.el.offsetHeight || 200;
+    let x = e.clientX + 14, y = e.clientY - 10;
+    if (x + cw > W - 8) x = e.clientX - cw - 14;
+    if (y + ch > H - 8) y = H - ch - 8;
+    this.el.style.left = x + 'px';
+    this.el.style.top  = y + 'px';
+  },
+
+  row(lbl, val, cls='') {
+    return `<div class="hc-row"><span class="hc-lbl">${lbl}</span><span class="hc-val ${cls}">${val}</span></div>`;
+  },
+
+  renderGabay(d) {
+    const convCls = d.conversion >= 15 ? 'good' : d.conversion >= 8 ? 'warning' : 'danger';
+    const actCls  = d.days_ago === null ? 'danger' : d.days_ago <= 3 ? 'good' : d.days_ago <= 7 ? 'warning' : 'danger';
+    const actLbl  = d.last_visit ? (d.days_ago === 0 ? 'Today' : d.days_ago === 1 ? 'Yesterday' : `${d.days_ago}d ago`) : 'No visits yet';
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">👤 ${d.name}</div>
+        <div class="hc-sub">Gabay Agent · ${d.visits_total} total visits</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Assigned leads', d.assigned)}
+        ${this.row('Visits this month', d.visits_month)}
+        ${this.row('Negotiation', d.negotiation)}
+        ${this.row('Registration', d.registration)}
+        ${this.row('Live sellers', `<span class="hc-chip" style="background:#dcfce7;color:#15803d">${d.live}</span>`)}
+        ${this.row('Matched', `<span class="hc-chip" style="background:#d1fae5;color:#065f46">${d.matched}</span>`)}
+        ${this.row('Conversion', `${d.conversion}%`, convCls)}
+        ${this.row('Last activity', actLbl, actCls)}
+      </div>`;
+  },
+
+  renderLead(d) {
+    const hCls   = d.health === 'good' ? 'good' : d.health === 'warning' ? 'warning' : 'danger';
+    const hLabel = d.health === 'good' ? '✅ Active' : d.health === 'warning' ? '⚠️ Cooling' : '🔴 Needs visit';
+    const lastLbl = d.last_visit ? (d.days_since === 0 ? 'Today' : d.days_since === 1 ? 'Yesterday' : `${d.days_since}d ago — ${d.last_visit}`) : 'No visits yet';
+    const statusColors = {
+      pool:'#E8E4EE,#8B2BE2', assigned:'#E3F0FF,#1565C0', attempting:'#FEF0E8,#D45A10',
+      negotiation:'#F3E8FF,#8B2BE2', registration:'#FDE8EF,#C4114A',
+      live:'#dcfce7,#15803d', matched:'#d1fae5,#065f46', closed:'#fee2e2,#b91c1c'
+    };
+    const [sbg, sco] = (statusColors[d.status] || '#eee,#666').split(',');
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">🏪 ${d.seller_name}</div>
+        <div class="hc-sub">${d.city || '—'} · ${d.platform || 'No platform'}</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Status', `<span class="hc-chip" style="background:${sbg};color:${sco}">${d.status_label}</span>`)}
+        ${this.row('Health', `<span class="${hCls}">${hLabel}</span>`)}
+        ${this.row('Last visit', lastLbl, hCls)}
+        ${this.row('Total visits', d.visits)}
+        ${this.row('Gabay agent', d.gabay || '<span style="color:#dc2626">Unassigned</span>')}
+        ${d.assigned_days !== null ? this.row('In pipeline', `${d.assigned_days}d`) : ''}
+      </div>`;
+  }
+};
+HC.init();
+</script>
 <script>
 function toggleSidebar() {
   document.getElementById('sidebar').classList.toggle('open');

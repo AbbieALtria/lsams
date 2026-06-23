@@ -80,7 +80,8 @@
           <td><input type="checkbox" name="lead_ids" value="{{ lead.id }}" class="lead-check" onchange="updateBulkBar()"></td>
           {% endif %}
           <td>
-            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="fw-600 text-decoration-none" style="color:#1F3864">
+            <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="fw-600 text-decoration-none" style="color:#1F3864"
+               data-hv-lead="{{ lead.id }}">
               {{ lead.seller_name }}
             </a>
             {% if lead.lazada_id %}<br><small style="color:#9aabc5">{{ lead.lazada_id }}</small>{% endif %}
@@ -91,7 +92,7 @@
             {% if not lead.project and not lead.cluster %}—{% endif %}
           </td>
           <td>{{ lead.city or '—' }}</td>
-          <td><span class="badge badge-{{ lead.status }} rounded-pill">{{ lead.status_label }}</span></td>
+          <td><span class="badge badge-{{ lead.status }} rounded-pill" data-hv-lead="{{ lead.id }}">{{ lead.status_label }}</span></td>
           <td>
             {% if lead.status not in ('pool','live','matched','closed') %}
             {% set pl = lead.priority_label %}
@@ -100,7 +101,7 @@
             </span>
             {% else %}—{% endif %}
           </td>
-          <td style="font-size:12px">{{ lead.assigned_gabay.display_name if lead.assigned_gabay else '<span class="text-muted">Unassigned</span>'|safe }}</td>
+          <td style="font-size:12px">{% if lead.assigned_gabay %}<span data-hv-gabay="{{ lead.gabay_id }}">{{ lead.assigned_gabay.display_name }}</span>{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
           <td style="font-size:12px">{{ lead.contact_number or '—' }}</td>
           <td>
             <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" class="btn btn-sm btn-outline-primary py-0 px-2" style="font-size:11px">View</a>
