@@ -163,6 +163,26 @@
   .notif-badge { position: absolute; top: -4px; right: -4px; background: white; color: var(--lz-orange);
                   border-radius: 10px; font-size: 9px; font-weight: 800; padding: 1px 5px;
                   min-width: 16px; text-align: center; border: 1px solid rgba(255,255,255,0.5); }
+
+  /* CUSTOM TOOLTIPS — override Bootstrap black */
+  .tooltip .tooltip-inner {
+    background: white;
+    color: #2D2D2D;
+    font-size: 12px;
+    font-weight: 500;
+    border-radius: 10px;
+    padding: 8px 12px;
+    box-shadow: 0 4px 16px rgba(0,0,0,0.15);
+    border: 1px solid #EDE8E3;
+    max-width: 220px;
+    text-align: left;
+  }
+  .tooltip .tooltip-arrow::before {
+    border-top-color: white !important;
+    border-bottom-color: white !important;
+  }
+  .tooltip.bs-tooltip-top .tooltip-arrow::before { border-top-color: white !important; }
+  .tooltip.bs-tooltip-bottom .tooltip-arrow::before { border-bottom-color: white !important; }
 </style>
 {% block extra_head %}{% endblock %}
 </head>
