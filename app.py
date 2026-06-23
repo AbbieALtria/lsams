@@ -552,8 +552,11 @@ def logout():
 def dashboard():
     from datetime import timedelta
 
-    # Campaign filter
+    # Campaign filter — default to P1 (highest priority active campaign)
+    p1 = _priority1_campaign()
     campaign_id = request.args.get('campaign_id', type=int)
+    if campaign_id is None and p1:
+        campaign_id = p1.id
     campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
     selected_campaign = Campaign.query.get(campaign_id) if campaign_id else None
 
@@ -600,6 +603,15 @@ def dashboard():
 
     forecast = round(negotiation * 0.6 + registration * 0.85)
 
+    # Visits KPIs
+    from datetime import timezone as _tz
+    _today_utc = date.today()
+    visits_today_q = Visit.query.filter(func.date(Visit.visited_at) == _today_utc)
+    if campaign_id:
+        visits_today_q = visits_today_q.join(Lead, Visit.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
+    visits_today = visits_today_q.count()
+    visits_total = Visit.query.count()
+
     # Recent activity
     rv_q = Visit.query.order_by(Visit.visited_at.desc())
     if campaign_id:
@@ -623,6 +635,7 @@ def dashboard():
         negotiation=negotiation, registration=registration, live=live,
         matched=matched, forecast=forecast, gabay_stats=gabay_stats,
         recent_visits=recent_visits, aging_leads=aging_leads,
+        visits_today=visits_today, visits_total=visits_total,
         campaigns=campaigns, selected_campaign=selected_campaign, campaign_id=campaign_id)
 
 
@@ -2331,7 +2344,11 @@ def report_daily_ops():
     except ValueError:
         target_dt = today
 
+    # Campaign filter — default to P1
+    p1 = _priority1_campaign()
     campaign_id = request.args.get('campaign_id', type=int)
+    if campaign_id is None and p1:
+        campaign_id = p1.id
 
     # All visits on target date
     visits_q = Visit.query.filter(func.date(Visit.visited_at) == target_dt)

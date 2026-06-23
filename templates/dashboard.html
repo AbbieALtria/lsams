@@ -83,11 +83,13 @@
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <a href="{{ url_for('report_daily_ops') }}" class="text-decoration-none">
-      <div class="kpi-card" style="border-left-color:#0891b2;cursor:pointer">
-        <div class="kpi-lbl">Visits Today</div>
+    <a href="{{ url_for('report_daily_ops') }}" class="text-decoration-none"
+       data-bs-toggle="tooltip" data-bs-placement="top" data-bs-html="true"
+       title="<strong>Daily Ops Dashboard</strong><br>Field visits today · Registrations · Live activations<br>Platform breakdown &amp; per-Gabay counts">
+      <div class="kpi-card" style="border-left-color:#0891b2;cursor:pointer;transition:box-shadow .15s">
+        <div class="kpi-lbl"><i class="bi bi-geo-alt-fill me-1" style="color:#0891b2"></i>Visits Today</div>
         <div class="kpi-val" style="color:#0891b2">{{ visits_today }}</div>
-        <div class="kpi-sub" style="color:#0891b2">{{ visits_total }} total all-time</div>
+        <div class="kpi-sub" style="color:#0891b2">{{ visits_total }} all-time · tap for report</div>
       </div>
     </a>
   </div>
@@ -273,6 +275,9 @@ async function sendBriefing(type) {
 
 {% endblock %}
 {% block scripts %}
+<script>
+document.querySelectorAll('[data-bs-toggle="tooltip"]').forEach(el => new bootstrap.Tooltip(el));
+</script>
 <script>
 const gabayStats = {{ gabay_stats | tojson }};
 const names = gabayStats.map(g => g.name.split(' ')[0]);
