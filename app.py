@@ -27,6 +27,23 @@ os.makedirs('instance', exist_ok=True)
 from datetime import timezone, timedelta as _td
 _PHT = timezone(_td(hours=8))
 
+_SHOPEE_ALIASES = {'shopee': 'Coffee', 'SHOPEE': 'COFFEE', 'Shopee': 'Coffee'}
+def _mask_shopee(text):
+    if not text:
+        return text
+    for k, v in _SHOPEE_ALIASES.items():
+        text = text.replace(k, v)
+    return text
+
+@app.template_filter('safe_brand')
+def safe_brand_filter(value):
+    """Replace Shopee with Coffee in any displayed text."""
+    return _mask_shopee(str(value)) if value else value
+
+@app.context_processor
+def inject_safe_brand():
+    return dict(safe_brand=_mask_shopee)
+
 @app.template_filter('pht')
 def to_pht(dt, fmt='%b %d, %Y %I:%M %p'):
     if dt is None:
@@ -2298,6 +2315,81 @@ def confirm_smart_assign():
 @login_required
 def reports():
     return render_template('reports/index.html')
+
+
+@app.route('/reports/daily-ops')
+@login_required
+def report_daily_ops():
+    if not current_user.is_supervisor and not current_user.is_lazada:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('reports'))
+    from datetime import timedelta as _td2
+    today = date.today()
+    target_date = request.args.get('date', today.isoformat())
+    try:
+        target_dt = date.fromisoformat(target_date)
+    except ValueError:
+        target_dt = today
+
+    campaign_id = request.args.get('campaign_id', type=int)
+
+    # All visits on target date
+    visits_q = Visit.query.filter(func.date(Visit.visited_at) == target_dt)
+    if campaign_id:
+        visits_q = visits_q.join(Lead, Visit.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
+    visits_today = visits_q.all()
+
+    # Enrich visits with lead/gabay
+    for v in visits_today:
+        v._lead  = Lead.query.get(v.lead_id)
+        v._gabay = User.query.get(v.gabay_id)
+
+    # KPI: total visits
+    total_visits = len(visits_today)
+
+    # KPI: registrations created today (Registration records)
+    reg_q = Registration.query.filter(func.date(Registration.created_at) == target_dt)
+    if campaign_id:
+        reg_q = reg_q.join(Lead, Registration.lead_id == Lead.id).filter(Lead.campaign_id == campaign_id)
+    registrations_today = reg_q.count()
+
+    # KPI: sellers activated (lead status became 'live') — approximated by visits with registered outcome
+    live_today = sum(1 for v in visits_today if v.outcome == 'registered')
+
+    # Platform breakdown — based on lead.project field
+    PLATFORMS = ['TikTok', 'Shopee', 'RRLD']
+    platform_visits = {}
+    for p in PLATFORMS:
+        platform_visits[p] = sum(
+            1 for v in visits_today
+            if v._lead and v._lead.project and p.lower() in v._lead.project.lower()
+        )
+
+    # Gabay breakdown
+    gabay_map = {}
+    for v in visits_today:
+        gname = v._gabay.display_name if v._gabay else 'Unknown'
+        gid   = v.gabay_id
+        if gid not in gabay_map:
+            gabay_map[gid] = {'name': gname, 'visits': 0, 'interested': 0,
+                              'registered': 0, 'callback': 0, 'follow_up': 0, 'not_home': 0}
+        gabay_map[gid]['visits'] += 1
+        outcome = v.outcome or ''
+        if outcome in gabay_map[gid]:
+            gabay_map[gid][outcome] += 1
+    gabay_rows = sorted(gabay_map.values(), key=lambda x: -x['visits'])
+
+    campaigns = Campaign.query.order_by(Campaign.priority, Campaign.name).all()
+    return render_template('reports/daily_ops.html',
+        target_dt=target_dt, today=today,
+        total_visits=total_visits,
+        registrations_today=registrations_today,
+        live_today=live_today,
+        platform_visits=platform_visits,
+        gabay_rows=gabay_rows,
+        visits_today=visits_today,
+        campaigns=campaigns, campaign_id=campaign_id,
+        now=datetime.utcnow())
 
 
 @app.route('/reports/daily-field')

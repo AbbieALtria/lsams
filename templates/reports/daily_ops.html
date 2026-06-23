@@ -1,0 +1,256 @@
+{% extends "base.html" %}
+{% block title %}Daily Operations Dashboard{% endblock %}
+{% block content %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-speedometer2 me-2" style="color:#0891b2"></i>Daily Operations Dashboard</div>
+    <div style="color:#9aabc5;font-size:12px">
+      {{ target_dt.strftime('%A, %B %d, %Y') }}
+      {% if target_dt == today %}<span class="badge ms-2" style="background:#dcfce7;color:#15803d;font-size:11px">Today</span>{% endif %}
+    </div>
+  </div>
+  <div class="d-flex gap-2 align-items-center flex-wrap">
+    {% if campaigns %}
+    <form method="get" class="d-flex gap-2 align-items-center mb-0" id="mainForm">
+      <input type="hidden" name="date" value="{{ target_dt.isoformat() }}">
+      <select name="campaign_id" class="form-select form-select-sm" style="font-size:13px;min-width:180px;border-radius:8px" onchange="this.form.submit()">
+        <option value="">All Campaigns</option>
+        {% for c in campaigns %}
+        <option value="{{ c.id }}" {% if campaign_id == c.id %}selected{% endif %}>[P{{ c.priority }}] {{ c.name }}</option>
+        {% endfor %}
+      </select>
+      {% if campaign_id %}<a href="{{ url_for('report_daily_ops', date=target_dt.isoformat()) }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-x"></i></a>{% endif %}
+    </form>
+    {% endif %}
+    <!-- Date picker -->
+    <form method="get" class="d-flex gap-2 align-items-center mb-0">
+      {% if campaign_id %}<input type="hidden" name="campaign_id" value="{{ campaign_id }}">{% endif %}
+      <input type="date" name="date" value="{{ target_dt.isoformat() }}"
+             class="form-control form-control-sm" style="font-size:13px;border-radius:8px;max-width:150px"
+             onchange="this.form.submit()">
+    </form>
+    {% if target_dt != today %}
+    <a href="{{ url_for('report_daily_ops') }}{% if campaign_id %}?campaign_id={{ campaign_id }}{% endif %}" class="btn btn-sm btn-outline-primary" style="border-radius:8px;font-size:12px">
+      <i class="bi bi-arrow-clockwise me-1"></i>Today
+    </a>
+    {% endif %}
+    <a href="{{ url_for('reports') }}" class="btn btn-sm btn-outline-secondary"><i class="bi bi-arrow-left me-1"></i>Back</a>
+    <button onclick="downloadPDF()" class="btn btn-sm" style="background:#b91c1c;color:white">
+      <i class="bi bi-file-pdf me-1"></i>PDF
+    </button>
+  </div>
+</div>
+
+<div id="pdf-content">
+
+<!-- TOP KPI CARDS -->
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:#0891b2">
+      <div class="kpi-lbl">Total Visits</div>
+      <div class="kpi-val" style="color:#0891b2">{{ total_visits }}</div>
+      <div class="kpi-sub">field visits today</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:#7c3aed">
+      <div class="kpi-lbl">Registrations</div>
+      <div class="kpi-val" style="color:#7c3aed">{{ registrations_today }}</div>
+      <div class="kpi-sub">new registrations today</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl">Live Activated</div>
+      <div class="kpi-val" style="color:#15803d">{{ live_today }}</div>
+      <div class="kpi-sub">registered outcome today</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:#d97706">
+      <div class="kpi-lbl">Agents Active</div>
+      <div class="kpi-val" style="color:#d97706">{{ gabay_rows|length }}</div>
+      <div class="kpi-sub">gabay with visits today</div>
+    </div>
+  </div>
+</div>
+
+<!-- PLATFORM BREAKDOWN -->
+<div class="row g-3 mb-4">
+  <div class="col-12">
+    <div class="card">
+      <div class="card-header fw-bold" style="background:#1F3864;color:white">
+        <i class="bi bi-bar-chart-fill me-2"></i>Platform Visit Breakdown
+      </div>
+      <div class="card-body">
+        <div class="row g-3">
+          <div class="col-md-3 col-6">
+            <div style="background:#fef3c7;border-radius:12px;padding:16px;text-align:center;border:2px solid #fde68a">
+              <div style="font-size:28px;margin-bottom:4px">🎵</div>
+              <div style="font-size:28px;font-weight:800;color:#d97706">{{ platform_visits.TikTok }}</div>
+              <div style="font-size:12px;font-weight:700;color:#92400e">TikTok Sellers</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div style="background:#fdf4ff;border-radius:12px;padding:16px;text-align:center;border:2px solid #e9d5ff">
+              <div style="font-size:28px;margin-bottom:4px">☕</div>
+              <div style="font-size:28px;font-weight:800;color:#7c3aed">{{ platform_visits.Shopee }}</div>
+              <div style="font-size:12px;font-weight:700;color:#6d28d9">Coffee Sellers</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div style="background:#eff6ff;border-radius:12px;padding:16px;text-align:center;border:2px solid #bfdbfe">
+              <div style="font-size:28px;margin-bottom:4px">🏪</div>
+              <div style="font-size:28px;font-weight:800;color:#1d4ed8">{{ platform_visits.RRLD }}</div>
+              <div style="font-size:12px;font-weight:700;color:#1e40af">RRLD Sellers</div>
+            </div>
+          </div>
+          <div class="col-md-3 col-6">
+            <div style="background:#f0fdf4;border-radius:12px;padding:16px;text-align:center;border:2px solid #bbf7d0">
+              <div style="font-size:28px;margin-bottom:4px">🛒</div>
+              {% set other = total_visits - platform_visits.TikTok - platform_visits.Shopee - platform_visits.RRLD %}
+              <div style="font-size:28px;font-weight:800;color:#15803d">{{ other if other >= 0 else 0 }}</div>
+              <div style="font-size:12px;font-weight:700;color:#166534">Other / No Tag</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- GABAY SUMMARY TABLE -->
+<div class="card mb-4">
+  <div class="card-header fw-bold" style="background:#1F3864;color:white">
+    <i class="bi bi-people-fill me-2"></i>Gabay Agent Summary — {{ target_dt.strftime('%b %d') }}
+  </div>
+  {% if gabay_rows %}
+  <div class="table-responsive">
+    <table class="table table-hover mb-0 align-middle" style="font-size:13px">
+      <thead style="background:#f0f4fa">
+        <tr>
+          <th>#</th>
+          <th>Gabay Agent</th>
+          <th class="text-center">Visits</th>
+          <th class="text-center" style="color:#15803d">Interested</th>
+          <th class="text-center" style="color:#2563eb">Registered</th>
+          <th class="text-center" style="color:#d97706">Callback</th>
+          <th class="text-center" style="color:#6b7280">Follow-Up</th>
+          <th class="text-center" style="color:#9aabc5">Not Home</th>
+          <th>Progress</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% set max_visits = gabay_rows[0].visits if gabay_rows else 1 %}
+        {% for g in gabay_rows %}
+        <tr>
+          <td style="color:#9aabc5;font-weight:700">{{ loop.index }}</td>
+          <td><strong style="color:#1F3864">{{ g.name }}</strong></td>
+          <td class="text-center"><span style="font-size:18px;font-weight:800;color:#0891b2">{{ g.visits }}</span></td>
+          <td class="text-center"><span class="badge" style="background:#dcfce7;color:#15803d">{{ g.interested }}</span></td>
+          <td class="text-center"><span class="badge" style="background:#dbeafe;color:#1d4ed8">{{ g.registered }}</span></td>
+          <td class="text-center"><span class="badge" style="background:#fef3c7;color:#92400e">{{ g.callback }}</span></td>
+          <td class="text-center"><span class="badge" style="background:#f3f4f6;color:#374151">{{ g.follow_up }}</span></td>
+          <td class="text-center"><span class="badge" style="background:#f3f4f6;color:#9aabc5">{{ g.not_home }}</span></td>
+          <td style="min-width:120px">
+            <div style="background:#E0E6EF;border-radius:6px;height:8px;overflow:hidden">
+              <div style="width:{{ [(g.visits / [max_visits,1]|max * 100)|int, 100]|min }}%;height:8px;border-radius:6px;background:#0891b2"></div>
+            </div>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="card-body text-center text-muted py-5">
+    <i class="bi bi-calendar-x" style="font-size:36px;color:#CBD5E1;display:block;margin-bottom:8px"></i>
+    No visits recorded on {{ target_dt.strftime('%B %d, %Y') }}.
+  </div>
+  {% endif %}
+</div>
+
+<!-- VISIT DETAIL LOG -->
+{% if visits_today %}
+<div class="card mb-4">
+  <div class="card-header fw-bold d-flex align-items-center justify-content-between">
+    <span><i class="bi bi-list-ul me-2"></i>All Visits Detail</span>
+    <span class="badge" style="background:#0891b2">{{ visits_today|length }}</span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-sm table-hover mb-0" style="font-size:12px">
+      <thead style="background:#f0f4fa">
+        <tr>
+          <th>Time (PHT)</th>
+          <th>Gabay</th>
+          <th>Seller</th>
+          <th>City</th>
+          <th>Platform</th>
+          <th>Outcome</th>
+          <th>GPS</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for v in visits_today|sort(attribute='visited_at') %}
+        <tr>
+          <td style="color:#9aabc5;white-space:nowrap">{{ v.visited_at|pht_time }}</td>
+          <td><strong style="color:#1F3864">{{ v._gabay.display_name if v._gabay else '—' }}</strong></td>
+          <td>
+            {% if v._lead %}
+            <a href="{{ url_for('lead_detail', lead_id=v.lead_id) }}" style="color:#1F3864;font-weight:600">{{ v._lead.seller_name }}</a>
+            {% else %}—{% endif %}
+          </td>
+          <td style="color:#9aabc5">{{ v._lead.city if v._lead else '—' }}</td>
+          <td>
+            {% if v._lead and v._lead.project %}
+            <span class="badge" style="background:#f3f4f6;color:#374151;font-size:11px">
+              {{ v._lead.project|safe_brand }}
+            </span>
+            {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+          </td>
+          <td>
+            <span class="badge" style="font-size:11px;background:
+              {% if v.outcome=='interested' %}#dcfce7;color:#15803d
+              {% elif v.outcome=='registered' %}#dbeafe;color:#1d4ed8
+              {% elif v.outcome=='callback' %}#fef3c7;color:#92400e
+              {% elif v.outcome=='not_interested' %}#fee2e2;color:#b91c1c
+              {% elif v.outcome=='follow_up' %}#f3f4f6;color:#374151
+              {% else %}#f3f4f6;color:#9aabc5{% endif %}">
+              {{ (v.outcome or '—')|replace('_',' ')|title }}
+            </span>
+          </td>
+          <td>
+            {% if v.gps_lat %}
+            <a href="https://maps.google.com/?q={{ v.gps_lat }},{{ v.gps_lng }}" target="_blank" style="color:#2E75B6;font-size:11px">
+              <i class="bi bi-geo-alt-fill"></i> Map
+            </a>
+            {% else %}<span style="color:#cbd5e1">—</span>{% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endif %}
+
+<div style="text-align:right;font-size:10px;color:#9aabc5;margin-top:8px">
+  Generated: {{ now|pht }} PHT
+</div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
+<script>
+function downloadPDF() {
+  html2pdf().set({
+    margin: [10,10,10,10],
+    filename: 'Daily_Ops_{{ target_dt }}.pdf',
+    html2canvas: { scale: 2 },
+    jsPDF: { unit: 'mm', format: 'a4', orientation: 'landscape' }
+  }).from(document.getElementById('pdf-content')).save();
+}
+</script>
+{% endblock %}

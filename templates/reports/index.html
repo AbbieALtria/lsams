@@ -104,6 +104,18 @@
     <div class="row g-3">
 
       <div class="col-md-4 col-lg-3">
+        <a href="{{ url_for('report_daily_ops') }}" class="text-decoration-none">
+          <div class="card h-100" style="border-left:4px solid #0891b2;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='0 4px 16px #0891b222'" onmouseout="this.style.boxShadow=''">
+            <div class="card-body py-3">
+              <div style="font-size:22px;color:#0891b2;margin-bottom:6px"><i class="bi bi-speedometer2"></i></div>
+              <div style="font-weight:700;color:#0891b2;font-size:14px">Daily Operations Dashboard</div>
+              <div style="font-size:11px;color:#9aabc5;margin-top:3px">Visits, registrations, platform breakdown &amp; Gabay summary</div>
+            </div>
+          </div>
+        </a>
+      </div>
+
+      <div class="col-md-4 col-lg-3">
         <a href="{{ url_for('report_daily_field') }}" class="text-decoration-none">
           <div class="card h-100" style="border-left:4px solid #1F3864;transition:box-shadow 0.2s" onmouseover="this.style.boxShadow='0 4px 16px #1F386422'" onmouseout="this.style.boxShadow=''">
             <div class="card-body py-3">
