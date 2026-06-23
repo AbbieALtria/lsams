@@ -1408,60 +1408,136 @@ def voice_transcribe():
     if not openai_key:
         return jsonify({'error': 'Voice feature not configured. Ask your supervisor to set OPENAI_API_KEY.'}), 503
 
+    # ── Step 1: Transcribe with Whisper (auto-detects language) ──────────────
     try:
         import openai as _openai
         client = _openai.OpenAI(api_key=openai_key)
-
         audio_bytes = audio_file.read()
-        import io
-        audio_io = io.BytesIO(audio_bytes)
-        audio_io.name = 'voice.webm'
-
+        import io as _io
+        audio_io = _io.BytesIO(audio_bytes)
+        ct = audio_file.content_type or ''
+        ext = 'mp4' if 'mp4' in ct else 'ogg' if 'ogg' in ct else 'm4a' if 'm4a' in ct else 'webm'
+        audio_io.name = f'voice.{ext}'
         transcript = client.audio.transcriptions.create(
             model='whisper-1',
             file=audio_io,
-            language=None,
+            language=None,  # auto-detect: Tagalog, Bisaya, Chinese, English, Taglish
             prompt=(
-                'This is a field sales agent in the Philippines reporting a seller visit outcome. '
-                'They may speak in English, Tagalog, or Bisaya/Cebuano. '
-                'Common words: interesado, gusto, nag-register, wala, hindi interesado, babalik, tatawag.'
+                'Field agent in Philippines reporting a seller visit. '
+                'May speak Tagalog, English, Bisaya/Cebuano, Mandarin Chinese, or mixed. '
+                'Terms: interesado, gusto, nag-register, wala, hindi, follow up, mag-register, '
+                'negotiation, callback, tawagan, babalik, interested, 感兴趣, 注册, 拒绝.'
             )
         )
         text = transcript.text.strip()
     except Exception as e:
         return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
 
-    outcome = _parse_outcome(text)
-    return jsonify({'text': text, 'outcome': outcome})
+    # ── Step 2: Parse with Claude — extract all structured fields ─────────────
+    gid = current_user.id
+    my_leads = Lead.query.filter(
+        Lead.gabay_id == gid,
+        Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration'])
+    ).all()
+    seller_list = [{'id': l.id, 'name': l.seller_name, 'city': l.city or ''} for l in my_leads]
+    today_pht = (datetime.utcnow() + timedelta(hours=8)).strftime('%Y-%m-%d')
+
+    parsed = {}
+    anthropic_key = os.environ.get('ANTHROPIC_API_KEY', '')
+    if anthropic_key:
+        try:
+            import anthropic as _anthropic
+            import re as _re
+            ac = _anthropic.Anthropic(api_key=anthropic_key)
+            sellers_json = json.dumps(seller_list[:40], ensure_ascii=False)
+            msg = ac.messages.create(
+                model='claude-haiku-4-5-20251001',
+                max_tokens=600,
+                messages=[{'role': 'user', 'content': f"""You are an AI assistant for LSAMS, a Lazada Seller Activation System in the Philippines.
+A Gabay (field agent) recorded this voice note after visiting a seller:
+
+TRANSCRIPT: "{text}"
+
+TODAY (PHT): {today_pht}
+GABAY'S LEADS: {sellers_json}
+
+The agent may speak Tagalog, English, Bisaya/Cebuano, Chinese, or a mix. Extract:
+
+- outcome: one of [interested, not_interested, callback, follow_up, not_home, rejected, registered] or null
+- new_status: one of [attempting, negotiation, registration, live, matched, closed] or null (only if clearly upgrading status)
+- follow_up_date: "YYYY-MM-DD" computed from today {today_pht} (e.g. "next Monday" → actual date), or null
+- notes: clean 1-2 sentence English summary of what happened
+- seller_id: integer id from GABAY'S LEADS that best matches who was visited, or null
+- seller_confidence: "high" (name clearly matches), "medium" (partial), "low" (guessing/not mentioned)
+- unclear: true if outcome or seller is genuinely ambiguous
+
+Return ONLY valid JSON, nothing else."""}]
+            )
+            raw = msg.content[0].text.strip()
+            m = _re.search(r'\{.*\}', raw, _re.DOTALL)
+            if m:
+                parsed = json.loads(m.group())
+        except Exception:
+            pass
+
+    # Fallback keyword detection if Claude unavailable
+    if not parsed.get('outcome'):
+        parsed['outcome'] = _parse_outcome(text)
+
+    # ── Step 3: Build seller candidates for confirmation UI ───────────────────
+    seller_candidates = []
+    matched_id = parsed.get('seller_id')
+    confidence = parsed.get('seller_confidence', 'low')
+
+    if matched_id and confidence == 'high':
+        hit = next((s for s in seller_list if s['id'] == matched_id), None)
+        if hit:
+            seller_candidates = [hit]
+    else:
+        # Include Claude's best guess + fuzzy fragment matches
+        candidates = {}
+        if matched_id:
+            hit = next((s for s in seller_list if s['id'] == matched_id), None)
+            if hit:
+                candidates[hit['id']] = hit
+        # Fragment match on transcript words
+        words = [w for w in text.lower().split() if len(w) > 2]
+        for s in seller_list:
+            name_lower = s['name'].lower()
+            score = sum(1 for w in words if w in name_lower)
+            if score > 0 and s['id'] not in candidates:
+                candidates[s['id']] = s
+            if len(candidates) >= 3:
+                break
+        seller_candidates = list(candidates.values())[:3]
+
+    return jsonify({
+        'text': text,
+        'outcome': parsed.get('outcome'),
+        'new_status': parsed.get('new_status'),
+        'follow_up_date': parsed.get('follow_up_date'),
+        'notes': parsed.get('notes') or text,
+        'seller_id': matched_id,
+        'seller_confidence': confidence,
+        'seller_candidates': seller_candidates,
+        'unclear': parsed.get('unclear', False),
+    })
 
 
 def _parse_outcome(text):
     t = text.lower()
-    registered_kw = ['register', 'nag-register', 'nakapag', 'sign up', 'signed up', 'na-onboard', 'live na']
-    interested_kw = ['interested', 'interesado', 'gusto', 'willing', 'open', 'pwede', 'consider', 'gustong sumali']
-    rejected_kw = ['ayaw', 'hindi interesado', 'not interested', 'rejected', 'basta ayaw', 'no thanks', 'wag na', 'hindi na', 'ayaw na']
-    not_home_kw = ['wala', 'walang tao', 'not home', 'not around', 'hindi nandoon', 'closed', 'nakasirado', 'store close']
-    callback_kw = ['tatawag', 'call back', 'callback', 'tawagan', 'magtatawag', 'call me', 'call later']
-    follow_up_kw = ['follow up', 'babalik', 'bumalik', 'balik na lang', 'susunod na', 'next time', 'revisit', 'mag-iwan']
-
-    for kw in registered_kw:
-        if kw in t:
-            return 'registered'
-    for kw in rejected_kw:
-        if kw in t:
-            return 'rejected'
-    for kw in not_home_kw:
-        if kw in t:
-            return 'not_home'
-    for kw in callback_kw:
-        if kw in t:
-            return 'callback'
-    for kw in interested_kw:
-        if kw in t:
-            return 'interested'
-    for kw in follow_up_kw:
-        if kw in t:
-            return 'follow_up'
+    for kw in ['register', 'nag-register', 'sign up', 'signed up', 'na-onboard', 'live na', '注册']:
+        if kw in t: return 'registered'
+    for kw in ['ayaw', 'hindi interesado', 'not interested', 'rejected', 'wag na', 'hindi na', '拒绝']:
+        if kw in t: return 'rejected'
+    for kw in ['wala', 'walang tao', 'not home', 'closed', 'nakasirado', 'store close']:
+        if kw in t: return 'not_home'
+    for kw in ['tatawag', 'call back', 'callback', 'tawagan', 'magtatawag', '回电']:
+        if kw in t: return 'callback'
+    for kw in ['interested', 'interesado', 'gusto', 'willing', 'pwede', '感兴趣']:
+        if kw in t: return 'interested'
+    for kw in ['follow up', 'babalik', 'bumalik', 'susunod', 'next time', 'revisit']:
+        if kw in t: return 'follow_up'
     return ''
 
 

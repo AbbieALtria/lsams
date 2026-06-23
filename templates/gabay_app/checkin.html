@@ -199,29 +199,76 @@
   <!-- VOICE CHECK-IN -->
   <div class="voice-bar" id="voiceBar">
     <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:8px;letter-spacing:.03em">
-      🎙 VOICE CHECK-IN — speak your visit in Filipino or English
+      🎙 VOICE CHECK-IN
+    </div>
+    <div style="font-size:10px;color:#a5b4fc;margin-bottom:10px;line-height:1.5">
+      Speak in <strong style="color:#6366f1">Tagalog · English · Bisaya · Chinese</strong> or mixed
     </div>
     <button type="button" class="voice-mic-btn" id="voiceMicBtn" onclick="toggleRecording()">
       🎙
     </button>
     <div style="font-size:12px;color:#6366f1;font-weight:700" id="voiceStatus">Tap mic to speak</div>
     <div style="font-size:10px;color:#a5b4fc;margin-top:3px" id="voiceHint">
-      Say: "Seller interested, will follow up next week" or "Walang tao sa bahay"
+      Say seller name, what happened, and any follow-up
     </div>
-    <div class="voice-result-box" id="voiceResultBox">
-      <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:4px;text-transform:uppercase;letter-spacing:.05em">What I heard:</div>
-      <div id="voiceTranscript"></div>
-      <div id="voiceOutcomeTag"></div>
-      <div style="display:flex;gap:8px;margin-top:10px;flex-wrap:wrap">
+
+    <!-- AI RESULT CARD -->
+    <div class="voice-result-box" id="voiceResultBox" style="display:none">
+      <!-- Transcript -->
+      <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:4px;
+                  text-transform:uppercase;letter-spacing:.05em">🎙 What I heard:</div>
+      <div id="voiceTranscript" style="font-size:12px;color:#374151;font-style:italic;
+           margin-bottom:10px;line-height:1.5;padding:8px;background:#f8fafd;border-radius:8px"></div>
+
+      <!-- Seller match -->
+      <div id="voiceSellerSection" style="display:none;margin-bottom:10px">
+        <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:6px;
+                    text-transform:uppercase;letter-spacing:.05em">🏪 Seller:</div>
+        <div id="voiceSellerContent"></div>
+      </div>
+
+      <!-- Extracted fields grid -->
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px"
+           id="voiceFieldsGrid">
+        <div id="voiceOutcomeField" style="display:none;background:#f0fdf4;border-radius:8px;
+             padding:8px 10px;border-left:3px solid #15803d">
+          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Outcome</div>
+          <div id="voiceOutcomeVal" style="font-size:12px;font-weight:800;color:#15803d;margin-top:2px"></div>
+        </div>
+        <div id="voiceStatusField" style="display:none;background:#ede9fe;border-radius:8px;
+             padding:8px 10px;border-left:3px solid #7c3aed">
+          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">New Status</div>
+          <div id="voiceStatusVal" style="font-size:12px;font-weight:800;color:#7c3aed;margin-top:2px"></div>
+        </div>
+        <div id="voiceFollowupField" style="display:none;background:#fce7f3;border-radius:8px;
+             padding:8px 10px;border-left:3px solid #be185d">
+          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Follow-up</div>
+          <div id="voiceFollowupVal" style="font-size:12px;font-weight:800;color:#be185d;margin-top:2px"></div>
+        </div>
+        <div id="voiceNotesField" style="display:none;background:#f0f9ff;border-radius:8px;
+             padding:8px 10px;border-left:3px solid #0284c7;grid-column:1/-1">
+          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Notes</div>
+          <div id="voiceNotesVal" style="font-size:11px;color:#0c4a6e;margin-top:2px;line-height:1.4"></div>
+        </div>
+      </div>
+
+      <!-- Unclear warning -->
+      <div id="voiceUnclearWarn" style="display:none;background:#fef3c7;border-radius:8px;
+           padding:8px 10px;margin-bottom:10px;font-size:11px;color:#92400e">
+        ⚠️ Some fields were unclear — please review and adjust before submitting.
+      </div>
+
+      <!-- Action buttons -->
+      <div style="display:flex;gap:8px">
         <button type="button" onclick="applyVoice()" id="voiceApplyBtn"
-                style="flex:1;background:#4338ca;color:white;border:none;border-radius:10px;
-                       padding:9px 14px;font-size:13px;font-weight:800;cursor:pointer">
-          ✅ Use this
+                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                       padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer">
+          ✅ Apply to Form
         </button>
         <button type="button" onclick="clearVoice()"
                 style="flex:1;background:#F0F4FA;color:#6b7280;border:none;border-radius:10px;
-                       padding:9px 14px;font-size:13px;font-weight:700;cursor:pointer">
-          🔄 Try again
+                       padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer">
+          🔄 Redo
         </button>
       </div>
     </div>
@@ -683,41 +730,124 @@ function stopRecording() {
   }
 }
 
+const STATUS_LABELS = {
+  attempting:   'Attempting',
+  negotiation:  'Negotiation',
+  registration: 'Registration',
+  live:         'Live',
+  matched:      'Matched',
+  closed:       'Closed',
+};
+
 async function sendAudio(mimeType, stream) {
   stream.getTracks().forEach(t => t.stop());
   const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
   const blob = new Blob(audioChunks, { type: mimeType });
-  const formData = new FormData();
-  formData.append('audio', blob, `voice.${ext}`);
+  const fd = new FormData();
+  fd.append('audio', blob, `voice.${ext}`);
 
   try {
-    const res = await fetch('/gabay/app/voice-transcribe', { method: 'POST', body: formData });
+    const res = await fetch('/gabay/app/voice-transcribe', { method: 'POST', body: fd });
     const data = await res.json();
 
     if (data.error) {
-      document.getElementById('voiceStatus').textContent = 'Error: ' + data.error;
-      document.getElementById('voiceHint').textContent = 'Try again or fill manually';
+      document.getElementById('voiceStatus').textContent = '❌ ' + data.error;
+      document.getElementById('voiceHint').textContent = 'Try again or fill the form manually';
       document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
       document.getElementById('voiceMicBtn').textContent = '🎙';
       return;
     }
 
     pendingVoiceData = data;
+
+    // Transcript
     document.getElementById('voiceTranscript').textContent = '"' + data.text + '"';
 
-    const tagEl = document.getElementById('voiceOutcomeTag');
-    if (data.outcome && OUTCOME_LABELS[data.outcome]) {
-      const oc = OUTCOME_LABELS[data.outcome];
-      tagEl.innerHTML = `<span class="voice-outcome-tag" style="background:${oc.bg};color:${oc.color}">
-        Detected outcome: ${oc.label}
-      </span>`;
+    // Seller section
+    const sellerSec = document.getElementById('voiceSellerSection');
+    const sellerContent = document.getElementById('voiceSellerContent');
+    if (data.seller_candidates && data.seller_candidates.length > 0) {
+      sellerSec.style.display = 'block';
+      if (data.seller_confidence === 'high' && data.seller_candidates.length === 1) {
+        const s = data.seller_candidates[0];
+        sellerContent.innerHTML = `
+          <div style="background:#dcfce7;border-radius:8px;padding:8px 12px;display:flex;
+                      align-items:center;gap:8px;cursor:pointer" onclick="selectVoiceSeller(${s.id},'${s.name.replace(/'/g,"\\'")}')">
+            <span style="font-size:16px">✅</span>
+            <div>
+              <div style="font-size:13px;font-weight:800;color:#15803d">${s.name}</div>
+              ${s.city ? `<div style="font-size:10px;color:#9aabc5">${s.city}</div>` : ''}
+            </div>
+            <span style="font-size:10px;color:#15803d;margin-left:auto;font-weight:700">Tap to confirm</span>
+          </div>`;
+      } else {
+        // Multiple candidates — let Gabay pick
+        const items = data.seller_candidates.map(s => `
+          <div onclick="selectVoiceSeller(${s.id},'${s.name.replace(/'/g,"\\'")}',this)"
+               style="background:#f8fafd;border:1.5px solid #E0E6EF;border-radius:8px;
+                      padding:8px 12px;cursor:pointer;margin-bottom:5px;display:flex;
+                      align-items:center;gap:8px" class="seller-pick-opt">
+            <div style="width:32px;height:32px;border-radius:8px;background:#dbeafe;
+                        display:flex;align-items:center;justify-content:center;
+                        font-weight:800;color:#1d4ed8;font-size:13px;flex-shrink:0">
+              ${s.name[0].toUpperCase()}
+            </div>
+            <div style="flex:1">
+              <div style="font-size:12px;font-weight:700;color:#1F3864">${s.name}</div>
+              ${s.city ? `<div style="font-size:10px;color:#9aabc5">${s.city}</div>` : ''}
+            </div>
+          </div>`).join('');
+        sellerContent.innerHTML = `
+          <div style="font-size:11px;color:#b45309;margin-bottom:6px">
+            ❓ Not sure which seller — tap to select:
+          </div>${items}`;
+      }
     } else {
-      tagEl.innerHTML = '<span class="voice-outcome-tag" style="background:#f3f4f6;color:#6b7280">No outcome detected — please select manually</span>';
+      sellerSec.style.display = 'none';
     }
 
+    // Outcome field
+    if (data.outcome && OUTCOME_LABELS[data.outcome]) {
+      const oc = OUTCOME_LABELS[data.outcome];
+      document.getElementById('voiceOutcomeField').style.display = 'block';
+      document.getElementById('voiceOutcomeVal').textContent = oc.label;
+      document.getElementById('voiceOutcomeField').style.borderLeftColor = oc.color;
+      document.getElementById('voiceOutcomeVal').style.color = oc.color;
+    } else {
+      document.getElementById('voiceOutcomeField').style.display = 'none';
+    }
+
+    // Status field
+    if (data.new_status && STATUS_LABELS[data.new_status]) {
+      document.getElementById('voiceStatusField').style.display = 'block';
+      document.getElementById('voiceStatusVal').textContent = '→ ' + STATUS_LABELS[data.new_status];
+    } else {
+      document.getElementById('voiceStatusField').style.display = 'none';
+    }
+
+    // Follow-up date
+    if (data.follow_up_date) {
+      document.getElementById('voiceFollowupField').style.display = 'block';
+      const d = new Date(data.follow_up_date + 'T00:00:00');
+      document.getElementById('voiceFollowupVal').textContent = d.toLocaleDateString('en-PH', { weekday:'short', month:'short', day:'numeric' });
+    } else {
+      document.getElementById('voiceFollowupField').style.display = 'none';
+    }
+
+    // Notes
+    if (data.notes) {
+      document.getElementById('voiceNotesField').style.display = 'block';
+      document.getElementById('voiceNotesVal').textContent = data.notes;
+    } else {
+      document.getElementById('voiceNotesField').style.display = 'none';
+    }
+
+    // Unclear warning
+    document.getElementById('voiceUnclearWarn').style.display = data.unclear ? 'block' : 'none';
+
     document.getElementById('voiceResultBox').style.display = 'block';
-    document.getElementById('voiceStatus').textContent = 'Done! Review below';
-    document.getElementById('voiceHint').textContent = 'Tap "Use this" to fill the form';
+    document.getElementById('voiceStatus').textContent = '🧠 AI understood — review below';
+    document.getElementById('voiceHint').textContent = 'Confirm seller, then tap Apply to Form';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '✅';
 
@@ -729,28 +859,73 @@ async function sendAudio(mimeType, stream) {
   }
 }
 
+function selectVoiceSeller(id, name, el) {
+  if (!pendingVoiceData) return;
+  pendingVoiceData.confirmed_seller_id = id;
+  pendingVoiceData.confirmed_seller_name = name;
+  // Highlight selected
+  document.querySelectorAll('.seller-pick-opt').forEach(opt => {
+    opt.style.background = '#f8fafd';
+    opt.style.borderColor = '#E0E6EF';
+  });
+  if (el) {
+    el.style.background = '#dcfce7';
+    el.style.borderColor = '#15803d';
+  }
+  // Also update the lead dropdown to match
+  const sel = document.getElementById('leadSelect');
+  if (sel) {
+    sel.value = id;
+    sel.dispatchEvent(new Event('change'));
+  }
+}
+
 function applyVoice() {
   if (!pendingVoiceData) return;
+  const d = pendingVoiceData;
 
-  // Fill notes
-  const notesEl = document.querySelector('textarea[name="notes"]');
-  if (notesEl) notesEl.value = pendingVoiceData.text;
+  // 1. Seller — pre-select in lead dropdown
+  const leadSel = document.getElementById('leadSelect');
+  const sellerId = d.confirmed_seller_id || (d.seller_confidence === 'high' ? d.seller_id : null);
+  if (sellerId && leadSel) {
+    leadSel.value = sellerId;
+    leadSel.dispatchEvent(new Event('change'));
+  }
 
-  // Select outcome
-  if (pendingVoiceData.outcome) {
-    const outcomeEl = document.querySelector(`.outcome-opt[data-val="${pendingVoiceData.outcome}"]`);
+  // 2. Outcome
+  if (d.outcome) {
+    const outcomeEl = document.querySelector(`.outcome-opt[data-val="${d.outcome}"]`);
     if (outcomeEl) {
       selectOutcome(outcomeEl);
       outcomeEl.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }
 
+  // 3. New status
+  if (d.new_status) {
+    const statusSel = document.querySelector('select[name="new_status"]');
+    if (statusSel) statusSel.value = d.new_status;
+  }
+
+  // 4. Follow-up date
+  if (d.follow_up_date) {
+    const fuEl = document.getElementById('followupDate');
+    if (fuEl) {
+      fuEl.value = d.follow_up_date;
+      fuEl.closest('[id="followupRow"]') && (document.getElementById('followupRow').style.display = 'block');
+    }
+  }
+
+  // 5. Notes (use AI summary, not raw transcript)
+  const notesEl = document.querySelector('textarea[name="notes"]');
+  if (notesEl && d.notes) notesEl.value = d.notes;
+
   // Visual confirmation
   document.getElementById('voiceStatus').textContent = '✅ Applied to form!';
-  document.getElementById('voiceHint').textContent = 'Notes and outcome filled. Review and submit.';
+  document.getElementById('voiceHint').textContent = 'All fields filled — review and submit';
   document.getElementById('voiceApplyBtn').textContent = '✅ Applied!';
   document.getElementById('voiceApplyBtn').style.background = '#15803d';
-  document.getElementById('step5num').className = 'step-num done';
+  document.getElementById('step5num') && (document.getElementById('step5num').className = 'step-num done');
   validateForm();
 }
 
@@ -761,8 +936,8 @@ function clearVoice() {
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
   document.getElementById('voiceMicBtn').textContent = '🎙';
   document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
-  document.getElementById('voiceHint').textContent = 'Say: "Seller interested, will follow up next week"';
-  document.getElementById('voiceApplyBtn').textContent = '✅ Use this';
+  document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
+  document.getElementById('voiceApplyBtn').textContent = '✅ Apply to Form';
   document.getElementById('voiceApplyBtn').style.background = '#4338ca';
 }
 </script>
