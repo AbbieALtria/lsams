@@ -48,35 +48,45 @@
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <div class="kpi-card" style="border-left-color:#E07B00">
+    {% set m = kpi_meta.attempting %}
+    <div class="kpi-card" style="border-left-color:#E07B00;cursor:pointer"
+         data-hv-kpi='{"label":"Attempting","count":{{ attempting }},"total_pool":{{ total_pool }},"active7d":{{ m.this }},"delta":{{ m.delta }}}'>
       <div class="kpi-lbl">Attempting</div>
       <div class="kpi-val">{{ attempting }}</div>
       <div class="kpi-sub" style="color:#E07B00">{{ '%.1f'|format(attempting/total_pool*100 if total_pool else 0) }}% of pool</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <div class="kpi-card" style="border-left-color:#7c3aed">
+    {% set m = kpi_meta.negotiation %}
+    <div class="kpi-card" style="border-left-color:#7c3aed;cursor:pointer"
+         data-hv-kpi='{"label":"Negotiation","count":{{ negotiation }},"total_pool":{{ total_pool }},"active7d":{{ m.this }},"delta":{{ m.delta }}}'>
       <div class="kpi-lbl">Negotiation</div>
       <div class="kpi-val">{{ negotiation }}</div>
       <div class="kpi-sub text-purple">{{ '%.1f'|format(negotiation/total_pool*100 if total_pool else 0) }}% of pool</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <div class="kpi-card" style="border-left-color:#0891b2">
+    {% set m = kpi_meta.registration %}
+    <div class="kpi-card" style="border-left-color:#0891b2;cursor:pointer"
+         data-hv-kpi='{"label":"Registration","count":{{ registration }},"total_pool":{{ total_pool }},"active7d":{{ m.this }},"delta":{{ m.delta }}}'>
       <div class="kpi-lbl">Registration</div>
       <div class="kpi-val">{{ registration }}</div>
       <div class="kpi-sub" style="color:#0891b2">{{ '%.1f'|format(registration/total_pool*100 if total_pool else 0) }}% of pool</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <div class="kpi-card" style="border-left-color:#15803d">
+    {% set m = kpi_meta.live %}
+    <div class="kpi-card" style="border-left-color:#15803d;cursor:pointer"
+         data-hv-kpi='{"label":"Live Sellers","count":{{ live }},"total_pool":{{ total_pool }},"active7d":{{ m.this }},"delta":{{ m.delta }}}'>
       <div class="kpi-lbl">Live Sellers</div>
       <div class="kpi-val">{{ live }}</div>
       <div class="kpi-sub">{{ '%.1f'|format(live/total_pool*100 if total_pool else 0) }}% activation</div>
     </div>
   </div>
   <div class="col-6 col-md-4 col-lg-2">
-    <div class="kpi-card" style="border-left-color:#065f46">
+    {% set m = kpi_meta.matched %}
+    <div class="kpi-card" style="border-left-color:#065f46;cursor:pointer"
+         data-hv-kpi='{"label":"Matched","count":{{ matched }},"total_pool":{{ total_pool }},"active7d":{{ m.this }},"delta":{{ m.delta }}}'>
       <div class="kpi-lbl">Matched</div>
       <div class="kpi-val">{{ matched }}</div>
       <div class="kpi-sub">{{ '%.1f'|format(matched/total_pool*100 if total_pool else 0) }}% match rate</div>
@@ -98,11 +108,12 @@
 <!-- MARIA FORECAST + BRIEFING ACTIONS -->
 <div class="row g-3 mb-4">
   <div class="col-md-4">
-    <div class="kpi-card" style="border-left-color:#0891b2;background:linear-gradient(135deg,#f0f9ff,#e0f2fe)">
+    <div class="kpi-card" style="border-left-color:#0891b2;background:linear-gradient(135deg,#f0f9ff,#e0f2fe);cursor:pointer"
+         data-hv-kpi='{"label":"🌸 Maria AI Forecast","count":{{ forecast }},"total_pool":{{ total_pool }},"active7d":{{ negotiation }},"delta":{{ registration }},"is_forecast":true,"negotiation":{{ negotiation }},"registration":{{ registration }}}'>
       <div class="kpi-lbl" style="color:#0891b2">🌸 Maria Forecast</div>
       <div class="kpi-val" style="color:#0891b2">+{{ forecast }}</div>
       <div class="kpi-sub" style="color:#0891b2">estimated new live sellers this week</div>
-      <div style="font-size:10px;color:#94a3b8;margin-top:4px">Based on negotiation × 60% + registration × 85%</div>
+      <div style="font-size:10px;color:#94a3b8;margin-top:4px">Hover to see the AI formula ↑</div>
     </div>
   </div>
   {% if current_user.is_supervisor %}
@@ -195,7 +206,8 @@ async function sendBriefing(type) {
           <td><strong>{{ g.matched }}</strong></td>
           <td>
             {% set conv = (g.matched / g.pool * 100) if g.pool else 0 %}
-            <span class="badge {% if conv >= 10 %}bg-success{% elif conv >= 5 %}bg-primary{% else %}bg-warning text-dark{% endif %}">
+            <span class="badge {% if conv >= 10 %}bg-success{% elif conv >= 5 %}bg-primary{% else %}bg-warning text-dark{% endif %}"
+                  data-hv-conv='{"name":"{{ g.name }}","live":{{ g.live }},"matched":{{ g.matched }},"assigned":{{ g.assigned }},"conv":"{{ '%.1f'|format(conv) }}"}'>
               {{ '%.1f'|format(conv) }}%
             </span>
           </td>

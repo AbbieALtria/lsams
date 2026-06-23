@@ -240,8 +240,8 @@
   display: inline-block; border-radius: 20px; padding: 2px 9px;
   font-size: 11px; font-weight: 700;
 }
-[data-hv-gabay], [data-hv-lead] { cursor: pointer; }
-[data-hv-gabay]:hover, [data-hv-lead]:hover { text-decoration: underline dotted; }
+[data-hv-gabay],[data-hv-lead],[data-hv-kpi],[data-hv-campaign],[data-hv-city],[data-hv-conv] { cursor: pointer; }
+[data-hv-gabay]:hover,[data-hv-lead]:hover,[data-hv-campaign]:hover,[data-hv-city]:hover { text-decoration: underline dotted; }
 </style>
 </head>
 <body>
@@ -606,17 +606,19 @@ const HC = {
   showTimer: null,
   hideTimer: null,
 
+  SEL: '[data-hv-gabay],[data-hv-lead],[data-hv-kpi],[data-hv-campaign],[data-hv-city],[data-hv-conv]',
+
   init() {
     document.addEventListener('mouseover', e => {
-      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      const t = e.target.closest(this.SEL);
       if (t) { clearTimeout(this.hideTimer); this.trigger(t, e); }
     });
     document.addEventListener('mousemove', e => {
-      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      const t = e.target.closest(this.SEL);
       if (t && this.el.classList.contains('hc-visible')) this.pos(e);
     });
     document.addEventListener('mouseout', e => {
-      const t = e.target.closest('[data-hv-gabay],[data-hv-lead]');
+      const t = e.target.closest(this.SEL);
       if (t) { clearTimeout(this.showTimer); this.hideTimer = setTimeout(() => this.hide(), 200); }
     });
   },
@@ -624,16 +626,24 @@ const HC = {
   trigger(el, e) {
     clearTimeout(this.showTimer);
     this.showTimer = setTimeout(async () => {
-      const type = el.dataset.hvGabay ? 'gabay' : 'lead';
-      const id   = el.dataset.hvGabay || el.dataset.hvLead;
-      const key  = type + id;
+      const d = el.dataset;
+
+      // Inline data types (no fetch needed)
+      if (d.hvKpi)  { this.renderKpi(JSON.parse(d.hvKpi));   this.pos(e); this.el.classList.add('hc-visible'); return; }
+      if (d.hvConv) { this.renderConv(JSON.parse(d.hvConv)); this.pos(e); this.el.classList.add('hc-visible'); return; }
+
+      // Fetch types
+      let url, key, renderer;
+      if (d.hvGabay)    { url = `/api/hover/gabay/${d.hvGabay}`;        key = 'g'+d.hvGabay;    renderer = v => this.renderGabay(v); }
+      else if (d.hvLead){ url = `/api/hover/lead/${d.hvLead}`;          key = 'l'+d.hvLead;     renderer = v => this.renderLead(v); }
+      else if (d.hvCampaign) { url = `/api/hover/campaign/${d.hvCampaign}`; key = 'c'+d.hvCampaign; renderer = v => this.renderCampaign(v); }
+      else if (d.hvCity){ const p = JSON.parse(d.hvCity); url = `/api/hover/city?name=${encodeURIComponent(p.name)}${p.cid?'&campaign_id='+p.cid:''}`; key = 'ct'+p.name+(p.cid||''); renderer = v => this.renderCity(v); }
+      else return;
+
       if (!this.cache[key]) {
-        try {
-          const r = await fetch(`/api/hover/${type}/${id}`);
-          this.cache[key] = await r.json();
-        } catch { return; }
+        try { const r = await fetch(url); this.cache[key] = await r.json(); } catch { return; }
       }
-      type === 'gabay' ? this.renderGabay(this.cache[key]) : this.renderLead(this.cache[key]);
+      renderer(this.cache[key]);
       this.pos(e);
       this.el.classList.add('hc-visible');
     }, 280);
@@ -653,6 +663,99 @@ const HC = {
 
   row(lbl, val, cls='') {
     return `<div class="hc-row"><span class="hc-lbl">${lbl}</span><span class="hc-val ${cls}">${val}</span></div>`;
+  },
+
+  renderKpi(d) {
+    if (d.is_forecast) {
+      const neg = d.negotiation, reg = d.registration;
+      const fromNeg = Math.round(neg * 0.6), fromReg = Math.round(reg * 0.85);
+      this.el.innerHTML = `
+        <div class="hc-header">
+          <div class="hc-name">🌸 Maria AI Forecast</div>
+          <div class="hc-sub">How the estimate is calculated</div>
+        </div>
+        <div class="hc-body">
+          ${this.row('Negotiation leads', neg)}
+          ${this.row('× 60% close rate', `<span class="good">+${fromNeg}</span>`)}
+          ${this.row('Registration leads', reg)}
+          ${this.row('× 85% activation rate', `<span class="good">+${fromReg}</span>`)}
+          <div class="hc-row" style="margin-top:6px;border-top:2px solid #e0f2fe;padding-top:8px">
+            <span class="hc-lbl" style="color:#0891b2;font-weight:800">Forecast total</span>
+            <span class="hc-val" style="color:#0891b2;font-size:18px">+${fromNeg+fromReg}</span>
+          </div>
+        </div>`;
+      return;
+    }
+    const delta = d.delta, sign = delta >= 0 ? '+' : '';
+    const dCls  = delta > 0 ? 'good' : delta < 0 ? 'danger' : '';
+    const pct   = d.total_pool ? ((d.count / d.total_pool) * 100).toFixed(1) : '—';
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">📊 ${d.label}</div>
+        <div class="hc-sub">${d.count} leads · ${pct}% of pool</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Active visits this week', d.active7d)}
+        ${this.row('vs previous week', `<span class="${dCls}">${sign}${delta}</span>`)}
+        ${this.row('Trend', delta > 0 ? '<span class="good">📈 Improving</span>' : delta < 0 ? '<span class="danger">📉 Declining</span>' : '<span style="color:#9aabc5">➡ Stable</span>')}
+      </div>`;
+  },
+
+  renderConv(d) {
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">🎯 Conversion Breakdown</div>
+        <div class="hc-sub">${d.name}</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Live sellers', `<span class="good">${d.live}</span>`)}
+        ${this.row('Matched sellers', `<span class="good">${d.matched}</span>`)}
+        ${this.row('Total assigned', d.assigned)}
+        <div class="hc-row" style="margin-top:6px;border-top:2px solid #F3E8FF;padding-top:8px">
+          <span class="hc-lbl">Formula</span>
+          <span style="font-size:11px;color:#8B2BE2;font-weight:700">(${d.live}+${d.matched}) ÷ ${d.assigned}</span>
+        </div>
+        ${this.row('Result', `<span class="hc-chip" style="background:var(--lz-purple-light);color:var(--lz-purple)">${d.conv}%</span>`)}
+      </div>`;
+  },
+
+  renderCampaign(d) {
+    const statusColor = d.status === 'active' ? '#15803d' : '#9aabc5';
+    const priorityLabel = d.priority === 1 ? '🥇 Priority 1 — Top Focus' : `Priority ${d.priority}`;
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">🚩 ${d.name}</div>
+        <div class="hc-sub">${priorityLabel}</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Status', `<span style="color:${statusColor};font-weight:700">${d.status.toUpperCase()}</span>`)}
+        ${this.row('Total leads', d.total)}
+        ${this.row('Assigned', `${d.assigned} <span style="color:#9aabc5">(${d.pct_assigned}%)</span>`)}
+        ${this.row('Live sellers', `<span class="good">${d.live}</span>`)}
+        ${this.row('Matched', `<span class="good">${d.matched}</span>`)}
+        ${this.row('Live rate', `<span class="${d.pct_live >= 10 ? 'good' : d.pct_live >= 5 ? 'warning' : 'danger'}">${d.pct_live}%</span>`)}
+        ${this.row('Active Gabay', `👥 ${d.active_gabay} agents`)}
+      </div>`;
+  },
+
+  renderCity(d) {
+    const covCls = d.coverage >= 70 ? 'good' : d.coverage >= 40 ? 'warning' : 'danger';
+    const covBar = Math.round(d.coverage);
+    this.el.innerHTML = `
+      <div class="hc-header">
+        <div class="hc-name">📍 ${d.city}</div>
+        <div class="hc-sub">${d.total} leads in this city</div>
+      </div>
+      <div class="hc-body">
+        ${this.row('Total leads', d.total)}
+        ${this.row('Visited at least once', d.visited)}
+        ${this.row('Live sellers', `<span class="good">${d.live}</span>`)}
+        ${this.row('Coverage', `<span class="${covCls}">${d.coverage}%</span>`)}
+        <div style="margin-top:6px;background:#F3E8FF;border-radius:6px;height:6px;overflow:hidden">
+          <div style="width:${covBar}%;height:6px;background:${d.coverage>=70?'#15803d':d.coverage>=40?'#d97706':'#dc2626'};border-radius:6px"></div>
+        </div>
+        <div style="font-size:10px;color:#9aabc5;margin-top:4px">${covBar}% of leads visited</div>
+      </div>`;
   },
 
   renderGabay(d) {

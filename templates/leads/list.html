@@ -91,7 +91,7 @@
             {% if lead.cluster %}<span style="font-size:10px;color:#9aabc5">{{ lead.cluster }}</span>{% endif %}
             {% if not lead.project and not lead.cluster %}—{% endif %}
           </td>
-          <td>{{ lead.city or '—' }}</td>
+          <td>{% if lead.city %}<span data-hv-city='{"name":"{{ lead.city }}","cid":{{ campaign_id or 'null' }}}' style="cursor:pointer;text-decoration:underline dotted">{{ lead.city }}</span>{% else %}—{% endif %}</td>
           <td><span class="badge badge-{{ lead.status }} rounded-pill" data-hv-lead="{{ lead.id }}">{{ lead.status_label }}</span></td>
           <td>
             {% if lead.status not in ('pool','live','matched','closed') %}

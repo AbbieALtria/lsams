@@ -603,6 +603,18 @@ def dashboard():
 
     forecast = round(negotiation * 0.6 + registration * 0.85)
 
+    # Week-over-week activity per KPI status
+    _7d  = datetime.utcnow() - timedelta(days=7)
+    _14d = datetime.utcnow() - timedelta(days=14)
+    def _week_act(status):
+        sq = db.session.query(Lead.id).filter(Lead.status == status, Lead.status != 'removed')
+        if campaign_id:
+            sq = sq.filter(Lead.campaign_id == campaign_id)
+        this_wk = Visit.query.filter(Visit.lead_id.in_(sq), Visit.visited_at >= _7d).count()
+        prev_wk = Visit.query.filter(Visit.lead_id.in_(sq), Visit.visited_at >= _14d, Visit.visited_at < _7d).count()
+        return {'this': this_wk, 'prev': prev_wk, 'delta': this_wk - prev_wk}
+    kpi_meta = {s: _week_act(s) for s in ('attempting','negotiation','registration','live','matched')}
+
     # Visits KPIs
     from datetime import timezone as _tz
     _today_utc = date.today()
@@ -636,7 +648,8 @@ def dashboard():
         matched=matched, forecast=forecast, gabay_stats=gabay_stats,
         recent_visits=recent_visits, aging_leads=aging_leads,
         visits_today=visits_today, visits_total=visits_total,
-        campaigns=campaigns, selected_campaign=selected_campaign, campaign_id=campaign_id)
+        campaigns=campaigns, selected_campaign=selected_campaign, campaign_id=campaign_id,
+        kpi_meta=kpi_meta)
 
 
 # ─── LEADS ───────────────────────────────────────────────────────────────────
@@ -4959,6 +4972,53 @@ def hover_lead(lid):
         'visits': visits_total, 'last_visit': last_visit,
         'days_since': days_since, 'health': health,
         'assigned_days': assigned_days,
+    })
+
+
+@app.route('/api/hover/campaign/<int:cid>')
+@login_required
+def hover_campaign(cid):
+    c = Campaign.query.get_or_404(cid)
+    total  = Lead.query.filter_by(campaign_id=cid).filter(Lead.status != 'removed').count()
+    asgnd  = Lead.query.filter_by(campaign_id=cid).filter(Lead.gabay_id.isnot(None), Lead.status != 'removed').count()
+    live   = Lead.query.filter_by(campaign_id=cid, status='live').count()
+    matched= Lead.query.filter_by(campaign_id=cid, status='matched').count()
+    active_gabay = db.session.query(func.count(func.distinct(Lead.gabay_id))).filter(
+        Lead.campaign_id == cid, Lead.gabay_id.isnot(None), Lead.status != 'removed'
+    ).scalar() or 0
+    pct_assigned = round(asgnd / total * 100, 1) if total else 0
+    pct_live     = round(live  / total * 100, 1) if total else 0
+    return jsonify({
+        'name': c.name, 'status': c.status, 'priority': c.priority,
+        'total': total, 'assigned': asgnd, 'live': live, 'matched': matched,
+        'pct_assigned': pct_assigned, 'pct_live': pct_live,
+        'active_gabay': active_gabay,
+    })
+
+
+@app.route('/api/hover/city')
+@login_required
+def hover_city():
+    city = request.args.get('name', '').strip()
+    cid  = request.args.get('campaign_id', type=int)
+    if not city:
+        return jsonify({}), 400
+    sq = db.session.query(Lead.id).filter(Lead.city == city, Lead.status != 'removed')
+    if cid:
+        sq = sq.filter(Lead.campaign_id == cid)
+    total    = db.session.query(func.count()).select_from(Lead).filter(Lead.city == city, Lead.status != 'removed')
+    if cid:
+        total = total.filter(Lead.campaign_id == cid)
+    total = total.scalar() or 0
+    visited  = db.session.query(func.count(func.distinct(Visit.lead_id))).filter(Visit.lead_id.in_(sq)).scalar() or 0
+    live     = db.session.query(func.count()).select_from(Lead).filter(Lead.city == city, Lead.status == 'live')
+    if cid:
+        live = live.filter(Lead.campaign_id == cid)
+    live = live.scalar() or 0
+    coverage = round(visited / total * 100, 1) if total else 0
+    return jsonify({
+        'city': city, 'total': total, 'visited': visited,
+        'live': live, 'coverage': coverage,
     })
 
 
