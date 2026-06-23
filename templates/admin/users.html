@@ -1,141 +1,360 @@
-﻿{% extends "base.html" %}
+{% extends "base.html" %}
 {% block title %}User Management{% endblock %}
+{% block extra_head %}
+<style>
+/* ── ONLINE PULSE ── */
+@keyframes pulse-green  { 0%,100%{box-shadow:0 0 0 0 rgba(21,128,61,.5)}  50%{box-shadow:0 0 0 6px rgba(21,128,61,0)} }
+@keyframes pulse-yellow { 0%,100%{box-shadow:0 0 0 0 rgba(217,119,6,.4)}  50%{box-shadow:0 0 0 5px rgba(217,119,6,0)} }
+.dot { width:10px;height:10px;border-radius:50%;flex-shrink:0 }
+.dot-online  { background:#15803d; animation:pulse-green 2s infinite; }
+.dot-away    { background:#d97706; animation:pulse-yellow 2s infinite; }
+.dot-offline { background:#cbd5e1; }
+
+/* ── AVATAR ── */
+.u-avatar {
+  width:36px;height:36px;border-radius:50%;display:flex;align-items:center;
+  justify-content:center;font-size:13px;font-weight:800;color:white;flex-shrink:0;
+  border:2px solid white;box-shadow:0 2px 6px rgba(0,0,0,0.15);
+}
+
+/* ── ROLE HEADER ── */
+.role-header {
+  display:flex;align-items:center;gap:10px;padding:10px 16px;
+  border-radius:12px 12px 0 0;margin-bottom:0;
+}
+.role-header .rh-icon { font-size:18px; }
+.role-header .rh-title { font-size:13px;font-weight:800;color:white;letter-spacing:.3px; }
+.role-header .rh-count { margin-left:auto;background:rgba(255,255,255,0.25);color:white;
+  border-radius:20px;padding:2px 10px;font-size:11px;font-weight:700; }
+
+/* ── USER CARD TABLE ── */
+.user-table th { font-size:10px;color:rgba(255,255,255,0.7);font-weight:700;text-transform:uppercase;
+  letter-spacing:1px;border:none;padding:8px 14px;background:rgba(0,0,0,0.12); }
+.user-table td { padding:10px 14px;vertical-align:middle;border-color:rgba(0,0,0,0.05); }
+.user-table tr:hover td { background:rgba(0,0,0,0.025); }
+
+/* ── ACTION BUTTONS ── */
+.btn-action { border:none;border-radius:8px;padding:4px 12px;font-size:11px;font-weight:700;cursor:pointer; }
+
+/* ── USER HOVER CARD ── */
+#userHoverCard {
+  position:fixed;z-index:9999;width:260px;background:white;
+  border-radius:14px;box-shadow:0 8px 32px rgba(139,43,226,0.2),0 2px 8px rgba(0,0,0,0.10);
+  border:1px solid #EDE8F5;pointer-events:none;opacity:0;
+  transform:translateY(6px) scale(0.97);transition:opacity .18s,transform .18s;overflow:hidden;
+}
+#userHoverCard.uhc-show { opacity:1;transform:translateY(0) scale(1); }
+.uhc-header { padding:12px 14px 10px;color:white; }
+.uhc-body { padding:10px 14px 12px; }
+.uhc-row { display:flex;justify-content:space-between;align-items:center;
+  padding:4px 0;border-bottom:1px solid #F3E8FF;font-size:12px; }
+.uhc-row:last-child { border:none; }
+.uhc-lbl { color:#9aabc5;font-weight:600; }
+.uhc-val { font-weight:700;color:#1A1A2E;font-size:12px; }
+</style>
+{% endblock %}
+
 {% block content %}
+
+{# ── ROLE CONFIG ── #}
+{% set role_order  = ['superadmin','manager','supervisor','gabay','lazada'] %}
+{% set role_bg     = {'superadmin':'linear-gradient(135deg,#8B2BE2,#6A1BB5)',
+                       'manager':   'linear-gradient(135deg,#1565C0,#0D47A1)',
+                       'supervisor':'linear-gradient(135deg,#F57224,#D45A10)',
+                       'gabay':     'linear-gradient(135deg,#15803d,#065f46)',
+                       'lazada':    'linear-gradient(135deg,#F5225B,#C4114A)'} %}
+{% set role_labels = {'superadmin':'Power User','manager':'Manager',
+                       'supervisor':'Supervisor','gabay':'Gabay Agent','lazada':'Lazada (Read-Only)'} %}
+{% set role_icons  = {'superadmin':'bi-shield-lock-fill','manager':'bi-bar-chart-fill',
+                       'supervisor':'bi-person-check-fill','gabay':'bi-person-badge','lazada':'bi-eye-fill'} %}
+{% set role_avatarbg = {'superadmin':'#8B2BE2','manager':'#1565C0','supervisor':'#F57224',
+                         'gabay':'#15803d','lazada':'#F5225B'} %}
+
+{# ── PAGE HEADER ── #}
 <div class="page-header">
   <div>
-    <div class="page-title"><i class="bi bi-shield-lock-fill me-2" style="color:#7c3aed"></i>User Management</div>
-    <div style="color:#9aabc5;font-size:12px">Superadmin — {{ users|length }} total accounts</div>
+    <div class="page-title">
+      <i class="bi bi-people-fill me-2" style="color:var(--lz-purple)"></i>User Management
+    </div>
+    <div style="color:#9aabc5;font-size:12px">{{ users|length }} total accounts · Superadmin view</div>
   </div>
-  <a href="{{ url_for('admin_new_user') }}" class="btn" style="background:#7c3aed;color:white;font-size:13px">
+  <a href="{{ url_for('admin_new_user') }}" class="btn"
+     style="background:linear-gradient(135deg,#F5225B,#8B2BE2);color:white;font-size:13px;font-weight:700;border-radius:10px;padding:8px 18px">
     <i class="bi bi-person-plus me-2"></i>Add User
   </a>
 </div>
 
-{% set role_order = ['superadmin','admin','manager','supervisor','gabay','lazada'] %}
-{% set role_colors = {'superadmin':'#7c3aed','admin':'#1F3864','manager':'#2E75B6','supervisor':'#E07B00','gabay':'#15803d','lazada':'#be185d'} %}
-{% set role_labels = {'superadmin':'Power User','admin':'Admin','manager':'Manager','supervisor':'Supervisor','gabay':'Gabay Agent','lazada':'Lazada (Read-Only)'} %}
+{# ── SUMMARY DASHBOARD ── #}
+<div class="row g-3 mb-4">
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:var(--lz-purple)">
+      <div class="kpi-lbl">Total Accounts</div>
+      <div class="kpi-val">{{ users|length }}</div>
+      <div class="kpi-sub" style="color:#9aabc5">All roles</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:#15803d">
+      <div class="kpi-lbl"><span class="dot dot-online me-1" style="display:inline-block;vertical-align:middle"></span> Online Now</div>
+      <div class="kpi-val" style="color:#15803d">{{ online_count }}</div>
+      <div class="kpi-sub">Active in last 15 min</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:var(--lz-orange)">
+      <div class="kpi-lbl">Active Today</div>
+      <div class="kpi-val" style="color:var(--lz-orange)">{{ active_today }}</div>
+      <div class="kpi-sub">Logged in last 24h</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="kpi-card" style="border-left-color:var(--lz-pink)">
+      <div class="kpi-lbl">Gabay Agents</div>
+      <div class="kpi-val" style="color:var(--lz-pink)">{{ gabay_count }}</div>
+      <div class="kpi-sub">Active field agents</div>
+    </div>
+  </div>
+</div>
 
+{# ── PER-ROLE SECTIONS ── #}
 {% for role in role_order %}
 {% set role_users = users|selectattr('role','equalto',role)|list %}
 {% if role_users %}
-<div class="mb-4">
-  <div class="section-header d-flex align-items-center gap-2 mb-2">
-    <span style="display:inline-block;width:10px;height:10px;border-radius:50%;background:{{ role_colors[role] }}"></span>
-    <span style="font-size:11px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px">
-      {{ role_labels[role] }} ({{ role_users|length }})
-    </span>
+<div class="mb-4" style="border-radius:14px;overflow:hidden;box-shadow:0 2px 12px rgba(139,43,226,0.10)">
+
+  {# Role header #}
+  <div class="role-header" style="background:{{ role_bg[role] }}">
+    <i class="bi {{ role_icons[role] }} rh-icon" style="color:white"></i>
+    <span class="rh-title">{{ role_labels[role] }}</span>
+    <span class="rh-count">{{ role_users|length }} {{ 'user' if role_users|length == 1 else 'users' }}</span>
+    {% set online_in_role = role_users|selectattr('last_seen')|list|length %}
   </div>
-  <div class="card">
-    <div class="card-body p-0">
-      <table class="table table-hover mb-0">
-        <thead><tr>
-          <th>Name</th><th>Username</th><th>Email</th>
-          {% if role == 'gabay' %}<th>Leads</th><th>Visits</th>{% endif %}
-          <th>Last Seen</th><th>Status</th><th>Actions</th>
-        </tr></thead>
-        <tbody>
-          {% for u in role_users %}
-          {% if u.last_seen %}
-            {% set diff_secs = (now_utc - u.last_seen).total_seconds() %}
-            {% if diff_secs < 900 %}
-              {% set online_dot = '🟢' %}
-              {% set online_label = 'Online now' %}
-            {% elif diff_secs < 3600 %}
-              {% set online_dot = '🟡' %}
-              {% set online_label = 'Active < 1 hour ago' %}
-            {% else %}
-              {% set online_dot = '⚫' %}
-              {% set online_label = 'Offline' %}
+
+  {# Table #}
+  <div style="background:white">
+  <table class="table user-table mb-0">
+    <thead>
+      <tr style="background:{{ role_bg[role] }}">
+        <th>Name</th>
+        <th>Username</th>
+        <th>Email</th>
+        {% if role == 'gabay' %}<th>Leads</th><th>Visits</th>{% endif %}
+        <th>Last Seen</th>
+        <th>Status</th>
+        <th>Actions</th>
+      </tr>
+    </thead>
+    <tbody>
+    {% for u in role_users %}
+    {# ── compute online state ── #}
+    {% if u.last_seen %}
+      {% set diff = (now_utc - u.last_seen).total_seconds() %}
+      {% if diff < 900 %}
+        {% set dot_cls = 'dot-online' %}
+        {% set online_label = 'Online now' %}
+        {% set last_txt = 'Online now' %}
+        {% set last_color = '#15803d' %}
+      {% elif diff < 3600 %}
+        {% set dot_cls = 'dot-away' %}
+        {% set online_label = 'Active recently' %}
+        {% set last_txt = (diff // 60)|int|string + 'm ago' %}
+        {% set last_color = '#d97706' %}
+      {% else %}
+        {% set dot_cls = 'dot-offline' %}
+        {% set online_label = 'Offline' %}
+        {% set last_txt = u.last_seen|pht('%b %d %I:%M %p') %}
+        {% set last_color = '#9aabc5' %}
+      {% endif %}
+    {% else %}
+      {% set dot_cls = 'dot-offline' %}
+      {% set online_label = 'Never logged in' %}
+      {% set last_txt = 'Never' %}
+      {% set last_color = '#cbd5e1' %}
+    {% endif %}
+
+    {# initials #}
+    {% set parts = u.full_name.split() %}
+    {% set initials = (parts[0][0] + (parts[-1][0] if parts|length > 1 else ''))|upper %}
+
+    {# hover data #}
+    {% set hover = {
+      'name': u.full_name,
+      'role': role_labels[role],
+      'username': u.username,
+      'last_txt': last_txt,
+      'online_label': online_label,
+      'dot_cls': dot_cls,
+      'gps': u.latest_gps or '',
+      'leads': u.lead_count if role == 'gabay' else 0,
+      'visits': u.visit_count if role == 'gabay' else 0,
+      'active': u.is_active,
+      'avatar_bg': role_avatarbg[role],
+      'initials': initials
+    } %}
+
+    <tr data-hv-user='{{ hover | tojson }}'>
+      <td>
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="dot {{ dot_cls }}" title="{{ online_label }}"></div>
+          <div class="u-avatar" style="background:{{ role_avatarbg[role] }}">{{ initials }}</div>
+          <div>
+            <div style="font-weight:700;color:#1A1A2E;font-size:13px">{{ u.full_name }}</div>
+            {% if role == 'gabay' and u.latest_gps %}
+            <div style="font-size:10px;color:#9aabc5;max-width:160px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis"
+                 title="{{ u.latest_gps }}">
+              📍 {{ u.latest_gps[:40] }}{% if u.latest_gps|length > 40 %}…{% endif %}
+            </div>
             {% endif %}
-          {% else %}
-            {% set online_dot = '⚫' %}
-            {% set online_label = 'Offline' %}
+          </div>
+        </div>
+      </td>
+      <td style="font-size:12px;color:#9aabc5;font-family:monospace">{{ u.username }}</td>
+      <td style="font-size:12px;color:#4a5568">{{ u.email }}</td>
+      {% if role == 'gabay' %}
+      <td>
+        <span style="background:var(--lz-blue-light);color:var(--lz-blue);font-weight:700;
+                     border-radius:8px;padding:3px 10px;font-size:12px">{{ u.lead_count }}</span>
+      </td>
+      <td>
+        <span style="background:var(--lz-orange-light);color:var(--lz-orange);font-weight:700;
+                     border-radius:8px;padding:3px 10px;font-size:12px">{{ u.visit_count }}</span>
+      </td>
+      {% endif %}
+      <td style="font-size:12px;color:{{ last_color }};font-weight:600">
+        {{ last_txt }}
+      </td>
+      <td>
+        {% if u.is_active %}
+        <span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700">● Active</span>
+        {% else %}
+        <span style="background:#fee2e2;color:#b91c1c;border-radius:20px;padding:3px 12px;font-size:11px;font-weight:700">● Inactive</span>
+        {% endif %}
+      </td>
+      <td>
+        <div class="d-flex gap-1 flex-wrap">
+          <a href="{{ url_for('admin_edit_user', user_id=u.id) }}"
+             class="btn-action" style="background:var(--lz-purple-light);color:var(--lz-purple)">
+            <i class="bi bi-pencil-fill me-1"></i>Edit
+          </a>
+          {% if u.id != current_user.id %}
+          <button onclick="toggleUser({{ u.id }}, this)"
+            class="btn-action" style="background:{% if u.is_active %}#FEF2F2;color:#b91c1c{% else %}#F0FDF4;color:#15803d{% endif %}">
+            {{ 'Deactivate' if u.is_active else 'Activate' }}
+          </button>
           {% endif %}
-          <tr>
-            <td>
-              <div style="display:flex;align-items:center;gap:6px">
-                <span title="{{ online_label }}" style="font-size:11px;line-height:1">{{ online_dot }}</span>
-                <div style="font-weight:700;color:#1F3864">{{ u.full_name }}</div>
-              </div>
-            </td>
-            <td style="font-size:12px;color:#9aabc5;font-family:monospace">{{ u.username }}</td>
-            <td style="font-size:12px">{{ u.email }}</td>
-            {% if role == 'gabay' %}
-            <td style="font-weight:700">{{ u.lead_count }}</td>
-            <td>{{ u.visit_count }}</td>
-            {% endif %}
-            <td style="font-size:11px;color:#9aabc5">
-              {% if u.last_seen %}
-                {% set diff_secs = (now_utc - u.last_seen).total_seconds() %}
-                {% if diff_secs < 60 %}
-                  <span style="color:#15803d;font-weight:700">Just now</span>
-                {% elif diff_secs < 3600 %}
-                  <span style="color:#b45309;font-weight:600">{{ (diff_secs // 60)|int }}m ago</span>
-                {% elif diff_secs < 86400 %}
-                  {{ u.last_seen|pht('%b %d %I:%M %p') }}
-                {% else %}
-                  {{ u.last_seen.strftime('%b %d') }}
-                {% endif %}
-              {% else %}
-                {{ u.last_login|pht('%b %d %I:%M %p') if u.last_login else 'Never' }}
-              {% endif %}
-              {% if role == 'gabay' and u.latest_gps %}
-                <div style="font-size:10px;color:#6b7280;margin-top:2px" title="{{ u.latest_gps }}">
-                  📍 {{ u.latest_gps[:45] }}{% if u.latest_gps|length > 45 %}…{% endif %}
-                </div>
-              {% endif %}
-            </td>
-            <td>
-              <span style="padding:3px 10px;border-radius:10px;font-size:11px;font-weight:700;
-                background:{% if u.is_active %}#dcfce7{% else %}#fee2e2{% endif %};
-                color:{% if u.is_active %}#15803d{% else %}#b91c1c{% endif %}">
-                {{ 'Active' if u.is_active else 'Inactive' }}
-              </span>
-            </td>
-            <td>
-              <div class="d-flex gap-1">
-                <a href="{{ url_for('admin_edit_user', user_id=u.id) }}"
-                   class="btn btn-sm" style="background:#EEF2FF;color:#4338ca;font-size:11px">Edit</a>
-                {% if u.id != current_user.id %}
-                <button onclick="toggleUser({{ u.id }}, this)"
-                  class="btn btn-sm" style="background:{% if u.is_active %}#FEF2F2;color:#b91c1c{% else %}#F0FDF4;color:#15803d{% endif %};font-size:11px">
-                  {{ 'Deactivate' if u.is_active else 'Activate' }}
-                </button>
-                {% endif %}
-                {% if role in ('manager','admin','supervisor','superadmin') and u.mobile %}
-                <button onclick="toggleWA({{ u.id }}, this)"
-                  class="btn btn-sm" id="wa-btn-{{ u.id }}"
-                  title="{% if u.whatsapp_alerts_enabled %}WhatsApp alerts ON — click to mute{% else %}WhatsApp alerts OFF — click to enable{% endif %}"
-                  style="font-size:11px;
-                    background:{% if u.whatsapp_alerts_enabled %}#DCFCE7;color:#15803d{% else %}#F1F5F9;color:#94a3b8{% endif %}">
-                  {% if u.whatsapp_alerts_enabled %}🔔 WA On{% else %}🔕 WA Off{% endif %}
-                </button>
-                {% endif %}
-                {% if role == 'gabay' %}
-                <a href="{{ url_for('gabay_scorecard', gabay_id=u.id) }}"
-                   class="btn btn-sm" style="background:#F5F0FF;color:#7c3aed;font-size:11px">Scorecard</a>
-                {% endif %}
-              </div>
-            </td>
-          </tr>
-          {% endfor %}
-        </tbody>
-      </table>
-    </div>
+          {% if u.mobile %}
+          <button onclick="toggleWA({{ u.id }}, this)" id="wa-btn-{{ u.id }}"
+            class="btn-action"
+            title="{% if u.whatsapp_alerts_enabled %}WhatsApp alerts ON — click to mute{% else %}WhatsApp alerts OFF — click to enable{% endif %}"
+            style="background:{% if u.whatsapp_alerts_enabled %}#DCFCE7;color:#15803d{% else %}#F1F5F9;color:#94a3b8{% endif %}">
+            {% if u.whatsapp_alerts_enabled %}🔔{% else %}🔕{% endif %}
+          </button>
+          {% endif %}
+          {% if role == 'gabay' %}
+          <a href="{{ url_for('gabay_scorecard', gabay_id=u.id) }}"
+             class="btn-action" style="background:var(--lz-pink-light);color:var(--lz-pink)">
+            <i class="bi bi-graph-up me-1"></i>Scorecard
+          </a>
+          {% endif %}
+        </div>
+      </td>
+    </tr>
+    {% endfor %}
+    </tbody>
+  </table>
   </div>
 </div>
 {% endif %}
 {% endfor %}
+
+{# ── USER HOVER CARD ── #}
+<div id="userHoverCard"></div>
+
 {% endblock %}
 {% block scripts %}
 <script>
+/* ── User hover card engine ── */
+const UHC = {
+  el: document.getElementById('userHoverCard'),
+  timer: null,
+  hideTimer: null,
+  init() {
+    document.addEventListener('mouseover', e => {
+      const t = e.target.closest('[data-hv-user]');
+      if (t) { clearTimeout(this.hideTimer); this.show(t, e); }
+    });
+    document.addEventListener('mousemove', e => {
+      if (this.el.classList.contains('uhc-show')) this.pos(e);
+    });
+    document.addEventListener('mouseout', e => {
+      const t = e.target.closest('[data-hv-user]');
+      if (t) { clearTimeout(this.timer); this.hideTimer = setTimeout(() => this.el.classList.remove('uhc-show'), 200); }
+    });
+  },
+  show(el, e) {
+    clearTimeout(this.timer);
+    this.timer = setTimeout(() => {
+      const d = JSON.parse(el.dataset.hvUser);
+      const dotCls = d.dot_cls;
+      const dotColor = dotCls === 'dot-online' ? '#15803d' : dotCls === 'dot-away' ? '#d97706' : '#cbd5e1';
+      const statusIcon = dotCls === 'dot-online' ? '🟢 Online now' : dotCls === 'dot-away' ? '🟡 Recently active' : '⚫ Offline';
+      this.el.innerHTML = `
+        <div class="uhc-header" style="background:linear-gradient(135deg,${d.avatar_bg},${d.avatar_bg}cc)">
+          <div style="display:flex;align-items:center;gap:10px">
+            <div style="width:40px;height:40px;border-radius:50%;background:rgba(255,255,255,0.25);
+                        display:flex;align-items:center;justify-content:center;font-size:16px;
+                        font-weight:800;color:white;border:2px solid rgba(255,255,255,0.5)">
+              ${d.initials}
+            </div>
+            <div>
+              <div style="font-size:14px;font-weight:800;color:white">${d.name}</div>
+              <div style="font-size:11px;color:rgba(255,255,255,0.8)">${d.role} · @${d.username}</div>
+            </div>
+          </div>
+        </div>
+        <div class="uhc-body">
+          <div class="uhc-row">
+            <span class="uhc-lbl">Status</span>
+            <span class="uhc-val">${statusIcon}</span>
+          </div>
+          <div class="uhc-row">
+            <span class="uhc-lbl">Last seen</span>
+            <span class="uhc-val" style="color:${dotColor}">${d.last_txt}</span>
+          </div>
+          ${d.leads ? `<div class="uhc-row"><span class="uhc-lbl">Leads assigned</span><span class="uhc-val" style="color:#1565C0">${d.leads}</span></div>` : ''}
+          ${d.visits ? `<div class="uhc-row"><span class="uhc-lbl">Total visits</span><span class="uhc-val" style="color:#F57224">${d.visits}</span></div>` : ''}
+          ${d.gps ? `
+          <div style="margin-top:8px;background:#F5F0FF;border-radius:8px;padding:8px 10px">
+            <div style="font-size:10px;color:#9aabc5;font-weight:700;margin-bottom:3px">📍 LAST KNOWN LOCATION</div>
+            <div style="font-size:11px;color:#1A1A2E;font-weight:600;line-height:1.4">${d.gps}</div>
+          </div>` : ''}
+          <div style="margin-top:8px;font-size:10px;color:#cbd5e1;text-align:center">
+            ${d.active ? '✅ Account active' : '❌ Account inactive'}
+          </div>
+        </div>`;
+      this.pos(e);
+      this.el.classList.add('uhc-show');
+    }, 250);
+  },
+  pos(e) {
+    const W = window.innerWidth, H = window.innerHeight;
+    const cw = 260, ch = this.el.offsetHeight || 200;
+    let x = e.clientX + 14, y = e.clientY - 10;
+    if (x + cw > W - 8) x = e.clientX - cw - 14;
+    if (y + ch > H - 8) y = H - ch - 8;
+    this.el.style.left = x + 'px'; this.el.style.top = y + 'px';
+  }
+};
+UHC.init();
+
+/* ── Toggle active/WA ── */
 function toggleUser(id, btn) {
   fetch(`/admin/users/${id}/toggle`, { method: 'POST' })
     .then(r => r.json())
     .then(d => {
       const row = btn.closest('tr');
       const badge = row.querySelector('td:nth-last-child(2) span');
-      badge.textContent = d.active ? 'Active' : 'Inactive';
+      badge.textContent = d.active ? '● Active' : '● Inactive';
       badge.style.background = d.active ? '#dcfce7' : '#fee2e2';
       badge.style.color = d.active ? '#15803d' : '#b91c1c';
       btn.textContent = d.active ? 'Deactivate' : 'Activate';
@@ -147,7 +366,7 @@ function toggleWA(id, btn) {
   fetch(`/admin/users/${id}/toggle-wa-alerts`, { method: 'POST' })
     .then(r => r.json())
     .then(d => {
-      btn.textContent = d.enabled ? '🔔 WA On' : '🔕 WA Off';
+      btn.textContent = d.enabled ? '🔔' : '🔕';
       btn.style.background = d.enabled ? '#DCFCE7' : '#F1F5F9';
       btn.style.color = d.enabled ? '#15803d' : '#94a3b8';
       btn.title = d.enabled ? 'WhatsApp alerts ON — click to mute' : 'WhatsApp alerts OFF — click to enable';
@@ -155,5 +374,3 @@ function toggleWA(id, btn) {
 }
 </script>
 {% endblock %}
-
-

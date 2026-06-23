@@ -4668,7 +4668,11 @@ def admin_users():
         else:
             u.latest_gps = None
     now_utc = datetime.utcnow()
-    return render_template('admin/users.html', users=users, now_utc=now_utc)
+    online_count  = sum(1 for u in users if u.last_seen and (now_utc - u.last_seen).total_seconds() < 900)
+    active_today  = sum(1 for u in users if u.last_seen and (now_utc - u.last_seen).total_seconds() < 86400)
+    gabay_count   = sum(1 for u in users if u.role == 'gabay' and u.is_active)
+    return render_template('admin/users.html', users=users, now_utc=now_utc,
+                           online_count=online_count, active_today=active_today, gabay_count=gabay_count)
 
 
 @app.route('/admin/users/new', methods=['GET', 'POST'])
