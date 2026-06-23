@@ -528,9 +528,6 @@
   <a href="{{ url_for('reports') }}" class="nav-link {% if 'report' in request.endpoint %}active-purple{% endif %}">
     <i class="bi bi-bar-chart-line" style="color:var(--lz-purple)"></i> Reports
   </a>
-  <a href="{{ url_for('presentations_list') }}" class="nav-link {% if 'presentation' in request.endpoint %}active-purple{% endif %}">
-    <i class="bi bi-collection-play-fill" style="color:var(--lz-purple)"></i> Presentations
-  </a>
   {% if current_user.is_supervisor %}
   <a href="{{ url_for('admin_ml_train') }}" class="nav-link {% if request.endpoint == 'admin_ml_train' %}active-purple{% endif %}">
     <i class="bi bi-cpu" style="color:var(--lz-purple)"></i> Maria · Scoring
