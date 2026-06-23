@@ -50,6 +50,30 @@
   </div>
 </div>
 
+<!-- OFFLINE PENDING SYNC CARD (shown by JS when queue > 0) -->
+<div id="pendingSyncCard" style="display:none;background:linear-gradient(135deg,#1F3864,#2E75B6);
+     border-radius:16px;padding:14px 16px;margin-bottom:14px;color:white">
+  <div style="display:flex;align-items:center;justify-content:space-between;gap:10px">
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="font-size:28px;flex-shrink:0">📥</div>
+      <div>
+        <div style="font-size:13px;font-weight:800">
+          <span id="pendingSyncCount">0</span> visit<span id="pendingSyncPlural">s</span> pending sync
+        </div>
+        <div style="font-size:11px;opacity:0.8;margin-top:2px" id="pendingSyncStatus">
+          Will sync automatically when connected
+        </div>
+      </div>
+    </div>
+    <button id="syncNowBtn" onclick="triggerManualSync()"
+            style="background:rgba(255,255,255,0.2);border:1.5px solid rgba(255,255,255,0.4);
+                   color:white;border-radius:10px;padding:8px 14px;font-size:12px;
+                   font-weight:800;cursor:pointer;flex-shrink:0;white-space:nowrap">
+      Sync Now
+    </button>
+  </div>
+</div>
+
 <!-- GAMIFICATION BADGES -->
 {% if badges %}
 <div style="display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px">
@@ -371,4 +395,111 @@
 </div>
 {% endif %}
 
+{% endblock %}
+
+{% block scripts %}
+<script>
+// ── Pending sync card ──────────────────────────────────────────────────────
+function openHomeDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('lsams', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pending_visits'))
+        db.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
+  });
+}
+
+async function refreshPendingCard() {
+  try {
+    const db = await openHomeDB();
+    const tx = db.transaction('pending_visits', 'readonly');
+    const countReq = tx.objectStore('pending_visits').count();
+    countReq.onsuccess = () => {
+      const n = countReq.result;
+      const card = document.getElementById('pendingSyncCard');
+      if (!card) return;
+      if (n === 0) { card.style.display = 'none'; return; }
+      card.style.display = 'block';
+      document.getElementById('pendingSyncCount').textContent = n;
+      document.getElementById('pendingSyncPlural').textContent = n === 1 ? '' : 's';
+      const statusEl = document.getElementById('pendingSyncStatus');
+      if (navigator.onLine) {
+        statusEl.textContent = 'Connected — syncing now…';
+        triggerManualSync();
+      } else {
+        statusEl.textContent = 'Offline — will sync when you get signal';
+      }
+    };
+  } catch (_) {}
+}
+
+async function triggerManualSync() {
+  const btn = document.getElementById('syncNowBtn');
+  const statusEl = document.getElementById('pendingSyncStatus');
+  if (btn) { btn.textContent = '⏳ Syncing…'; btn.disabled = true; }
+  if (statusEl) statusEl.textContent = 'Syncing now…';
+
+  if ('serviceWorker' in navigator && 'SyncManager' in window) {
+    try {
+      const sw = await navigator.serviceWorker.ready;
+      await sw.sync.register('sync-visits');
+      return; // SW will postMessage when done
+    } catch (_) {}
+  }
+  // Fallback: direct fetch when Background Sync API not supported
+  await manualSyncFallback();
+  await refreshPendingCard();
+}
+
+async function manualSyncFallback() {
+  try {
+    const db = await openHomeDB();
+    const tx = db.transaction('pending_visits', 'readonly');
+    const allReq = tx.objectStore('pending_visits').getAll();
+    allReq.onsuccess = async () => {
+      for (const record of allReq.result) {
+        try {
+          const fd = new FormData();
+          for (const [k, v] of Object.entries(record.data || {}))
+            if (v != null && v !== '') fd.append(k, v);
+          if (record.photo_selfie)
+            fd.append('photo_selfie', new Blob([record.photo_selfie], { type: record.photo_selfie_type || 'image/jpeg' }), 'selfie.jpg');
+          if (record.photo_proof)
+            fd.append('photo_proof', new Blob([record.photo_proof], { type: record.photo_proof_type || 'image/jpeg' }), 'proof.jpg');
+          const res = await fetch('/api/gabay/sync', { method: 'POST', body: fd });
+          const json = await res.json().catch(() => ({}));
+          if (json.ok) {
+            const dtx = db.transaction('pending_visits', 'readwrite');
+            dtx.objectStore('pending_visits').delete(record.id);
+          }
+        } catch (_) {}
+      }
+    };
+  } catch (_) {}
+}
+
+// Handle sync_complete message from Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', async e => {
+    if (e.data?.type === 'sync_complete') {
+      const n = e.data.count || 0;
+      const statusEl = document.getElementById('pendingSyncStatus');
+      const btn = document.getElementById('syncNowBtn');
+      if (statusEl && n > 0) statusEl.textContent = `✅ ${n} visit${n===1?'':'s'} synced to LSAMS!`;
+      if (btn) { btn.textContent = 'Sync Now'; btn.disabled = false; }
+      setTimeout(refreshPendingCard, 2000);
+    }
+  });
+}
+
+// Auto-trigger when coming back online
+window.addEventListener('online', () => setTimeout(refreshPendingCard, 1500));
+
+// Run on page load
+refreshPendingCard();
+</script>
 {% endblock %}

@@ -5842,6 +5842,76 @@ def gabay_quick_checkin():
     return render_template('gabay_app/checkin.html', my_leads=my_leads, selected_lead=selected_lead)
 
 
+@app.route('/api/gabay/sync', methods=['POST'])
+@login_required
+def gabay_offline_sync():
+    """Accept offline-queued visits from the Service Worker background sync."""
+    gid = current_user.id
+    lead_id = request.form.get('lead_id')
+    if not lead_id:
+        return jsonify({'ok': False, 'error': 'missing lead_id'}), 400
+
+    outcome      = request.form.get('outcome')
+    notes        = request.form.get('notes', '')
+    gps_lat      = request.form.get('gps_lat')
+    gps_lng      = request.form.get('gps_lng')
+    gps_address  = request.form.get('gps_address', '')
+    follow_up_str= request.form.get('follow_up_date', '')
+    new_status   = request.form.get('new_status', '')
+    offline_ts   = request.form.get('offline_visited_at', '')
+
+    # Parse the timestamp the Gabay agent recorded offline (ISO 8601)
+    visited_at = datetime.utcnow()
+    if offline_ts:
+        try:
+            # Strip fractional seconds and timezone, parse as naive, convert from PHT (+8) to UTC
+            ts_clean = offline_ts[:19]  # "2026-06-23T14:30:00"
+            dt_local = datetime.strptime(ts_clean, '%Y-%m-%dT%H:%M:%S')
+            visited_at = dt_local - timedelta(hours=8)
+        except Exception:
+            pass
+
+    follow_up_date = None
+    if follow_up_str:
+        try:
+            follow_up_date = datetime.strptime(follow_up_str, '%Y-%m-%d').date()
+        except ValueError:
+            pass
+
+    import uuid as _uuid
+    photo_filenames = []
+    visit_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'visits')
+    os.makedirs(visit_upload_dir, exist_ok=True)
+    for field_name in ('photo_selfie', 'photo_proof'):
+        f = request.files.get(field_name)
+        if f and f.filename:
+            ext = os.path.splitext(secure_filename(f.filename))[1].lower() or '.jpg'
+            fname = f'{gid}_{lead_id}_{field_name}_{_uuid.uuid4().hex[:8]}{ext}'
+            f.save(os.path.join(visit_upload_dir, fname))
+            photo_filenames.append(fname)
+
+    try:
+        visit = Visit(
+            lead_id=lead_id, gabay_id=gid,
+            visited_at=visited_at,
+            gps_lat=float(gps_lat) if gps_lat else None,
+            gps_lng=float(gps_lng) if gps_lng else None,
+            gps_address=gps_address, outcome=outcome, notes=notes,
+            follow_up_date=follow_up_date,
+            photos=json.dumps(photo_filenames) if photo_filenames else None,
+            photo_pending=(len(photo_filenames) == 0)
+        )
+        db.session.add(visit)
+        lead = Lead.query.get(lead_id)
+        if lead and new_status:
+            lead.status = new_status
+        db.session.commit()
+        return jsonify({'ok': True, 'visit_id': visit.id})
+    except Exception as ex:
+        db.session.rollback()
+        return jsonify({'ok': False, 'error': str(ex)}), 500
+
+
 @app.route('/gabay/app/visit/<int:visit_id>/upload-photo', methods=['GET', 'POST'])
 @login_required
 def gabay_upload_photo(visit_id):

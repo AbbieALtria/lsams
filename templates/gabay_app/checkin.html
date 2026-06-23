@@ -362,6 +362,42 @@
   </div>
 
 </form>
+
+<!-- OFFLINE SUCCESS CARD (hidden until offline save) -->
+<div id="offlineSuccessCard" style="display:none;text-align:center;padding:32px 20px">
+  <div style="font-size:64px;margin-bottom:16px">📥</div>
+  <div style="font-size:20px;font-weight:800;color:#1F3864;margin-bottom:8px">
+    Visit Saved to Your Phone
+  </div>
+  <div style="font-size:14px;color:#4a5568;margin-bottom:6px">
+    You're currently offline — no worries.
+  </div>
+  <div style="font-size:13px;color:#9aabc5;margin-bottom:24px;line-height:1.6">
+    Your check-in is stored safely on your device.<br>
+    It will automatically sync to LSAMS the moment you get signal.
+  </div>
+  <div style="background:#fef3c7;border-radius:14px;padding:14px 16px;margin-bottom:20px;
+              border-left:4px solid #d97706;text-align:left">
+    <div style="font-size:12px;font-weight:800;color:#92400e;margin-bottom:4px">
+      📶 What happens next?
+    </div>
+    <div style="font-size:12px;color:#78350f;line-height:1.6">
+      • Visit record syncs automatically when WiFi or data reconnects<br>
+      • Supervisor will see it in the dashboard immediately after sync<br>
+      • Photos (if any) upload with the sync
+    </div>
+  </div>
+  <a href="{{ url_for('gabay_home') }}"
+     style="display:block;background:#1F3864;color:white;border-radius:14px;
+            padding:16px;font-size:16px;font-weight:800;text-decoration:none;margin-bottom:12px">
+    <i class="bi bi-house-fill me-2"></i>Back to Home
+  </a>
+  <a href="{{ url_for('gabay_quick_checkin') }}"
+     style="display:block;background:#F0F4FA;color:#1F3864;border-radius:14px;
+            padding:14px;font-size:14px;font-weight:700;text-decoration:none">
+    Log Another Visit
+  </a>
+</div>
 {% endblock %}
 
 {% block scripts %}
@@ -477,22 +513,102 @@ function validateForm() {
   }
 }
 
-// Offline save
-document.getElementById('checkinForm').addEventListener('submit', async e => {
-  if (navigator.onLine) return;
-  e.preventDefault();
-  const data = new FormData(e.target);
-  const db = await openDB();
-  const tx = db.transaction('pending_visits', 'readwrite');
-  await tx.objectStore('pending_visits').add({
-    lead_id: data.get('lead_id'), data: Object.fromEntries(data), saved_at: new Date().toISOString()
+// ── Offline Queue ─────────────────────────────────────────────────────────────
+function openDB() {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('lsams', 1);
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pending_visits')) {
+        db.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
+      }
+    };
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
   });
-  if ('serviceWorker' in navigator && 'SyncManager' in window) {
-    const sw = await navigator.serviceWorker.ready;
-    await sw.sync.register('sync-visits');
+}
+
+function fileToArrayBuffer(file) {
+  return new Promise((resolve) => {
+    if (!file || !file.size) { resolve(null); return; }
+    const reader = new FileReader();
+    reader.onload = e => resolve(e.target.result);
+    reader.onerror = () => resolve(null);
+    reader.readAsArrayBuffer(file);
+  });
+}
+
+document.getElementById('checkinForm').addEventListener('submit', async function(e) {
+  if (navigator.onLine) return; // online → let the form POST normally
+  e.preventDefault();
+
+  const btn = document.getElementById('submitBtn');
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-2"></i>Saving offline…';
+  btn.disabled = true;
+
+  // Collect text fields
+  const data = {
+    lead_id:         document.getElementById('leadSelect')?.value || '',
+    outcome:         document.getElementById('outcomeInput')?.value || '',
+    notes:           document.querySelector('[name="notes"]')?.value || '',
+    gps_lat:         document.getElementById('gps_lat')?.value || '',
+    gps_lng:         document.getElementById('gps_lng')?.value || '',
+    gps_address:     document.getElementById('gps_address')?.value || '',
+    follow_up_date:  document.getElementById('followupDate')?.value || '',
+    new_status:      document.querySelector('[name="new_status"]')?.value || '',
+    offline_visited_at: new Date().toISOString(),
+  };
+
+  // Read photos as ArrayBuffer (can be stored in IndexedDB)
+  const selfieFile = document.getElementById('selfieInput')?.files?.[0] || null;
+  const proofFile  = document.getElementById('proofInput')?.files?.[0] || null;
+  const [selfieBuf, proofBuf] = await Promise.all([
+    fileToArrayBuffer(selfieFile),
+    fileToArrayBuffer(proofFile),
+  ]);
+
+  try {
+    const db = await openDB();
+    const tx = db.transaction('pending_visits', 'readwrite');
+    tx.objectStore('pending_visits').add({
+      data,
+      photo_selfie:      selfieBuf,
+      photo_selfie_type: selfieFile?.type || 'image/jpeg',
+      photo_proof:       proofBuf,
+      photo_proof_type:  proofFile?.type  || 'image/jpeg',
+      queued_at:         Date.now(),
+    });
+    tx.oncomplete = () => {
+      // Show success card, hide form
+      document.getElementById('checkinForm').style.display = 'none';
+      document.getElementById('offlineSuccessCard').style.display = 'block';
+      // Update home badge
+      if (typeof updatePendingBadge === 'function') updatePendingBadge();
+      // Request background sync for when signal returns
+      if ('serviceWorker' in navigator && 'SyncManager' in window) {
+        navigator.serviceWorker.ready
+          .then(sw => sw.sync.register('sync-visits'))
+          .catch(() => {});
+      }
+    };
+    tx.onerror = () => {
+      btn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Save failed — try again';
+      btn.disabled = false;
+    };
+  } catch (err) {
+    btn.innerHTML = '<i class="bi bi-exclamation-triangle me-2"></i>Save failed — try again';
+    btn.disabled = false;
   }
-  alert('Saved offline. Will sync when connected.');
 });
+
+// Listen for sync completion from Service Worker
+if ('serviceWorker' in navigator) {
+  navigator.serviceWorker.addEventListener('message', e => {
+    if (e.data?.type === 'sync_complete') {
+      if (typeof updatePendingBadge === 'function') updatePendingBadge();
+    }
+  });
+}
 
 function previewPhoto(input, previewId) {
   const file = input.files[0];
@@ -505,15 +621,6 @@ function previewPhoto(input, previewId) {
   box.style.borderColor = '#15803d';
   box.style.background = '#f0fdf4';
   box.innerHTML = '<div style="font-size:22px">✅</div><div style="font-size:10px;font-weight:700;color:#15803d;margin-top:4px">Tap to retake</div>';
-}
-
-function openDB() {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('lsams', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
-    req.onsuccess = e => resolve(e.target.result);
-    req.onerror = reject;
-  });
 }
 
 // ── VOICE CHECK-IN ─────────────────────────────────────────────────────────

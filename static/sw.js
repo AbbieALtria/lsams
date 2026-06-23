@@ -1,10 +1,11 @@
-const CACHE = 'lsams-v2';
+const CACHE = 'lsams-v3';
 const OFFLINE_URL = '/gabay/app';
 
 const PRECACHE = [
   '/gabay/app',
   '/gabay/app/leads',
   '/gabay/app/leads-json',
+  '/gabay/app/checkin',
   '/static/icons/icon-192.png',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css',
@@ -70,7 +71,7 @@ self.addEventListener('fetch', e => {
   }
 });
 
-// Background sync for offline visit submissions
+// ── Background Sync ───────────────────────────────────────────────────────────
 self.addEventListener('sync', e => {
   if (e.tag === 'sync-visits') {
     e.waitUntil(syncPendingVisits());
@@ -79,29 +80,51 @@ self.addEventListener('sync', e => {
 
 async function syncPendingVisits() {
   const db = await openDB();
-  const tx = db.transaction('pending_visits', 'readwrite');
-  const store = tx.objectStore('pending_visits');
-  const all = await store.getAll();
-  for (const visit of all) {
+  const all = await getAllRecords(db);
+  if (!all.length) return;
+
+  let synced = 0;
+  for (const record of all) {
     try {
-      const res = await fetch('/gabay/app/checkin', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-        body: new URLSearchParams(visit.data)
-      });
-      if (res.ok || res.redirected) {
-        const tx2 = db.transaction('pending_visits', 'readwrite');
-        await tx2.objectStore('pending_visits').delete(visit.id);
-        // Notify all open clients
-        self.clients.matchAll().then(clients =>
-          clients.forEach(c => c.postMessage({ type: 'sync_complete', count: all.length }))
-        );
+      const fd = new FormData();
+
+      // Text fields
+      const data = record.data || {};
+      for (const [k, v] of Object.entries(data)) {
+        if (v != null && v !== '') fd.append(k, v);
       }
-    } catch (_) { /* will retry next sync */ }
+
+      // Photos stored as ArrayBuffer → restore to Blob
+      if (record.photo_selfie) {
+        fd.append('photo_selfie',
+          new Blob([record.photo_selfie], { type: record.photo_selfie_type || 'image/jpeg' }),
+          'selfie.jpg');
+      }
+      if (record.photo_proof) {
+        fd.append('photo_proof',
+          new Blob([record.photo_proof], { type: record.photo_proof_type || 'image/jpeg' }),
+          'proof.jpg');
+      }
+
+      const res = await fetch('/api/gabay/sync', { method: 'POST', body: fd });
+      const json = await res.json().catch(() => ({}));
+
+      if (json.ok) {
+        await deleteRecord(db, record.id);
+        synced++;
+      }
+    } catch (_) {
+      // Will retry on next sync event
+    }
+  }
+
+  if (synced > 0) {
+    const clients = await self.clients.matchAll({ type: 'window' });
+    clients.forEach(c => c.postMessage({ type: 'sync_complete', count: synced }));
   }
 }
 
-// Push notification handler
+// ── Push Notifications ────────────────────────────────────────────────────────
 self.addEventListener('push', e => {
   let data = { title: 'LSAMS', body: 'You have a new update.' };
   try { data = e.data.json(); } catch (_) {}
@@ -130,11 +153,35 @@ self.addEventListener('notificationclick', e => {
   );
 });
 
+// ── IndexedDB helpers ─────────────────────────────────────────────────────────
 function openDB() {
   return new Promise((resolve, reject) => {
     const req = indexedDB.open('lsams', 1);
-    req.onupgradeneeded = e => e.target.result.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
+    req.onupgradeneeded = e => {
+      const db = e.target.result;
+      if (!db.objectStoreNames.contains('pending_visits')) {
+        db.createObjectStore('pending_visits', { keyPath: 'id', autoIncrement: true });
+      }
+    };
     req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
+  });
+}
+
+function getAllRecords(db) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_visits', 'readonly');
+    const req = tx.objectStore('pending_visits').getAll();
+    req.onsuccess = e => resolve(e.target.result);
+    req.onerror = reject;
+  });
+}
+
+function deleteRecord(db, id) {
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction('pending_visits', 'readwrite');
+    const req = tx.objectStore('pending_visits').delete(id);
+    req.onsuccess = resolve;
     req.onerror = reject;
   });
 }
