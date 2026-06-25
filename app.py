@@ -1090,6 +1090,17 @@ def api_brands_load_defaults():
     return jsonify({'ok': True, 'added': added, 'skipped': skipped})
 
 
+# Auto-seed FMCG defaults on first deploy if brands table is empty
+with app.app_context():
+    try:
+        if Brand.query.filter_by(is_active=True).count() == 0:
+            for _name in _FMCG_DEFAULTS:
+                db.session.add(Brand(name=_name, category='FMCG', is_priority=True))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+
 @app.route('/leads/radar')
 @login_required
 def leads_radar():
