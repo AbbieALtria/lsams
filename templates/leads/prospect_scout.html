@@ -29,6 +29,18 @@
 {% endblock %}
 
 {% block content %}
+
+{# Gabay users see a mobile-friendly back button instead of the supervisor breadcrumb #}
+{% if user_role == 'gabay' %}
+<div style="margin-bottom:12px">
+  <a href="{{ url_for('gabay_home') }}"
+     style="display:inline-flex;align-items:center;gap:6px;background:#1F3864;color:white;
+            border-radius:12px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none">
+    <i class="bi bi-arrow-left"></i> Back to Home
+  </a>
+</div>
+{% endif %}
+
 <div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
   <div>
     <div class="page-title">
@@ -38,9 +50,11 @@
       Discover potential Lazada sellers on Coffee, TikTok, Facebook &amp; local trade networks
     </div>
   </div>
+  {% if user_role != 'gabay' %}
   <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left me-1"></i>Back to Leads
   </a>
+  {% endif %}
 </div>
 
 {# ── SerpAPI status — admin/superadmin only ── #}
