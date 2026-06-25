@@ -107,17 +107,10 @@
         <div class="col-md-4">
           <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700">Category</label>
           <select id="newBrandCat" class="form-select form-select-sm">
-            <option>Beauty & Cosmetics</option>
-            <option>Food & Beverage</option>
-            <option>Fashion & Apparel</option>
-            <option>Electronics & Gadgets</option>
-            <option>Health & Wellness</option>
-            <option>Home & Living</option>
-            <option>Sports & Outdoors</option>
-            <option>Grocery & Supermarket</option>
-            <option>Automotive & Parts</option>
-            <option>Toys & Baby</option>
-            <option>Others</option>
+            <option>FMCG</option>
+            <option>Electronics</option>
+            <option>Fashions &amp; Accessories</option>
+            <option>General Merchandise</option>
           </select>
         </div>
         <div class="col-md-3 d-flex gap-2">
@@ -143,17 +136,10 @@
         </label>
         <select id="scoutCategory" class="form-select" onchange="onCategoryChange()">
           <option value="">All Categories</option>
-          <option>Beauty &amp; Cosmetics</option>
-          <option>Food &amp; Beverage</option>
-          <option>Fashion &amp; Apparel</option>
-          <option>Electronics &amp; Gadgets</option>
-          <option>Health &amp; Wellness</option>
-          <option>Home &amp; Living</option>
-          <option>Sports &amp; Outdoors</option>
-          <option>Grocery &amp; Supermarket</option>
-          <option>Automotive &amp; Parts</option>
-          <option>Toys &amp; Baby</option>
-          <option>Others</option>
+          <option>FMCG</option>
+          <option>Electronics</option>
+          <option>Fashions &amp; Accessories</option>
+          <option>General Merchandise</option>
         </select>
       </div>
 
@@ -306,19 +292,39 @@ let allBrands    = [];
 let brandLibOpen = false;
 let activeCat    = '';
 
-/* ── Trending PH brands per category ── */
+/* ── Priority brands per category ── */
 const TRENDING_BRANDS = {
-  'Beauty & Cosmetics':    ['BLK Cosmetics','Happy Skin','Sunnies Face','Colourette Cosmetics','Human Nature','Snoe Beauty','Vice Cosmetics','Althea Philippines'],
-  'Food & Beverage':       ["Goldilocks","Red Ribbon","Conti's Bakeshoppe","Malagos Chocolate","Auro Chocolate","Bibingkahan","Naks ni Nanay"],
-  'Fashion & Apparel':     ['Bench','Penshoppe','Oxygen','Plains & Prints','Kashieca','Freego','Folded & Hung','Regatta'],
-  'Electronics & Gadgets': ['Kimstore','Dynaquest','PC Worx','EasyPC','Technoholics','Gamextreme'],
-  'Health & Wellness':     ['Healthy Options','Herbilogy','Naturomax','Noni Sessions','C2 Green Tea'],
-  'Home & Living':         ['Saizen','Mandaue Foam','Storeroom PH','Landmark Home'],
-  'Sports & Outdoors':     ["R.O.X.","Planet Sports","Toby's Sports","Chris Sports","Olympic Village"],
-  'Grocery & Supermarket': ['Puregold','Savemore','CityMall','WalterMart'],
-  'Automotive & Parts':    ['AutoPlus','Boch Auto','Castrol Philippines','Motul PH'],
-  'Toys & Baby':           ['Toy Kingdom','Toytown','Babyland','Learning Tree'],
-  'Others':                [],
+  'FMCG': [
+    'NIVEA','Bench','Garnier',"Kiehl's",'Jo Malone London','Glad2Glow',
+    '17 MILE','7D','Absidy Beauty','Aesop','Aficionado','AGRILIFE','Aiwibi','Akeeva',
+    'All About Baking','All Covered','Anastasia Beverly Hills','Anchor','Andrea Secret',
+    'Aozi','Apruva','Ashley','Ashley Beauty Lines','Ashley Hair Fashion','Athlene Nutrition',
+    'AUGEAS','Auro Chocolate','AVEDA','AXIS-Y','B Coffee Co','Baby First','Babyflo',
+    'BabyPal','Baltra','BAONEO','barenbliss','Be Organic','Bean','Beauty & Co',
+    "Belle's Pantry Essentials",'Belo Essentials','Benefit','Benzac','Berber',
+    'Beybiko Diapers','Bioré','Bioten','Birch Tree','Bluenotes','Bobbi Brown',
+    'Bremod','BritePH','BYS','Camou Men','Careline','Caress','CASSIEL-PET',
+    'CheezUp','Chicco','Child Care','ChuChu Beauty','Cimory','Clarins','Clinique',
+    'CloudBeauty','COCO FALL IN LOVE WITH','COCOBB','Coffee Grounds PH',
+    'Coffee N Tea Essentials','Colourette','Cotton Central','Cuddly','Curve',
+    'DAZZLE ME','Deoproce','Dermorepubliq.','Dewha','Dr Alvin Products',
+    'Dr. Sensitive','Dr.Isla','Dr.Leo','DW (Danie Wang)','eelhoe','Einmilk',
+    'Elizabeth Arden','Enchen','Enfagrow','Enfant','EQ','Eqqualberry',
+    'Estée Lauder','Euro Chef','Euromed','Ever Bilena','face republic',
+    'FITGUM','Focallure','FOCANO','GAIFEEL','Glutamax','GMEELAN','Gold Leaf',
+    'Golden Grains','GOODEST','Goodies Nutrition','GRAFEN','Greenika','Greenola',
+    'GRWM Cosmetics','Happy','Happy Life Organics',"Harvester's",'Hegen',
+    'HeroKiddy','Human Nature','ICIC','inJoy','Inspi Babies','IPI',
+    'iWhite Korea','Japan Home Centre','Jergens','JMCY','Just Love','Kalbe',
+    'Kapok','Kérastase','KINETIQQ','Kirkland Signature','KISS','Kleenfant','KMY',
+    'La Mer','Lactezin','Laura Mercier','Lactum',"L'Occitane",'Love k-derma',
+    'Love k-glow','Lucky Beauty Inc.','Lucky Me!','Luxe Organix','LUXU',
+    'M·A·C',"Mama's Choice",'Masko.','Master Chef','MCY','Maximo Trading',
+    'Maybelline','Medela','MELEDE','Mentholatum',
+  ],
+  'Electronics':            [],
+  'Fashions & Accessories': [],
+  'General Merchandise':    [],
 };
 
 /* ── Philippine cities by region ── */
