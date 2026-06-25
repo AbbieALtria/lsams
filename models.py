@@ -466,6 +466,7 @@ class Notification(db.Model):
         'reg_pending': ('bi-file-earmark-check-fill', '#7c3aed'),
         'live_achieved': ('bi-star-fill', '#15803d'),
         'competitor_visit': ('bi-flag-fill', '#d97706'),
+        'scout_search':     ('bi-binoculars-fill', '#7c3aed'),
     }
 
     @property
@@ -603,3 +604,18 @@ class Presentation(db.Model):
     uploaded_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
     uploaded_at   = db.Column(db.DateTime, default=datetime.utcnow)
     uploader      = db.relationship('User', foreign_keys=[uploaded_by])
+
+
+class ScoutLog(db.Model):
+    """Audit log for every Prospect Scout search — notifies supervisors."""
+    __tablename__ = 'scout_logs'
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    keyword      = db.Column(db.String(200), nullable=False)
+    category     = db.Column(db.String(80))
+    city         = db.Column(db.String(120))
+    platform     = db.Column(db.String(40))
+    result_count = db.Column(db.Integer, default=0)
+    searched_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    searcher = db.relationship('User', foreign_keys=[user_id])

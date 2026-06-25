@@ -167,7 +167,7 @@
         <input type="text" id="scoutKeyword" class="form-control mt-2"
                placeholder="Type brand name or keyword..." style="display:none">
         <div style="font-size:11px;color:#9aabc5;margin-top:4px">
-          🔥 Trending PH brands shown first &middot; pick a category to filter &middot; or choose <em>Type your own</em>
+          🔥 Popular PH brands auto-loaded per category &middot; or choose <em>Type your own</em>
         </div>
       </div>
     </div>
@@ -306,6 +306,37 @@ let allBrands    = [];
 let brandLibOpen = false;
 let activeCat    = '';
 
+/* Built-in PH brand lists per category — sorted famous → niche */
+const PH_PRESET_BRANDS = {
+  'Electronics': [
+    'Samsung','Apple','OPPO','vivo','Xiaomi','realme','Huawei','TECNO','Infinix',
+    'Nokia','Motorola','OnePlus','Asus','Acer','Lenovo','HP','Dell','Sony','LG',
+    'Panasonic','Sharp','TCL','Hisense','Philips','Anker','JBL','Bose','Sony WH',
+    'Logitech','Canon','Nikon','Casio','Garmin','Fitbit','Amazfit',
+    'TP-Link','D-Link','Netgear','Seagate','Western Digital','SanDisk','Kingston',
+    'Cherry Mobile','MyPhone','Cloudfone','Starmobile','Razer','MSI','ROG',
+  ],
+  'Fashions & Accessories': [
+    'H&M','Zara','Uniqlo','Penshoppe','Bench','Giordano',
+    'Nike','Adidas','Converse','Vans','New Balance','Skechers','Puma','Reebok',
+    "Levi's",'Wrangler','Lee','Mango','Forever 21','Cotton On','Topshop',
+    'Lacoste','Tommy Hilfiger','Guess','Calvin Klein','Ralph Lauren',
+    'Plains & Prints','People Are People','Oxygen','Folded & Hung','Kashieca',
+    'Havaianas','Crocs','Birkenstock','Dr. Martens',
+    'Charles & Keith','Pedro','SM Accessories','SM Shoes',
+  ],
+  'General Merchandise': [
+    'Tupperware','Lock & Lock','Pyrex','Thermos','Tefal','Cuisinart',
+    'Hanabishi','Imarflex','Kyowa','Kolin','American Home','Condura','Fujidenzo',
+    'Whirlpool','Electrolux','Midea','Sharp','Carrier','Daikin','Mitsubishi Electric',
+    'Ariel','Tide','Surf','Downy','Joy','Domex','Mr. Muscle','Lysol','Scotch-Brite',
+    'Dewalt','Bosch','Stanley','Black & Decker','Makita',
+    'Royal Canin','Pedigree','Whiskas','Friskies','Purina',
+    'Ikea','True Value','Wilcon','AllHome','ACE Hardware',
+    '3M','Scotch','OSRAM','Philips Light',
+  ],
+};
+
 /* brands loaded dynamically from DB via /api/brands */
 
 /* ── Philippine cities by region ── */
@@ -351,28 +382,43 @@ function getCity() {
   return inp ? inp.value.trim() : '';
 }
 
-/* ── Brand dropdown (all brands from DB, priority first) ── */
+/* ── Brand dropdown — DB brands + built-in PH presets merged ── */
 function buildBrandDropdown(cat) {
   const sel = document.getElementById('scoutBrandSelect');
   if (!sel) return;
+
+  // DB brands for this category (admin-curated)
   const filtered  = cat ? allBrands.filter(b => b.category === cat) : allBrands;
   const priority  = filtered.filter(b => b.is_priority);
   const normal    = filtered.filter(b => !b.is_priority);
+  const dbNames   = new Set(filtered.map(b => b.name.toLowerCase()));
+
+  // Built-in PH presets for this category (exclude names already in DB)
+  const presets = cat && PH_PRESET_BRANDS[cat]
+    ? PH_PRESET_BRANDS[cat].filter(n => !dbNames.has(n.toLowerCase()))
+    : [];
 
   let html = '<option value="">— Choose a brand —</option>';
+
   if (priority.length) {
     html += '<optgroup label="⭐ Priority Brands">';
     priority.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
     html += '</optgroup>';
   }
   if (normal.length) {
-    html += `<optgroup label="📋 All Brands${cat ? ' · ' + cat : ''}">`;
+    html += `<optgroup label="📋 ${cat || 'All'} Brands (Admin Library)">`;
     normal.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
     html += '</optgroup>';
   }
-  if (!priority.length && !normal.length) {
-    html += '<option value="" disabled>No brands yet — add via Brand Management</option>';
+  if (presets.length) {
+    html += `<optgroup label="🔥 Popular PH ${cat || ''} Brands">`;
+    presets.forEach(n => { html += `<option value="${escH(n)}">${escH(n)}</option>`; });
+    html += '</optgroup>';
   }
+  if (!priority.length && !normal.length && !presets.length) {
+    html += '<option value="" disabled>No brands found — type your own below</option>';
+  }
+
   html += '<option value="__other__">✏️ Type your own keyword...</option>';
   sel.innerHTML = html;
 }
@@ -412,7 +458,8 @@ function runScout() {
   document.getElementById('resultsHeader').style.display = 'none';
   document.getElementById('scoutBtn').disabled = true;
 
-  const url = `/api/prospect/scout?keyword=${encodeURIComponent(kw)}&city=${encodeURIComponent(city)}&platform=${platform}`;
+  const category = (document.getElementById('scoutCategory') || {}).value || '';
+  const url = `/api/prospect/scout?keyword=${encodeURIComponent(kw)}&city=${encodeURIComponent(city)}&platform=${platform}&category=${encodeURIComponent(category)}`;
   fetch(url)
     .then(r => r.json())
     .then(data => {

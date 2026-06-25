@@ -1,0 +1,125 @@
+{% extends "base.html" %}
+{% block title %}Scout Activity Log{% endblock %}
+{% block extra_head %}
+<style>
+.log-row { transition: background .1s; }
+.log-row:hover { background: #F8FAFD; }
+.plat-badge {
+  display:inline-flex;align-items:center;gap:4px;border-radius:20px;
+  padding:3px 10px;font-size:11px;font-weight:700;
+}
+.plat-coffee   { background:#f0fdf4;color:#15803d; }
+.plat-tiktok   { background:#fdf2f8;color:#be185d; }
+.plat-facebook { background:#eff6ff;color:#1d4ed8; }
+.plat-rrld     { background:#fef9c3;color:#92400e; }
+.plat-all      { background:#f3f4f6;color:#374151; }
+.cat-chip {
+  display:inline-block;border-radius:12px;padding:2px 10px;
+  font-size:11px;font-weight:700;background:#EDE8F5;color:#7c3aed;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2 mb-4">
+  <div>
+    <div class="page-title"><i class="bi bi-binoculars-fill me-2" style="color:#7c3aed"></i>Scout Activity Log</div>
+    <div style="font-size:12px;color:#9aabc5">Every Prospect Scout search — who searched, what, when, and how many results</div>
+  </div>
+  <a href="{{ url_for('prospect_scout') }}" class="btn btn-sm btn-outline-primary">
+    <i class="bi bi-search me-1"></i>Open Scout
+  </a>
+</div>
+
+{% if logs.total == 0 %}
+<div class="card text-center py-5">
+  <div style="font-size:48px;margin-bottom:16px">🔭</div>
+  <div style="font-size:16px;font-weight:700;color:#1F3864">No searches yet</div>
+  <div style="font-size:13px;color:#9aabc5;margin-top:6px">Scout searches will appear here as Gabay users use the feature.</div>
+</div>
+{% else %}
+<div class="card" style="border-radius:16px;border:1.5px solid #E0E6EF">
+  <div class="card-body p-0">
+    <table class="table table-borderless mb-0" style="font-size:13px">
+      <thead>
+        <tr style="background:#F8FAFD;border-bottom:2px solid #E0E6EF">
+          <th class="ps-4 py-3" style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">When (PHT)</th>
+          <th class="py-3"      style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">Who</th>
+          <th class="py-3"      style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">Search</th>
+          <th class="py-3"      style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">Category</th>
+          <th class="py-3"      style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">City</th>
+          <th class="py-3"      style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">Platform</th>
+          <th class="py-3 pe-4 text-end" style="font-size:11px;color:#9aabc5;text-transform:uppercase;font-weight:800">Results</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for log in logs.items %}
+        <tr class="log-row" style="border-bottom:1px solid #F3F4F6">
+          <td class="ps-4 py-3" style="color:#9aabc5;white-space:nowrap">
+            <div style="font-weight:700;color:#374151">{{ log.searched_at | pht_date }}</div>
+            <div style="font-size:11px">{{ log.searched_at | pht_time }}</div>
+          </td>
+          <td class="py-3">
+            <div style="font-weight:700;color:#1F3864">{{ log.searcher.display_name }}</div>
+            <div style="font-size:11px;color:#9aabc5">{{ log.searcher.role | title }}</div>
+          </td>
+          <td class="py-3">
+            <div style="font-weight:700;color:#1F3864">{{ log.keyword }}</div>
+          </td>
+          <td class="py-3">
+            {% if log.category %}
+            <span class="cat-chip">{{ log.category }}</span>
+            {% else %}
+            <span style="color:#cbd5e1;font-size:12px">—</span>
+            {% endif %}
+          </td>
+          <td class="py-3" style="color:#374151">
+            {{ log.city or 'All Philippines' }}
+          </td>
+          <td class="py-3">
+            {% set plat_labels = {'coffee':'☕ Shopee','tiktok':'🎵 TikTok','facebook':'📘 Facebook','rrld':'🏪 RRLD','all':'🌐 All'} %}
+            {% set plat_class  = {'coffee':'plat-coffee','tiktok':'plat-tiktok','facebook':'plat-facebook','rrld':'plat-rrld','all':'plat-all'} %}
+            <span class="plat-badge {{ plat_class.get(log.platform, 'plat-all') }}">
+              {{ plat_labels.get(log.platform, log.platform | title) }}
+            </span>
+          </td>
+          <td class="py-3 pe-4 text-end">
+            {% if log.result_count > 0 %}
+            <span style="font-weight:800;color:#15803d;font-size:14px">{{ log.result_count }}</span>
+            {% else %}
+            <span style="color:#ef4444;font-weight:700">0</span>
+            {% endif %}
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+<!-- Pagination -->
+{% if logs.pages > 1 %}
+<nav class="mt-3 d-flex justify-content-center">
+  <ul class="pagination pagination-sm">
+    {% if logs.has_prev %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_for('admin_scout_activity', page=logs.prev_num) }}">‹ Prev</a>
+    </li>
+    {% endif %}
+    <li class="page-item disabled">
+      <span class="page-link">Page {{ logs.page }} of {{ logs.pages }}</span>
+    </li>
+    {% if logs.has_next %}
+    <li class="page-item">
+      <a class="page-link" href="{{ url_for('admin_scout_activity', page=logs.next_num) }}">Next ›</a>
+    </li>
+    {% endif %}
+  </ul>
+</nav>
+{% endif %}
+
+<div style="font-size:11px;color:#9aabc5;text-align:center;margin-top:8px">
+  {{ logs.total }} total search{{ 'es' if logs.total != 1 else '' }}
+</div>
+{% endif %}
+{% endblock %}

@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation, Brand
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation, Brand, ScoutLog
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -142,6 +142,25 @@ with app.app_context():
     with db.engine.connect() as _conn:
         try:
             _conn.execute(text("ALTER TABLE users ADD COLUMN can_scout BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
+    # Create scout_logs table for Prospect Scout audit trail
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS scout_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    keyword VARCHAR(200) NOT NULL,
+                    category VARCHAR(80),
+                    city VARCHAR(120),
+                    platform VARCHAR(40),
+                    result_count INTEGER DEFAULT 0,
+                    searched_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
             _conn.commit()
         except Exception:
             _conn.rollback()
@@ -816,6 +835,7 @@ def api_prospect_scout():
     keyword  = request.args.get('keyword', '').strip()
     city     = request.args.get('city', '').strip()
     platform = request.args.get('platform', 'all').strip()
+    category = request.args.get('category', '').strip()
     serp_key = os.environ.get('SERPAPI_KEY', '')
 
     if not keyword:
@@ -926,6 +946,47 @@ def api_prospect_scout():
             continue
 
     results.sort(key=lambda x: (-x['rrld_score'], x['shop_name']))
+
+    # ── Log search & notify supervisors ──────────────────────────────────────
+    try:
+        log = ScoutLog(
+            user_id=current_user.id,
+            keyword=keyword,
+            category=category or None,
+            city=city or None,
+            platform=platform,
+            result_count=len(results),
+        )
+        db.session.add(log)
+
+        # In-app notification to all admins/supervisors
+        pht_now = datetime.utcnow() + timedelta(hours=8)
+        city_label = city or 'All PH'
+        cat_label  = f' · {category}' if category else ''
+        platform_labels = {'coffee': 'Shopee', 'tiktok': 'TikTok',
+                           'facebook': 'Facebook', 'rrld': 'RRLD', 'all': 'All'}
+        plat_label = platform_labels.get(platform, platform.title())
+        notif_msg = (
+            f"{current_user.display_name} searched for \"{keyword}\"{cat_label} "
+            f"in {city_label} on {plat_label} — {len(results)} result(s) found "
+            f"at {pht_now.strftime('%I:%M %p')}."
+        )
+        supervisors = User.query.filter(
+            User.role.in_(['superadmin', 'admin', 'manager', 'supervisor']),
+            User.is_active == True,
+        ).all()
+        for sup in supervisors:
+            db.session.add(Notification(
+                user_id=sup.id,
+                type='scout_search',
+                title=f'🔭 Scout: {current_user.display_name} searched "{keyword}"',
+                message=notif_msg,
+                link='/admin/scout-activity',
+            ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
     return jsonify({'results': results, 'count': len(results)})
 
 
@@ -5142,6 +5203,19 @@ def admin_delete_excel_imports():
     &nbsp;&nbsp;
     <a href="/dashboard" style="color:#1F3864;font-weight:700">→ Dashboard</a>
     </body></html>'''
+
+
+@app.route('/admin/scout-activity')
+@login_required
+def admin_scout_activity():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    page = request.args.get('page', 1, type=int)
+    logs = (ScoutLog.query
+            .order_by(ScoutLog.searched_at.desc())
+            .paginate(page=page, per_page=50, error_out=False))
+    return render_template('admin/scout_activity.html', logs=logs)
 
 
 @app.route('/admin/users')
