@@ -68,6 +68,25 @@
             </div>
           </div>
 
+          <!-- Scout Access — only shown for Gabay role, superadmin-controlled -->
+          <div class="mb-3" id="scoutField" style="display:{{ 'block' if (not user or user.role == 'gabay') else 'none' }}">
+            <label class="form-label fw-bold" style="font-size:12px">
+              <i class="bi bi-radar me-1" style="color:#7c3aed"></i>
+              Prospect Scout Access
+            </label>
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" name="can_scout" id="canScout"
+                {% if user and user.can_scout %}checked{% endif %}>
+              <label class="form-check-label" for="canScout" style="font-size:13px">
+                Allow this Gabay to use <strong style="color:#7c3aed">Prospect Scout</strong>
+              </label>
+            </div>
+            <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+              <i class="bi bi-info-circle me-1"></i>
+              Grants access to search and discover new seller prospects. Off by default for Gabay agents.
+            </div>
+          </div>
+
           <!-- City/Territory field — only shown for Gabay role -->
           <div class="mb-3" id="cityField" style="display:{{ 'block' if (not user or user.role == 'gabay') else 'none' }}">
             <label class="form-label fw-bold" style="font-size:12px">
@@ -147,10 +166,12 @@ function togglePw() {
   eye.className = inp.type === 'password' ? 'bi bi-eye' : 'bi bi-eye-slash';
 }
 function toggleCityField(role) {
-  document.getElementById('cityField').style.display = (role === 'gabay') ? 'block' : 'none';
+  const isGabay = role === 'gabay';
+  document.getElementById('cityField').style.display = isGabay ? 'block' : 'none';
+  document.getElementById('scoutField').style.display = isGabay ? 'block' : 'none';
   // mobile always visible — hint text changes per role
   const hint = document.getElementById('mobileHint');
-  if (role === 'gabay') {
+  if (isGabay) {
     hint.textContent = 'Used to identify the Gabay when they message the LSAMS WhatsApp bot.';
   } else {
     hint.textContent = 'Managers and Admins receive WhatsApp alerts on seller status changes and Gabay logins.';

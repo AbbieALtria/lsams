@@ -145,6 +145,16 @@ body {
 </head>
 <body>
 
+<!-- Floating Home button — always visible, no matter which scene is playing -->
+<a href="/gabay/app" style="position:fixed;top:14px;left:14px;z-index:1000;
+   background:rgba(255,255,255,0.13);color:rgba(255,255,255,0.88);
+   border:1.5px solid rgba(255,255,255,0.22);border-radius:20px;
+   padding:7px 16px;font-size:12px;font-weight:700;text-decoration:none;
+   backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);
+   display:flex;align-items:center;gap:5px">
+  &#8592; Home
+</a>
+
 <div class="stage">
   <div class="layout">
 
@@ -764,15 +774,92 @@ body {
                   ✅ Check leads every morning<br>
                   🗺️ Use Plan My Day for route<br>
                   📡 Check Seller Radar for extras<br>
-                  📍 Always Check In after visits<br>
+                  📍 Check In after every visit<br>
+                  📵 Works offline — auto-syncs!<br>
                   📝 Add notes &amp; follow-up date<br>
                   📷 Upload selfie proof photo<br>
                   📱 Use WhatsApp to log visits<br>
                   🎙 Voice notes work in Tagalog<br>
+                  🔭 Scout new leads (if enabled)<br>
                   📊 Check Reports at day-end
                 </div>
               </div>
               <div style="margin-top:14px;font-size:9px;color:rgba(255,255,255,0.3)">© 2026 Altria Call Center</div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE scr17: OFFLINE AUTO-SYNC ══ -->
+          <div class="screen-inner" id="scr17">
+            <div class="sc">
+              <div class="status-bar"><span>11:30</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div style="background:linear-gradient(135deg,#1F3864,#2E75B6);padding:10px 12px;color:white;flex-shrink:0">
+                <div style="font-size:13px;font-weight:800">You're back online! 📶</div>
+                <div style="font-size:9px;opacity:0.8;margin-top:2px">LSAMS is syncing your offline visits...</div>
+              </div>
+              <div class="sc-body">
+                <div style="background:#f0fdf4;border-left:3px solid #15803d;border-radius:10px;padding:10px 12px;margin-bottom:8px">
+                  <div style="display:flex;align-items:center;gap:8px">
+                    <span style="font-size:20px">✅</span>
+                    <div>
+                      <div style="font-size:11px;font-weight:800;color:#15803d">3 Visits Auto-Synced!</div>
+                      <div style="font-size:8px;color:#166534;margin-top:1px">Uploaded to LSAMS automatically in background</div>
+                    </div>
+                  </div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px">
+                  <div style="font-size:9px;color:#9aabc5;font-weight:700;margin-bottom:6px">SYNCED VISITS</div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                    <div><div style="font-size:10px;font-weight:800;color:#1F3864">Chokorean Online</div><div style="font-size:8px;color:#9aabc5">10:07 AM · Interested</div></div>
+                    <span style="background:#dcfce7;color:#15803d;font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px">✅ Synced</span>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:5px">
+                    <div><div style="font-size:10px;font-weight:800;color:#1F3864">Nano Shop PH</div><div style="font-size:8px;color:#9aabc5">11:45 AM · Not Home</div></div>
+                    <span style="background:#dcfce7;color:#15803d;font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px">✅ Synced</span>
+                  </div>
+                  <div style="display:flex;align-items:center;justify-content:space-between">
+                    <div><div style="font-size:10px;font-weight:800;color:#1F3864">Pinoy Gadgets Hub</div><div style="font-size:8px;color:#9aabc5">12:30 PM · Follow Up</div></div>
+                    <span style="background:#dcfce7;color:#15803d;font-size:8px;font-weight:700;padding:2px 7px;border-radius:8px">✅ Synced</span>
+                  </div>
+                </div>
+                <div style="background:#EEF2FF;border-radius:10px;padding:9px 10px;font-size:9px;color:#4338ca;line-height:1.6">
+                  <div style="font-weight:800;margin-bottom:3px">📡 How offline sync works:</div>
+                  <div><strong>Android:</strong> Syncs automatically in background — no tap needed!</div>
+                  <div style="margin-top:3px"><strong>iPhone:</strong> Open LSAMS when online and tap the Sync button on the home screen.</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE scr18: PROSPECT SCOUT (if enabled) ══ -->
+          <div class="screen-inner" id="scr18">
+            <div class="sc">
+              <div class="status-bar"><span>2:00 PM</span><span>LSAMS</span><span>📶 🔋</span></div>
+              <div class="sec-hdr" style="background:#7c3aed"><span>🔭</span><span class="sec-hdr-title">Prospect Scout</span><span class="back-btn">← Home</span></div>
+              <div style="padding:6px 10px;background:#f5f3ff;border-bottom:1px solid #ddd6fe;font-size:9px;color:#7c3aed;flex-shrink:0">
+                Find new seller prospects — Google-powered search
+              </div>
+              <div class="sc-body" style="background:#f5f3ff">
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:6px">
+                  <div style="font-size:9px;color:#9aabc5;font-weight:700;margin-bottom:4px">SEARCH FILTERS</div>
+                  <div style="background:#f5f3ff;border-radius:7px;padding:6px 8px;margin-bottom:4px;font-size:9px;color:#7c3aed;font-weight:700">📁 Category: FMCG</div>
+                  <div style="background:#f5f3ff;border-radius:7px;padding:6px 8px;margin-bottom:4px;font-size:9px;color:#7c3aed;font-weight:700">🏷️ Brand: NIVEA</div>
+                  <div style="background:#f5f3ff;border-radius:7px;padding:6px 8px;margin-bottom:4px;font-size:9px;color:#7c3aed;font-weight:700">📍 City: Quezon City</div>
+                  <div style="background:#1F3864;color:white;border-radius:8px;padding:7px;text-align:center;font-size:10px;font-weight:800 tap-me">🔭 Scout Now</div>
+                </div>
+                <div style="background:white;border-radius:10px;padding:8px 10px">
+                  <div style="font-size:9px;color:#9aabc5;font-weight:700;margin-bottom:5px">RESULTS — 3 found</div>
+                  <div class="radar-card" style="border-left-color:#7c3aed;margin-bottom:5px">
+                    <div class="radar-name">NIVEA PH Official Store</div>
+                    <div class="radar-addr">Coffee (Shopee) · 4.8★ · 10k+ sold</div>
+                    <div class="radar-dist" style="color:#7c3aed">Not yet on Lazada → potential lead!</div>
+                  </div>
+                  <div class="radar-card" style="border-left-color:#7c3aed">
+                    <div class="radar-name">NIVEA Skin Care QC</div>
+                    <div class="radar-addr">Facebook Shop · 2.3k followers</div>
+                    <div class="radar-dist" style="color:#7c3aed">No Lazada presence → good prospect</div>
+                  </div>
+                </div>
+              </div>
             </div>
           </div>
 
@@ -817,30 +904,34 @@ const scenes = [
     narration:'Tap Check In after visiting a seller. Step 1: select the seller from your list. Step 2: tap Capture GPS — this proves you were physically at the location. Step 3: select what happened — Interested, Call Back, Not Home, Rejected, Registered, or Follow Up.' },
   { screen:7,  label:'Logging a Visit', title:'Step 7 — Notes & Follow-up Date', duration:7000,
     narration:'Step 4: add notes about what the seller said — very important for your supervisor to know! Step 5: set a follow-up date if the seller asked you to come back. The system will remind you on that date. Then tap Next to add photos.' },
-  { screen:8,  label:'Photo Proof', title:'Step 8 — Photos (Offline Mode)', duration:8000,
-    narration:'Step 6 is your selfie proof photo. If you have no internet at the seller location — no problem! You can skip the photo now. Your check-in is still saved with GPS. Upload your selfie later when you are back online. Never lose a visit because of bad signal!' },
-  { screen:9,  label:'Photo Proof', title:'Step 9 — Pending Photos Banner', duration:7000,
+  { screen:8,  label:'Photo Proof', title:'Step 8 — Full Offline Mode', duration:8000,
+    narration:'LSAMS works completely offline! If you have no internet at the seller location, your entire check-in is saved on your phone — the seller, GPS location, outcome, notes, and photos are all stored. Once you have signal, LSAMS automatically uploads everything in the background. You never lose a single visit because of bad signal!' },
+  { screen:17, label:'Auto-Sync', title:'Step 9 — Auto-Sync When You\'re Back Online', duration:8000,
+    narration:'When your phone gets signal again, LSAMS automatically uploads all your offline visits in the background — no tapping required! On Android phones, this happens without you opening the app at all. On iPhones, open LSAMS when you\'re back online and tap the Sync button. You\'ll see a green confirmation showing all visits were synced successfully.' },
+  { screen:9,  label:'Photo Proof', title:'Step 10 — Pending Photos Banner', duration:7000,
     narration:'When you return to an area with internet, your home screen shows an orange banner: "Visits Need Photos." Tap the Upload button next to each visit. Your supervisor can see which visits still need proof — upload as soon as possible!' },
-  { screen:10, label:'Photo Proof', title:'Step 10 — Upload Selfie + Proof Photo', duration:7000,
+  { screen:10, label:'Photo Proof', title:'Step 11 — Upload Selfie + Proof Photo', duration:7000,
     narration:'On the upload page, tap the selfie box to take a photo of yourself at the seller location using your front camera. Then tap the proof box to take a photo of the store sign or your meeting using the back camera. Tap Upload — done! The banner disappears.' },
-  { screen:11, label:'WhatsApp Bot', title:'Step 11 — Log Visits by WhatsApp Text', duration:8000,
+  { screen:11, label:'WhatsApp Bot', title:'Step 12 — Log Visits by WhatsApp Text', duration:8000,
     narration:'You can also log visits by sending a WhatsApp message to the LSAMS Bot number. Just type: Visited [seller name] — [outcome]. The bot finds the seller in your list, saves the visit automatically, and replies with a confirmation. Great when you are between visits and don\'t want to open the app!' },
-  { screen:12, label:'WhatsApp Bot', title:'Step 12 — Log Visits by Voice Note', duration:8000,
+  { screen:12, label:'WhatsApp Bot', title:'Step 13 — Log Visits by Voice Note', duration:8000,
     narration:'You can speak your visit instead of typing! Hold the WhatsApp microphone button and say your visit in Tagalog, Filipino, or English. For example: "Pumunta ako sa Nano Shop — wala siya." The bot transcribes your voice, identifies the seller, and logs the visit automatically — completely hands-free!' },
-  { screen:13, label:'WhatsApp Bot', title:'Step 13 — Bot Commands', duration:7000,
+  { screen:13, label:'WhatsApp Bot', title:'Step 14 — Bot Commands', duration:7000,
     narration:'The bot also has quick commands. Type "status" to see your full performance summary — leads, live sellers, visits today, and this week. Type "today" to list all visits from today with their outcomes. Type "help" to see all available commands and examples.' },
-  { screen:14, label:'Reports', title:'Step 14 — My Performance Report', duration:8000,
+  { screen:14, label:'Reports', title:'Step 15 — My Performance Report', duration:8000,
     narration:'Tap Reports on the bottom menu to see your monthly performance. You can see total visits, outcome breakdown — how many sellers were Interested, Callback, Not Home, or Rejected — and your registration funnel showing how many sellers progressed from Assigned all the way to Live!' },
-  { screen:15, label:'Reports', title:'Step 15 — Visit History', duration:7000,
+  { screen:15, label:'Reports', title:'Step 16 — Visit History', duration:7000,
     narration:'The Visit History tab shows every single visit you logged — date, time, seller name, outcome, GPS confirmation, and photo status. Your supervisor uses this to verify your work. Make sure every visit has a GPS check and photos uploaded — it protects you and proves your hard work!' },
-  { screen:2,  label:'🌸 Maria Intel', title:'Step 16 — Seller 360 Rating', duration:8000,
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 17 — Seller 360 Rating', duration:8000,
     narration:'Before every visit, open the lead and scroll to the Maria card. At the top you will see a Seller 360 Rating badge — AAA, AA, A, B, or C. AAA means this seller is a top priority — active on multiple platforms with many followers and no Lazada account yet. C means low priority. Always visit your AAA and AA sellers first. The number on the right is Maria\'s score out of 100.' },
-  { screen:2,  label:'🌸 Maria Intel', title:'Step 17 — Maria\'s Pitch Script', duration:8000,
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 18 — Maria\'s Pitch Script', duration:8000,
     narration:'Below the Visit Brief you will see a purple card: Maria\'s Pitch Script — Say This When You Arrive. Maria has written three lines specifically for this seller: an opening line that references their business, a Lazada value pitch tailored to their product category, and a clear call to action. Read these before you knock on the door. You do not need to memorize them — just glance at your phone once before entering.' },
-  { screen:2,  label:'🏅 Badges', title:'Step 18 — Your Achievement Badges', duration:8000,
+  { screen:18, label:'🔭 Prospect Scout', title:'Step 19 — Prospect Scout (Special Access)', duration:8000,
+    narration:'If your supervisor enables Prospect Scout for your account, you can search for brand-new seller prospects on Google, Facebook, Shopee, and TikTok — all from inside LSAMS! Pick a category and brand, choose your city, and tap Scout Now. The results show sellers who have no Lazada presence yet — your next big lead! Not all Gabay agents have this access — ask your supervisor if you think you should.' },
+  { screen:2,  label:'🏅 Badges', title:'Step 20 — Your Achievement Badges', duration:8000,
     narration:'Your home screen shows your achievement badges at the top. The 🥇 Conversion Champion badge appears when you have live sellers. The 🔥 7-Day Streak badge appears when you log visits every single day for 7 days in a row. The ⭐ Perfect Visit Day badge appears when you log 3 or more visits in one day. The 🚀 Fast Activator badge appears when a seller you were assigned went live within 14 days. Earn all four to show your supervisor what you are made of!' },
   { screen:16, label:'Complete!', title:'You\'re Ready — Daily Checklist', duration:9000,
-    narration:'That is everything! Follow this daily checklist: check your badges and priority leads every morning, glance at Maria\'s 360 Rating and Pitch Script before each visit, use Plan My Day for your route, check Seller Radar for bonus leads, always check in after every visit, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. Good luck — Maria is with you!' }
+    narration:'That is everything! Follow this daily checklist: check your badges and priority leads every morning, glance at Maria\'s 360 Rating and Pitch Script before each visit, use Plan My Day for your route, check Seller Radar for bonus leads, always check in after every visit — even offline!, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. If your supervisor gave you Prospect Scout access, use it to find fresh leads in your city. Good luck — Maria is with you!' }
 ];
 
 let current = 0, playing = false, timer = null;

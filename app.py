@@ -138,6 +138,14 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
+    # Add can_scout to users table
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE users ADD COLUMN can_scout BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Create campaigns and campaign_priority_log tables if not exist, then seed Legacy campaign
     with db.engine.connect() as _conn:
         try:
@@ -750,8 +758,9 @@ def api_leads_search():
 @app.route('/prospect-scout')
 @login_required
 def prospect_scout():
-    # Lazada team + supervisors+ admins can access
-    if not (current_user.is_supervisor or current_user.role == 'lazada'):
+    # Lazada team + supervisors + admins + gabay users with scout permission
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -798,7 +807,8 @@ def prospect_scout():
 @app.route('/api/prospect/scout')
 @login_required
 def api_prospect_scout():
-    if not (current_user.is_supervisor or current_user.role == 'lazada'):
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
         return jsonify({'error': 'Access denied'}), 403
 
     import requests as _req, re as _re
@@ -5181,6 +5191,7 @@ def admin_new_user():
             u.set_password(password)
             if role == 'gabay':
                 u.assigned_city = request.form.get('assigned_city', '').strip() or None
+                u.can_scout = 'can_scout' in request.form
             db.session.add(u)
             db.session.commit()
             flash(f'User {full_name} ({role}) created.', 'success')
@@ -5203,8 +5214,10 @@ def admin_edit_user(user_id):
         if u.role == 'gabay':
             u.assigned_city = request.form.get('assigned_city', '').strip() or None
             u.mobile = request.form.get('mobile', '').strip() or None
+            u.can_scout = 'can_scout' in request.form
         else:
             u.assigned_city = None
+            u.can_scout = False
         new_pw = request.form.get('password', '').strip()
         if new_pw:
             u.set_password(new_pw)

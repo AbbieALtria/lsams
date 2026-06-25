@@ -40,6 +40,9 @@ class User(UserMixin, db.Model):
     # Gabay display name (nickname used in leads, reports, Lazada — different from full_name)
     gabay_name = db.Column(db.String(100))
 
+    # Permission: allow this Gabay to use Prospect Scout (superadmin/admin toggle)
+    can_scout = db.Column(db.Boolean, default=False)
+
     # Profile
     profile_photo = db.Column(db.String(200))
     deactivated_at = db.Column(db.DateTime)
