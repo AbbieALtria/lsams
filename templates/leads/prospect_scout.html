@@ -134,54 +134,74 @@
 <!-- SEARCH FORM -->
 <div class="card mb-4" style="border-radius:16px;border:1.5px solid #EDE8F5">
   <div class="card-body p-4">
-    <div class="row g-3">
 
-      <!-- Keyword -->
+    <!-- Row 1: Category → Brand -->
+    <div class="row g-3 mb-3">
       <div class="col-md-4">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
-          <i class="bi bi-search me-1"></i>What to look for *
+          <i class="bi bi-grid me-1"></i>Category
         </label>
-        <input type="text" id="scoutKeyword" class="form-control"
-               placeholder="e.g. beauty, food, fashion, electronics">
+        <select id="scoutCategory" class="form-select" onchange="onCategoryChange()">
+          <option value="">All Categories</option>
+          <option>Beauty &amp; Cosmetics</option>
+          <option>Food &amp; Beverage</option>
+          <option>Fashion &amp; Apparel</option>
+          <option>Electronics &amp; Gadgets</option>
+          <option>Health &amp; Wellness</option>
+          <option>Home &amp; Living</option>
+          <option>Sports &amp; Outdoors</option>
+          <option>Grocery &amp; Supermarket</option>
+          <option>Automotive &amp; Parts</option>
+          <option>Toys &amp; Baby</option>
+          <option>Others</option>
+        </select>
       </div>
 
-      <!-- City field — role-based -->
-      <div class="col-md-3">
+      <div class="col-md-8">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-search me-1"></i>Brand / Keyword *
+        </label>
+        <select id="scoutBrandSelect" class="form-select" onchange="onBrandSelect()">
+          <option value="">— Choose a brand —</option>
+        </select>
+        <input type="text" id="scoutKeyword" class="form-control mt-2"
+               placeholder="Type brand name or keyword..." style="display:none">
+        <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+          🔥 Trending PH brands shown first &middot; pick a category to filter &middot; or choose <em>Type your own</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: City + Platform + Scout -->
+    <div class="row g-3">
+
+      <!-- City — role-based -->
+      <div class="col-md-4">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
           <i class="bi bi-geo-alt me-1"></i>City / Province
-          {% if user_role == 'gabay' %}
-          <span style="color:#E07B00;font-size:10px">(your territory)</span>
-          {% elif not see_all_cities %}
-          <span style="color:#9aabc5;font-size:10px">(one city)</span>
-          {% else %}
-          <span style="color:#9aabc5;font-size:10px">(all cities)</span>
-          {% endif %}
+          {% if user_role == 'gabay' %}<span style="color:#E07B00;font-size:10px">(your territory)</span>
+          {% elif see_all_cities %}<span style="color:#9aabc5;font-size:10px">(all cities)</span>{% endif %}
         </label>
 
         {% if user_role == 'gabay' and user_cities %}
-          {# Gabay: show their assigned cities as chips, locked #}
           <div style="background:#F8FAFD;border:1px solid #E0E6EF;border-radius:10px;padding:8px 10px">
-            {% for c in user_cities %}
-            <span class="city-chip">{{ c.title() }}</span>
-            {% endfor %}
+            {% for c in user_cities %}<span class="city-chip">{{ c.title() }}</span>{% endfor %}
           </div>
           <input type="hidden" id="scoutCity" value="{{ user_cities[0] }}">
           <div style="font-size:11px;color:#9aabc5;margin-top:4px">
             <i class="bi bi-lock-fill me-1"></i>Searching in your assigned territory
           </div>
         {% else %}
-          <input type="text" id="scoutCity" class="form-control"
-                 placeholder="{% if see_all_cities %}e.g. Pampanga, Cebu (or leave blank for all){% else %}Enter city{% endif %}">
-          {% if see_all_cities %}
-          <div style="font-size:11px;color:#9aabc5;margin-top:4px">
-            <i class="bi bi-globe me-1"></i>Leave blank to search all of Philippines
-          </div>
-          {% endif %}
+          <select id="scoutCitySelect" class="form-select" onchange="onCitySelect()">
+            <option value="">🌏 All Philippines</option>
+          </select>
+          <input type="text" id="scoutCity" class="form-control mt-2"
+                 placeholder="Type city or province..." style="display:none">
         {% endif %}
       </div>
 
       <!-- Platform -->
-      <div class="col-md-3">
+      <div class="col-md-4">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
           <i class="bi bi-shop me-1"></i>Platform
         </label>
@@ -195,11 +215,11 @@
       </div>
 
       <!-- Scout button -->
-      <div class="col-md-2 d-flex align-items-end">
+      <div class="col-md-4 d-flex align-items-end">
         <button id="scoutBtn" onclick="runScout()" class="btn w-100 fw-bold"
-                style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;padding:10px"
+                style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;padding:12px"
                 {% if not serp_configured %}disabled{% endif %}>
-          <i class="bi bi-radar me-1"></i>Scout
+          <i class="bi bi-radar me-1"></i>Scout Now
         </button>
       </div>
     </div>
@@ -279,19 +299,121 @@
 const USER_CITIES = {{ user_cities | tojson }};
 const SEE_ALL     = {{ 'true' if see_all_cities else 'false' }};
 const USER_ROLE   = '{{ user_role }}';
-let allResults = [];
+const CAN_MANAGE  = {{ 'true' if current_user.role in ('superadmin','admin','lazada') else 'false' }};
 
-function getCity() {
-  // For gabay with multiple cities, build comma list for API
-  if (USER_ROLE === 'gabay' && USER_CITIES.length) {
-    return USER_CITIES.join(',');
-  }
-  return document.getElementById('scoutCity').value.trim();
+let allResults   = [];
+let allBrands    = [];
+let brandLibOpen = false;
+let activeCat    = '';
+
+/* ── Trending PH brands per category ── */
+const TRENDING_BRANDS = {
+  'Beauty & Cosmetics':    ['BLK Cosmetics','Happy Skin','Sunnies Face','Colourette Cosmetics','Human Nature','Snoe Beauty','Vice Cosmetics','Althea Philippines'],
+  'Food & Beverage':       ["Goldilocks","Red Ribbon","Conti's Bakeshoppe","Malagos Chocolate","Auro Chocolate","Bibingkahan","Naks ni Nanay"],
+  'Fashion & Apparel':     ['Bench','Penshoppe','Oxygen','Plains & Prints','Kashieca','Freego','Folded & Hung','Regatta'],
+  'Electronics & Gadgets': ['Kimstore','Dynaquest','PC Worx','EasyPC','Technoholics','Gamextreme'],
+  'Health & Wellness':     ['Healthy Options','Herbilogy','Naturomax','Noni Sessions','C2 Green Tea'],
+  'Home & Living':         ['Saizen','Mandaue Foam','Storeroom PH','Landmark Home'],
+  'Sports & Outdoors':     ["R.O.X.","Planet Sports","Toby's Sports","Chris Sports","Olympic Village"],
+  'Grocery & Supermarket': ['Puregold','Savemore','CityMall','WalterMart'],
+  'Automotive & Parts':    ['AutoPlus','Boch Auto','Castrol Philippines','Motul PH'],
+  'Toys & Baby':           ['Toy Kingdom','Toytown','Babyland','Learning Tree'],
+  'Others':                [],
+};
+
+/* ── Philippine cities by region ── */
+const PH_CITIES_GROUPED = [
+  { g: 'Metro Manila (NCR)', c: ['Manila','Quezon City','Makati','Pasig','Mandaluyong','Taguig','Parañaque','Las Piñas','Marikina','Caloocan','Valenzuela','Malabon','Navotas','Muntinlupa','San Juan','Pasay'] },
+  { g: 'Central Luzon',      c: ['Angeles City','San Fernando (Pampanga)','Olongapo','Malolos','Meycauayan','San Jose del Monte','Tarlac City','Cabanatuan'] },
+  { g: 'CALABARZON',         c: ['Cavite City','Imus','Dasmariñas','Bacoor','General Trias','Calamba','Santa Rosa','Biñan','San Pablo','Batangas City','Lipa','Antipolo','Lucena'] },
+  { g: 'Visayas',            c: ['Cebu City','Mandaue','Lapu-Lapu','Iloilo City','Bacolod','Tacloban','Dumaguete','Roxas City'] },
+  { g: 'Mindanao',           c: ['Davao City','Cagayan de Oro','General Santos','Zamboanga City','Cotabato City','Butuan','Iligan'] },
+  { g: 'Other Luzon',        c: ['Baguio','Dagupan','San Fernando (La Union)','Laoag','Vigan','Naga','Legazpi','Puerto Princesa'] },
+];
+
+/* ── City dropdown ── */
+function buildCityDropdown() {
+  const sel = document.getElementById('scoutCitySelect');
+  if (!sel) return;
+  let html = '<option value="">🌏 All Philippines</option>';
+  PH_CITIES_GROUPED.forEach(grp => {
+    html += `<optgroup label="${grp.g}">`;
+    grp.c.forEach(city => { html += `<option value="${city}">${city}</option>`; });
+    html += '</optgroup>';
+  });
+  html += '<option value="__other__">✏️ Other (type below)...</option>';
+  sel.innerHTML = html;
 }
 
+function onCitySelect() {
+  const val = document.getElementById('scoutCitySelect').value;
+  const inp = document.getElementById('scoutCity');
+  if (!inp) return;
+  if (val === '__other__') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+function getCity() {
+  if (USER_ROLE === 'gabay' && USER_CITIES.length) return USER_CITIES.join(',');
+  const sel = document.getElementById('scoutCitySelect');
+  if (sel) {
+    if (sel.value === '__other__') return document.getElementById('scoutCity').value.trim();
+    return sel.value;
+  }
+  const inp = document.getElementById('scoutCity');
+  return inp ? inp.value.trim() : '';
+}
+
+/* ── Brand dropdown ── */
+function buildBrandDropdown(cat) {
+  const sel = document.getElementById('scoutBrandSelect');
+  if (!sel) return;
+  const trending = cat ? (TRENDING_BRANDS[cat] || [])
+                       : Object.values(TRENDING_BRANDS).flat().slice(0, 12);
+  const trendingLower = trending.map(t => t.toLowerCase());
+  const dbBrands = allBrands.filter(b => !cat || b.category === cat).map(b => b.name);
+  const dbOnly   = dbBrands.filter(n => !trendingLower.includes(n.toLowerCase()));
+
+  let html = '<option value="">— Choose a brand —</option>';
+  if (trending.length) {
+    html += '<optgroup label="🔥 Trending in Philippines">';
+    trending.forEach(t => { html += `<option value="${escH(t)}">${escH(t)}</option>`; });
+    html += '</optgroup>';
+  }
+  if (dbOnly.length) {
+    html += `<optgroup label="📋 Brand Library${cat ? ' · ' + cat : ''}">`;
+    dbOnly.forEach(n => { html += `<option value="${escH(n)}">${escH(n)}</option>`; });
+    html += '</optgroup>';
+  }
+  html += '<option value="__other__">✏️ Type your own keyword...</option>';
+  sel.innerHTML = html;
+}
+
+function onCategoryChange() {
+  buildBrandDropdown(document.getElementById('scoutCategory').value);
+  const inp = document.getElementById('scoutKeyword');
+  inp.style.display = 'none';
+  inp.value = '';
+}
+
+function onBrandSelect() {
+  const val = document.getElementById('scoutBrandSelect').value;
+  const inp = document.getElementById('scoutKeyword');
+  if (val === '__other__') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+function getKeyword() {
+  const sel = document.getElementById('scoutBrandSelect');
+  if (sel && sel.value && sel.value !== '__other__') return sel.value;
+  const inp = document.getElementById('scoutKeyword');
+  return inp ? inp.value.trim() : '';
+}
+
+/* ── Scout ── */
 function runScout() {
-  const kw = document.getElementById('scoutKeyword').value.trim();
-  if (!kw) { alert('Please enter a keyword first'); return; }
+  const kw = getKeyword();
+  if (!kw) { alert('Please select a brand or type a keyword first'); return; }
 
   const city     = getCity();
   const platform = document.getElementById('scoutPlatform').value;
@@ -431,11 +553,6 @@ document.getElementById('scoutKeyword').addEventListener('keydown', e => {
 });
 
 /* ── Brand Library ── */
-let allBrands = [];
-let brandLibOpen = false;
-let activeCat = '';
-const CAN_MANAGE = {{ 'true' if current_user.role in ('superadmin','admin','lazada') else 'false' }};
-
 function toggleBrandLib() {
   brandLibOpen = !brandLibOpen;
   document.getElementById('brandLibBody').style.display = brandLibOpen ? 'block' : 'none';
@@ -448,9 +565,10 @@ function loadBrands(cat) {
   const url = '/api/brands' + (cat ? '?category=' + encodeURIComponent(cat) : '');
   fetch(url).then(r => r.json()).then(data => {
     allBrands = data.brands || [];
-    renderBrandChips(allBrands);
+    renderBrandChips(cat ? allBrands.filter(b => b.category === cat) : allBrands);
     buildCatTabs(allBrands);
     document.getElementById('brandLibCount').textContent = allBrands.length;
+    buildBrandDropdown(document.getElementById('scoutCategory').value || '');
   });
 }
 
@@ -500,8 +618,16 @@ function renderBrandChips(brands) {
 }
 
 function useBrand(name) {
-  document.getElementById('scoutKeyword').value = name;
-  document.getElementById('scoutKeyword').focus();
+  const sel = document.getElementById('scoutBrandSelect');
+  const found = sel && [...sel.options].find(o => o.value === name);
+  if (found) {
+    sel.value = name;
+    onBrandSelect();
+  } else {
+    if (sel) { sel.value = '__other__'; onBrandSelect(); }
+    document.getElementById('scoutKeyword').value = name;
+  }
+  document.getElementById('scoutBrandSelect').scrollIntoView({ behavior: 'smooth', block: 'center' });
 }
 
 function openAddBrand() {
@@ -545,8 +671,20 @@ function deleteBrand(id, el) {
       el.closest('.brand-chip').remove();
       allBrands = allBrands.filter(b => b.id !== id);
       document.getElementById('brandLibCount').textContent = allBrands.length;
+      buildBrandDropdown(document.getElementById('scoutCategory').value || '');
     }
   });
 }
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  buildCityDropdown();
+  buildBrandDropdown('');
+  fetch('/api/brands').then(r => r.json()).then(data => {
+    allBrands = data.brands || [];
+    document.getElementById('brandLibCount').textContent = allBrands.length;
+    buildBrandDropdown(document.getElementById('scoutCategory').value || '');
+  });
+});
 </script>
 {% endblock %}
