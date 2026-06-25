@@ -947,6 +947,56 @@ def api_prospect_scout():
 
     results.sort(key=lambda x: (-x['rrld_score'], x['shop_name']))
 
+    # ── Lazada presence check — 1 extra SerpAPI call ──────────────────────────
+    try:
+        laz_query = f'site:lazada.com.ph {keyword}'
+        laz_resp  = _req.get('https://serpapi.com/search', params={
+            'q': laz_query, 'api_key': serp_key, 'num': 10,
+            'engine': 'google', 'gl': 'ph', 'hl': 'en',
+        }, timeout=10)
+        laz_names = []   # store names found on Lazada
+        laz_urls  = {}   # shop_name_token → lazada URL
+        if laz_resp.ok:
+            for lr in laz_resp.json().get('organic_results', []):
+                lt = lr.get('title', '')
+                lu = lr.get('link', '')
+                # Extract store slug from lazada URL
+                import re as _rez
+                slug_m = _rez.search(r'lazada\.com\.ph/shop/([^/?#]+)', lu)
+                store_name = slug_m.group(1).replace('-', ' ') if slug_m else lt
+                laz_names.append(store_name.lower())
+                laz_urls[store_name.lower()] = lu
+
+        _STOP = {'store','shop','official','ph','philippines','online','the','and','ng','de','seller'}
+
+        def _laz_match(shop):
+            """Returns (matched, lazada_url) — fuzzy name-token overlap check."""
+            words = {w for w in shop.lower().split() if w not in _STOP and len(w) > 2}
+            if not words:
+                return False, None
+            for lname, lurl in laz_urls.items():
+                lwords = {w for w in lname.split() if w not in _STOP and len(w) > 2}
+                if not lwords:
+                    continue
+                overlap = words & lwords
+                threshold = max(1, min(len(words), len(lwords)) // 2)
+                if len(overlap) >= threshold:
+                    return True, lurl
+            return False, None
+
+        for r in results:
+            matched, lurl = _laz_match(r['shop_name'])
+            if laz_names:   # we got Lazada results — can make a call
+                r['lazada_status'] = 'on_lazada' if matched else 'not_on_lazada'
+                r['lazada_url']    = lurl
+            else:
+                r['lazada_status'] = 'unknown'
+                r['lazada_url']    = None
+    except Exception:
+        for r in results:
+            r.setdefault('lazada_status', 'unknown')
+            r.setdefault('lazada_url', None)
+
     # ── Log search & notify supervisors ──────────────────────────────────────
     try:
         log = ScoutLog(
@@ -993,7 +1043,8 @@ def api_prospect_scout():
 @app.route('/api/prospect/add-lead', methods=['POST'])
 @login_required
 def api_prospect_add_lead():
-    if not (current_user.is_supervisor or current_user.role == 'lazada'):
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
         return jsonify({'error': 'Access denied'}), 403
 
     data = request.get_json()
