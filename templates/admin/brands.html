@@ -1,0 +1,332 @@
+{% extends "base.html" %}
+{% block title %}Brand Management{% endblock %}
+{% block extra_head %}
+<style>
+.priority-badge {
+  display:inline-flex;align-items:center;gap:4px;border-radius:20px;
+  padding:3px 10px;font-size:11px;font-weight:700;cursor:pointer;
+  transition:background .12s;
+}
+.priority-on  { background:#7c3aed22;color:#7c3aed;border:1.5px solid #7c3aed44; }
+.priority-off { background:#F3F4F6;color:#9aabc5;border:1.5px solid #E5E7EB; }
+.cat-badge {
+  display:inline-block;border-radius:20px;padding:2px 10px;
+  font-size:11px;font-weight:700;background:#1F386415;color:#1F3864;
+}
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title"><i class="bi bi-tags-fill me-2"></i>Brand Management</div>
+    <div style="font-size:12px;color:#9aabc5">Manage brands shown in Prospect Scout — priority brands appear first in the dropdown</div>
+  </div>
+  <div class="d-flex gap-2 flex-wrap">
+    <button onclick="toggleBulk()" class="btn btn-sm btn-outline-primary">
+      <i class="bi bi-list-ul me-1"></i>Bulk Import
+    </button>
+    <button onclick="loadDefaults()" class="btn btn-sm fw-bold" style="background:#1F3864;color:white">
+      <i class="bi bi-cloud-download me-1"></i>Load FMCG Defaults
+    </button>
+    <a href="{{ url_for('prospect_scout') }}" class="btn btn-sm btn-outline-secondary">
+      <i class="bi bi-radar me-1"></i>Open Scout
+    </a>
+  </div>
+</div>
+
+<!-- Bulk Import Panel -->
+<div id="bulkPanel" style="display:none" class="card mb-3" style="border-radius:14px">
+  <div class="card-body">
+    <div class="d-flex align-items-center justify-content-between mb-3">
+      <h6 class="fw-bold mb-0"><i class="bi bi-list-ul me-2"></i>Bulk Import Brands</h6>
+      <button onclick="toggleBulk()" class="btn btn-sm btn-outline-secondary">Close</button>
+    </div>
+    <div class="row g-3">
+      <div class="col-md-6">
+        <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700;text-transform:uppercase">
+          Brand names (one per line)
+        </label>
+        <textarea id="bulkText" class="form-control" rows="10"
+                  placeholder="NIVEA&#10;Bench&#10;Garnier&#10;Maybelline&#10;..."></textarea>
+      </div>
+      <div class="col-md-3">
+        <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700;text-transform:uppercase">Category</label>
+        <select id="bulkCat" class="form-select mb-3">
+          {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+        </select>
+        <div class="form-check mb-3">
+          <input class="form-check-input" type="checkbox" id="bulkPriority" checked>
+          <label class="form-check-label fw-bold" for="bulkPriority" style="font-size:13px;color:#7c3aed">
+            ⭐ Mark as Priority
+          </label>
+          <div style="font-size:11px;color:#9aabc5">Priority brands appear at the top of Prospect Scout dropdown</div>
+        </div>
+        <button onclick="doBulkImport()" class="btn w-100 fw-bold"
+                style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white">
+          <i class="bi bi-upload me-1"></i>Import All
+        </button>
+        <div id="bulkMsg" style="font-size:12px;margin-top:8px"></div>
+      </div>
+      <div class="col-md-3">
+        <div class="p-3" style="background:#F8F7FF;border-radius:10px;border:1px solid #EDE8F5;font-size:12px;color:#6B7280">
+          <div class="fw-bold mb-2" style="color:#7c3aed">Tips</div>
+          <ul class="mb-0 ps-3">
+            <li>One brand per line</li>
+            <li>Duplicates are automatically skipped</li>
+            <li>Paste directly from Excel or a list</li>
+            <li>Mark as Priority to show these brands first in Scout</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Filter + Quick Add -->
+<div class="card mb-3">
+  <div class="card-body py-2">
+    <div class="d-flex gap-2 flex-wrap align-items-center">
+      <select id="filterCat" class="form-select form-select-sm" style="max-width:200px" onchange="loadBrands()">
+        <option value="">All Categories</option>
+        {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+      </select>
+      <select id="filterPriority" class="form-select form-select-sm" style="max-width:160px" onchange="renderTable()">
+        <option value="">All</option>
+        <option value="1">⭐ Priority only</option>
+        <option value="0">☆ Normal only</option>
+      </select>
+      <input type="text" id="filterSearch" class="form-control form-control-sm" style="max-width:220px"
+             placeholder="Search brand name..." oninput="renderTable()">
+      <span id="totalCount" class="text-muted" style="font-size:12px"></span>
+
+      <div class="ms-auto d-flex gap-2 align-items-center flex-wrap">
+        <input type="text" id="quickName" class="form-control form-control-sm" style="max-width:180px"
+               placeholder="Brand name..." onkeydown="if(event.key==='Enter')quickAdd()">
+        <select id="quickCat" class="form-select form-select-sm" style="max-width:170px">
+          {% for c in categories %}<option>{{ c }}</option>{% endfor %}
+        </select>
+        <div class="form-check mb-0">
+          <input class="form-check-input" type="checkbox" id="quickPriority" checked>
+          <label class="form-check-label" for="quickPriority" style="font-size:12px;white-space:nowrap">⭐ Priority</label>
+        </div>
+        <button onclick="quickAdd()" class="btn btn-sm fw-bold" style="background:#1F3864;color:white;white-space:nowrap">
+          <i class="bi bi-plus-circle me-1"></i>Add Brand
+        </button>
+        <div id="quickMsg" style="font-size:11px;min-width:80px"></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- Brand Table -->
+<div class="card">
+  <div class="card-header d-flex align-items-center justify-content-between">
+    <span>Brands <span id="brandCount" class="badge bg-secondary ms-1">—</span></span>
+    <span style="font-size:11px;color:#9aabc5">
+      <span style="color:#7c3aed;font-weight:700">⭐ Priority</span> brands appear first in Prospect Scout dropdown
+    </span>
+  </div>
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" style="min-width:600px">
+      <thead>
+        <tr>
+          <th>Brand Name</th>
+          <th>Category</th>
+          <th>Priority</th>
+          <th style="font-size:11px;color:#9aabc5">Added by</th>
+          <th>Actions</th>
+        </tr>
+      </thead>
+      <tbody id="brandTableBody">
+        <tr><td colspan="5" class="text-center text-muted py-4">Loading...</td></tr>
+      </tbody>
+    </table>
+  </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+const CATS = {{ categories | tojson }};
+let allBrands = [];
+
+function loadBrands() {
+  const cat = document.getElementById('filterCat').value;
+  fetch('/api/brands' + (cat ? '?category=' + encodeURIComponent(cat) : ''))
+    .then(r => r.json())
+    .then(data => {
+      allBrands = data.brands || [];
+      renderTable();
+    });
+}
+
+function renderTable() {
+  const search   = document.getElementById('filterSearch').value.toLowerCase();
+  const prioFilt = document.getElementById('filterPriority').value;
+  let filtered = allBrands;
+  if (search)    filtered = filtered.filter(b => b.name.toLowerCase().includes(search));
+  if (prioFilt === '1') filtered = filtered.filter(b => b.is_priority);
+  if (prioFilt === '0') filtered = filtered.filter(b => !b.is_priority);
+
+  document.getElementById('brandCount').textContent = allBrands.length;
+  document.getElementById('totalCount').textContent = filtered.length !== allBrands.length
+    ? `Showing ${filtered.length} of ${allBrands.length}` : `${allBrands.length} brands`;
+
+  const tbody = document.getElementById('brandTableBody');
+  if (!filtered.length) {
+    tbody.innerHTML = '<tr><td colspan="5" class="text-center text-muted py-4">No brands found.</td></tr>';
+    return;
+  }
+  tbody.innerHTML = filtered.map(b => `
+    <tr id="row-${b.id}">
+      <td>
+        <span id="disp-name-${b.id}" class="fw-bold">${escH(b.name)}</span>
+        <input id="inp-name-${b.id}" class="form-control form-control-sm d-none" style="max-width:220px" value="${escH(b.name)}">
+      </td>
+      <td>
+        <span id="disp-cat-${b.id}"><span class="cat-badge">${escH(b.category)}</span></span>
+        <select id="inp-cat-${b.id}" class="form-select form-select-sm d-none" style="max-width:180px">
+          ${CATS.map(c => `<option${c===b.category?' selected':''}>${escH(c)}</option>`).join('')}
+        </select>
+      </td>
+      <td>
+        <span class="priority-badge ${b.is_priority?'priority-on':'priority-off'}"
+              onclick="togglePriority(${b.id},${b.is_priority})">
+          ${b.is_priority ? '⭐ Priority' : '☆ Normal'}
+        </span>
+      </td>
+      <td style="font-size:11px;color:#9aabc5">${escH(b.added_by_name||'—')}</td>
+      <td>
+        <div id="act-view-${b.id}" class="d-flex gap-1">
+          <button onclick="startEdit(${b.id})" class="btn btn-sm btn-outline-secondary" style="font-size:11px;padding:2px 10px">Edit</button>
+          <button onclick="deleteBrand(${b.id})" class="btn btn-sm btn-outline-danger" style="font-size:11px;padding:2px 10px">Delete</button>
+        </div>
+        <div id="act-edit-${b.id}" class="d-flex gap-1 d-none">
+          <button onclick="saveEdit(${b.id})" class="btn btn-sm btn-primary" style="font-size:11px;padding:2px 10px">Save</button>
+          <button onclick="cancelEdit(${b.id})" class="btn btn-sm btn-outline-secondary" style="font-size:11px;padding:2px 10px">Cancel</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+function startEdit(id) {
+  document.getElementById('disp-name-'+id).classList.add('d-none');
+  document.getElementById('inp-name-'+id).classList.remove('d-none');
+  document.getElementById('disp-cat-'+id).classList.add('d-none');
+  document.getElementById('inp-cat-'+id).classList.remove('d-none');
+  document.getElementById('act-view-'+id).classList.add('d-none');
+  document.getElementById('act-edit-'+id).classList.remove('d-none');
+  document.getElementById('inp-name-'+id).focus();
+}
+
+function cancelEdit(id) {
+  document.getElementById('disp-name-'+id).classList.remove('d-none');
+  document.getElementById('inp-name-'+id).classList.add('d-none');
+  document.getElementById('disp-cat-'+id).classList.remove('d-none');
+  document.getElementById('inp-cat-'+id).classList.add('d-none');
+  document.getElementById('act-view-'+id).classList.remove('d-none');
+  document.getElementById('act-edit-'+id).classList.add('d-none');
+}
+
+function saveEdit(id) {
+  const name = document.getElementById('inp-name-'+id).value.trim();
+  const cat  = document.getElementById('inp-cat-'+id).value;
+  if (!name) { alert('Brand name is required'); return; }
+  fetch('/api/brands/'+id, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, category: cat})
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) {
+      const b = allBrands.find(x=>x.id===id);
+      if (b) { b.name = name; b.category = cat; }
+      renderTable();
+    } else { alert(d.error||'Failed'); }
+  });
+}
+
+function togglePriority(id, current) {
+  fetch('/api/brands/'+id, {
+    method:'PUT', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({is_priority: !current})
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) {
+      const b = allBrands.find(x=>x.id===id);
+      if (b) b.is_priority = !current;
+      renderTable();
+    }
+  });
+}
+
+function deleteBrand(id) {
+  if (!confirm('Delete this brand?')) return;
+  fetch('/api/brands/'+id, {method:'DELETE'}).then(r=>r.json()).then(d => {
+    if (d.ok) { allBrands = allBrands.filter(b=>b.id!==id); renderTable(); }
+  });
+}
+
+function quickAdd() {
+  const name  = document.getElementById('quickName').value.trim();
+  const cat   = document.getElementById('quickCat').value;
+  const prio  = document.getElementById('quickPriority').checked;
+  const msg   = document.getElementById('quickMsg');
+  if (!name) return;
+  fetch('/api/brands', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({name, category: cat, is_priority: prio})
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) {
+      msg.style.color='#15803d'; msg.textContent='Added ✓';
+      document.getElementById('quickName').value = '';
+      loadBrands();
+      setTimeout(()=>{ msg.textContent=''; }, 2000);
+    } else {
+      msg.style.color='#b91c1c'; msg.textContent = d.error||'Failed';
+    }
+  });
+}
+
+function toggleBulk() {
+  const p = document.getElementById('bulkPanel');
+  p.style.display = p.style.display === 'none' ? 'block' : 'none';
+}
+
+function doBulkImport() {
+  const text = document.getElementById('bulkText').value;
+  const cat  = document.getElementById('bulkCat').value;
+  const prio = document.getElementById('bulkPriority').checked;
+  const names = text.split('\n').map(s=>s.trim()).filter(Boolean);
+  if (!names.length) return;
+  const msg = document.getElementById('bulkMsg');
+  msg.style.color='#9aabc5'; msg.textContent='Importing...';
+  fetch('/api/brands/bulk', {
+    method:'POST', headers:{'Content-Type':'application/json'},
+    body: JSON.stringify({names, category: cat, is_priority: prio})
+  }).then(r=>r.json()).then(d => {
+    if (d.ok) {
+      msg.style.color='#15803d';
+      msg.textContent=`${d.added} added, ${d.skipped} skipped (duplicates).`;
+      document.getElementById('bulkText').value='';
+      loadBrands();
+    } else { msg.style.color='#b91c1c'; msg.textContent=d.error||'Failed'; }
+  });
+}
+
+function loadDefaults() {
+  if (!confirm('Load all FMCG default brands (NIVEA, Bench, Garnier, Maybelline, etc.)?\nDuplicates will be skipped automatically.')) return;
+  fetch('/api/brands/load-defaults', {method:'POST'})
+    .then(r=>r.json()).then(d => {
+      if (d.ok) {
+        alert(`Done!\n${d.added} brands added as ⭐ Priority.\n${d.skipped} already existed (skipped).`);
+        loadBrands();
+      } else { alert(d.error||'Failed'); }
+    });
+}
+
+function escH(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+loadBrands();
+</script>
+{% endblock %}

@@ -474,6 +474,9 @@
     <a href="{{ url_for('admin_users') }}" class="nav-link py-1 px-0" style="margin:0;font-size:12px;color:#7c3aed;font-weight:700">
       <i class="bi bi-people-fill"></i> User Management
     </a>
+    <a href="{{ url_for('admin_brands') }}" class="nav-link py-1 px-0 {% if request.endpoint == 'admin_brands' %}active-purple{% endif %}" style="margin:0;font-size:12px;color:#7c3aed;font-weight:700">
+      <i class="bi bi-tags-fill"></i> Brand Management
+    </a>
     <a href="{{ url_for('city_mapping') }}" class="nav-link py-1 px-0" style="margin:0;font-size:12px;color:#7c3aed;font-weight:700">
       <i class="bi bi-geo-alt-fill"></i> City Normalization
     </a>

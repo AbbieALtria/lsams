@@ -292,40 +292,7 @@ let allBrands    = [];
 let brandLibOpen = false;
 let activeCat    = '';
 
-/* ── Priority brands per category ── */
-const TRENDING_BRANDS = {
-  'FMCG': [
-    'NIVEA','Bench','Garnier',"Kiehl's",'Jo Malone London','Glad2Glow',
-    '17 MILE','7D','Absidy Beauty','Aesop','Aficionado','AGRILIFE','Aiwibi','Akeeva',
-    'All About Baking','All Covered','Anastasia Beverly Hills','Anchor','Andrea Secret',
-    'Aozi','Apruva','Ashley','Ashley Beauty Lines','Ashley Hair Fashion','Athlene Nutrition',
-    'AUGEAS','Auro Chocolate','AVEDA','AXIS-Y','B Coffee Co','Baby First','Babyflo',
-    'BabyPal','Baltra','BAONEO','barenbliss','Be Organic','Bean','Beauty & Co',
-    "Belle's Pantry Essentials",'Belo Essentials','Benefit','Benzac','Berber',
-    'Beybiko Diapers','Bioré','Bioten','Birch Tree','Bluenotes','Bobbi Brown',
-    'Bremod','BritePH','BYS','Camou Men','Careline','Caress','CASSIEL-PET',
-    'CheezUp','Chicco','Child Care','ChuChu Beauty','Cimory','Clarins','Clinique',
-    'CloudBeauty','COCO FALL IN LOVE WITH','COCOBB','Coffee Grounds PH',
-    'Coffee N Tea Essentials','Colourette','Cotton Central','Cuddly','Curve',
-    'DAZZLE ME','Deoproce','Dermorepubliq.','Dewha','Dr Alvin Products',
-    'Dr. Sensitive','Dr.Isla','Dr.Leo','DW (Danie Wang)','eelhoe','Einmilk',
-    'Elizabeth Arden','Enchen','Enfagrow','Enfant','EQ','Eqqualberry',
-    'Estée Lauder','Euro Chef','Euromed','Ever Bilena','face republic',
-    'FITGUM','Focallure','FOCANO','GAIFEEL','Glutamax','GMEELAN','Gold Leaf',
-    'Golden Grains','GOODEST','Goodies Nutrition','GRAFEN','Greenika','Greenola',
-    'GRWM Cosmetics','Happy','Happy Life Organics',"Harvester's",'Hegen',
-    'HeroKiddy','Human Nature','ICIC','inJoy','Inspi Babies','IPI',
-    'iWhite Korea','Japan Home Centre','Jergens','JMCY','Just Love','Kalbe',
-    'Kapok','Kérastase','KINETIQQ','Kirkland Signature','KISS','Kleenfant','KMY',
-    'La Mer','Lactezin','Laura Mercier','Lactum',"L'Occitane",'Love k-derma',
-    'Love k-glow','Lucky Beauty Inc.','Lucky Me!','Luxe Organix','LUXU',
-    'M·A·C',"Mama's Choice",'Masko.','Master Chef','MCY','Maximo Trading',
-    'Maybelline','Medela','MELEDE','Mentholatum',
-  ],
-  'Electronics':            [],
-  'Fashions & Accessories': [],
-  'General Merchandise':    [],
-};
+/* brands loaded dynamically from DB via /api/brands */
 
 /* ── Philippine cities by region ── */
 const PH_CITIES_GROUPED = [
@@ -370,26 +337,27 @@ function getCity() {
   return inp ? inp.value.trim() : '';
 }
 
-/* ── Brand dropdown ── */
+/* ── Brand dropdown (all brands from DB, priority first) ── */
 function buildBrandDropdown(cat) {
   const sel = document.getElementById('scoutBrandSelect');
   if (!sel) return;
-  const trending = cat ? (TRENDING_BRANDS[cat] || [])
-                       : Object.values(TRENDING_BRANDS).flat().slice(0, 12);
-  const trendingLower = trending.map(t => t.toLowerCase());
-  const dbBrands = allBrands.filter(b => !cat || b.category === cat).map(b => b.name);
-  const dbOnly   = dbBrands.filter(n => !trendingLower.includes(n.toLowerCase()));
+  const filtered  = cat ? allBrands.filter(b => b.category === cat) : allBrands;
+  const priority  = filtered.filter(b => b.is_priority);
+  const normal    = filtered.filter(b => !b.is_priority);
 
   let html = '<option value="">— Choose a brand —</option>';
-  if (trending.length) {
-    html += '<optgroup label="🔥 Trending in Philippines">';
-    trending.forEach(t => { html += `<option value="${escH(t)}">${escH(t)}</option>`; });
+  if (priority.length) {
+    html += '<optgroup label="⭐ Priority Brands">';
+    priority.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
     html += '</optgroup>';
   }
-  if (dbOnly.length) {
-    html += `<optgroup label="📋 Brand Library${cat ? ' · ' + cat : ''}">`;
-    dbOnly.forEach(n => { html += `<option value="${escH(n)}">${escH(n)}</option>`; });
+  if (normal.length) {
+    html += `<optgroup label="📋 All Brands${cat ? ' · ' + cat : ''}">`;
+    normal.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
     html += '</optgroup>';
+  }
+  if (!priority.length && !normal.length) {
+    html += '<option value="" disabled>No brands yet — add via Brand Management</option>';
   }
   html += '<option value="__other__">✏️ Type your own keyword...</option>';
   sel.innerHTML = html;

@@ -130,6 +130,14 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
+    # Add is_priority to brands table
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE brands ADD COLUMN is_priority BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Create campaigns and campaign_priority_log tables if not exist, then seed Legacy campaign
     with db.engine.connect() as _conn:
         try:
@@ -940,10 +948,49 @@ def api_prospect_add_lead():
     return jsonify({'ok': True, 'lead_id': lead.id, 'url': url_for('lead_detail', lead_id=lead.id)})
 
 
-# ── Brand Library (Prospect Scout) ──────────────────────────────────────────
+# ── Brand Management ─────────────────────────────────────────────────────────
+
+_FMCG_DEFAULTS = [
+    'NIVEA','Bench','Garnier',"Kiehl's",'Jo Malone London','Glad2Glow',
+    '17 MILE','7D','Absidy Beauty','Aesop','Aficionado','AGRILIFE','Aiwibi','Akeeva',
+    'All About Baking','All Covered','Anastasia Beverly Hills','Anchor','Andrea Secret',
+    'Aozi','Apruva','Ashley','Ashley Beauty Lines','Ashley Hair Fashion','Athlene Nutrition',
+    'AUGEAS','Auro Chocolate','AVEDA','AXIS-Y','B Coffee Co','Baby First','Babyflo',
+    'BabyPal','Baltra','BAONEO','barenbliss','Be Organic','Bean','Beauty & Co',
+    "Belle's Pantry Essentials",'Belo Essentials','Benefit','Benzac','Berber',
+    'Beybiko Diapers','Bioré','Bioten','Birch Tree','Bluenotes','Bobbi Brown',
+    'Bremod','BritePH','BYS','Camou Men','Careline','Caress','CASSIEL-PET',
+    'CheezUp','Chicco','Child Care','ChuChu Beauty','Cimory','Clarins','Clinique',
+    'CloudBeauty','COCO FALL IN LOVE WITH','COCOBB','Coffee Grounds PH',
+    'Coffee N Tea Essentials','Colourette','Cotton Central','Cuddly','Curve',
+    'DAZZLE ME','Deoproce','Dermorepubliq.','Dewha','Dr Alvin Products',
+    'Dr. Sensitive','Dr.Isla','Dr.Leo','DW (Danie Wang)','eelhoe','Einmilk',
+    'Elizabeth Arden','Enchen','Enfagrow','Enfant','EQ','Eqqualberry',
+    'Estée Lauder','Euro Chef','Euromed','Ever Bilena','face republic',
+    'FITGUM','Focallure','FOCANO','GAIFEEL','Glutamax','GMEELAN','Gold Leaf',
+    'Golden Grains','GOODEST','Goodies Nutrition','GRAFEN','Greenika','Greenola',
+    'GRWM Cosmetics','Happy','Happy Life Organics',"Harvester's",'Hegen',
+    'HeroKiddy','Human Nature','ICIC','inJoy','Inspi Babies','IPI',
+    'iWhite Korea','Japan Home Centre','Jergens','JMCY','Just Love','Kalbe',
+    'Kapok','Kérastase','KINETIQQ','Kirkland Signature','KISS','Kleenfant','KMY',
+    'La Mer','Lactezin','Laura Mercier','Lactum',"L'Occitane",'Love k-derma',
+    'Love k-glow','Lucky Beauty Inc.','Lucky Me!','Luxe Organix','LUXU',
+    "M·A·C","Mama's Choice",'Masko.','Master Chef','MCY','Maximo Trading',
+    'Maybelline','Medela','MELEDE','Mentholatum',
+]
+
+_BRAND_CATEGORIES = ['FMCG', 'Electronics', 'Fashions & Accessories', 'General Merchandise']
 
 def _can_manage_brands():
     return current_user.role in ('superadmin', 'admin', 'lazada')
+
+@app.route('/admin/brands')
+@login_required
+def admin_brands():
+    if not _can_manage_brands():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('admin/brands.html', categories=_BRAND_CATEGORIES)
 
 @app.route('/api/brands', methods=['GET'])
 @login_required
@@ -954,9 +1001,13 @@ def api_brands_list():
     q = Brand.query.filter_by(is_active=True)
     if cat:
         q = q.filter_by(category=cat)
-    brands = q.order_by(Brand.category, Brand.name).all()
+    brands = q.order_by(Brand.is_priority.desc(), Brand.name).all()
     return jsonify({
-        'brands': [{'id': b.id, 'name': b.name, 'category': b.category} for b in brands],
+        'brands': [{
+            'id': b.id, 'name': b.name, 'category': b.category,
+            'is_priority': bool(b.is_priority),
+            'added_by_name': b.adder.display_name if b.adder else '—',
+        } for b in brands],
         'can_manage': _can_manage_brands(),
     })
 
@@ -967,15 +1018,32 @@ def api_brands_add():
         return jsonify({'error': 'Access denied'}), 403
     data = request.get_json()
     name = (data.get('name') or '').strip()
-    cat  = (data.get('category') or 'Others').strip()
+    cat  = (data.get('category') or 'FMCG').strip()
+    is_priority = bool(data.get('is_priority', False))
     if not name:
         return jsonify({'error': 'Brand name required'}), 400
     if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
         return jsonify({'error': 'Brand already exists'}), 409
-    b = Brand(name=name, category=cat, added_by=current_user.id)
+    b = Brand(name=name, category=cat, is_priority=is_priority, added_by=current_user.id)
     db.session.add(b)
     db.session.commit()
-    return jsonify({'ok': True, 'id': b.id, 'name': b.name, 'category': b.category})
+    return jsonify({'ok': True, 'id': b.id, 'name': b.name, 'category': b.category, 'is_priority': b.is_priority})
+
+@app.route('/api/brands/<int:brand_id>', methods=['PUT'])
+@login_required
+def api_brands_update(brand_id):
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    b = Brand.query.get_or_404(brand_id)
+    data = request.get_json()
+    if 'name' in data and data['name'].strip():
+        b.name = data['name'].strip()
+    if 'category' in data:
+        b.category = data['category'].strip()
+    if 'is_priority' in data:
+        b.is_priority = bool(data['is_priority'])
+    db.session.commit()
+    return jsonify({'ok': True})
 
 @app.route('/api/brands/<int:brand_id>', methods=['DELETE'])
 @login_required
@@ -986,6 +1054,40 @@ def api_brands_delete(brand_id):
     b.is_active = False
     db.session.commit()
     return jsonify({'ok': True})
+
+@app.route('/api/brands/bulk', methods=['POST'])
+@login_required
+def api_brands_bulk():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    names = [n.strip() for n in (data.get('names') or []) if str(n).strip()]
+    cat  = (data.get('category') or 'FMCG').strip()
+    is_priority = bool(data.get('is_priority', False))
+    added = skipped = 0
+    for name in names:
+        if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+            skipped += 1
+        else:
+            db.session.add(Brand(name=name, category=cat, is_priority=is_priority, added_by=current_user.id))
+            added += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'added': added, 'skipped': skipped})
+
+@app.route('/api/brands/load-defaults', methods=['POST'])
+@login_required
+def api_brands_load_defaults():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    added = skipped = 0
+    for name in _FMCG_DEFAULTS:
+        if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+            skipped += 1
+        else:
+            db.session.add(Brand(name=name, category='FMCG', is_priority=True, added_by=current_user.id))
+            added += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'added': added, 'skipped': skipped})
 
 
 @app.route('/leads/radar')
