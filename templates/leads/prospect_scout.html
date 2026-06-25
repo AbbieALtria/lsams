@@ -6,7 +6,7 @@
   display:inline-flex;align-items:center;gap:4px;border-radius:20px;
   padding:3px 10px;font-size:11px;font-weight:700;
 }
-.badge-shopee   { background:#EE4D2D22;color:#EE4D2D; }
+.badge-coffee   { background:#EE4D2D22;color:#EE4D2D; }
 .badge-tiktok   { background:#00000015;color:#111; }
 .badge-facebook { background:#1877F222;color:#1877F2; }
 .badge-rrld     { background:#7c3aed22;color:#7c3aed; }
@@ -17,12 +17,12 @@
 .scout-card:hover { box-shadow:0 4px 18px rgba(139,43,226,.12); }
 .scout-card.is-rrld { border-color:#7c3aed44;background:linear-gradient(135deg,#FAF7FF,white); }
 .scout-card.in-system { border-color:#15803d44;background:linear-gradient(135deg,#F0FDF4,white); }
-.rrld-crown { color:#7c3aed;font-size:13px;font-weight:800; }
-.in-system-tag { color:#15803d;font-size:11px;font-weight:700; }
-.score-bar { height:5px;border-radius:3px;background:#E8E4EE;overflow:hidden;margin-top:4px; }
+.score-bar  { height:5px;border-radius:3px;background:#E8E4EE;overflow:hidden;margin-top:4px; }
 .score-fill { height:100%;border-radius:3px;background:linear-gradient(90deg,#8B2BE2,#F5225B); }
-#resultsArea { display:none; }
-#emptyState  { display:none;text-align:center;padding:48px 0;color:#9aabc5; }
+.city-chip  {
+  display:inline-block;background:#1F386415;color:#1F3864;border-radius:20px;
+  padding:4px 12px;font-size:12px;font-weight:700;margin:2px;
+}
 .spin { animation:spin .8s linear infinite; }
 @keyframes spin { to { transform:rotate(360deg); } }
 </style>
@@ -34,64 +34,104 @@
     <div class="page-title">
       <i class="bi bi-radar me-2" style="color:#7c3aed"></i>Prospect Scout
     </div>
-    <div style="font-size:12px;color:#9aabc5">Discover potential Lazada sellers on Shopee, TikTok &amp; Facebook</div>
+    <div style="font-size:12px;color:#9aabc5">
+      Discover potential Lazada sellers on Coffee, TikTok, Facebook &amp; local trade networks
+    </div>
   </div>
   <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">
     <i class="bi bi-arrow-left me-1"></i>Back to Leads
   </a>
 </div>
 
-{% if serp_status == 'ok' %}
-<div class="alert mb-3" style="background:#DCFCE7;border:1.5px solid #86EFAC;border-radius:12px;color:#15803d">
-  <i class="bi bi-check-circle-fill me-2"></i>
-  <strong>SerpAPI connected.</strong>
-  {{ serp_plan }}
-</div>
-{% elif serp_status == 'invalid' %}
-<div class="alert mb-3" style="background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:12px;color:#b91c1c">
-  <i class="bi bi-x-circle-fill me-2"></i>
-  <strong>Invalid API key.</strong> The key was found but SerpAPI rejected it. Please check the key in Railway Variables and re-deploy.
-</div>
-{% elif serp_status == 'error' %}
-<div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
-  <i class="bi bi-exclamation-triangle-fill me-2"></i>
-  <strong>Could not reach SerpAPI.</strong> The key is set but the connection timed out. Check your network or try again.
-</div>
-{% else %}
-<div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
-  <i class="bi bi-exclamation-triangle-fill me-2"></i>
-  <strong>SERPAPI_KEY not set.</strong> Add it to your Railway environment variables to enable live search.
-</div>
+{# ── SerpAPI status — admin/superadmin only ── #}
+{% if current_user.is_admin %}
+  {% if serp_status == 'ok' %}
+  <div class="alert mb-3" style="background:#DCFCE7;border:1.5px solid #86EFAC;border-radius:12px;color:#15803d">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <strong>SerpAPI connected.</strong> {{ serp_plan }}
+  </div>
+  {% elif serp_status == 'invalid' %}
+  <div class="alert mb-3" style="background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:12px;color:#b91c1c">
+    <i class="bi bi-x-circle-fill me-2"></i>
+    <strong>Invalid API key.</strong> Check SERPAPI_KEY in Railway Variables.
+  </div>
+  {% elif serp_status == 'error' %}
+  <div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>Could not reach SerpAPI.</strong> Connection timed out — try again.
+  </div>
+  {% else %}
+  <div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>SERPAPI_KEY not set.</strong> Add it to Railway environment variables.
+  </div>
+  {% endif %}
 {% endif %}
 
 <!-- SEARCH FORM -->
 <div class="card mb-4" style="border-radius:16px;border:1.5px solid #EDE8F5">
   <div class="card-body p-4">
     <div class="row g-3">
+
+      <!-- Keyword -->
       <div class="col-md-4">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
           <i class="bi bi-search me-1"></i>What to look for *
         </label>
-        <input type="text" id="scoutKeyword" class="form-control" placeholder="e.g. beauty, food, fashion, electronics"
-               value="">
+        <input type="text" id="scoutKeyword" class="form-control"
+               placeholder="e.g. beauty, food, fashion, electronics">
       </div>
+
+      <!-- City field — role-based -->
       <div class="col-md-3">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
           <i class="bi bi-geo-alt me-1"></i>City / Province
+          {% if user_role == 'gabay' %}
+          <span style="color:#E07B00;font-size:10px">(your territory)</span>
+          {% elif not see_all_cities %}
+          <span style="color:#9aabc5;font-size:10px">(one city)</span>
+          {% else %}
+          <span style="color:#9aabc5;font-size:10px">(all cities)</span>
+          {% endif %}
         </label>
-        <input type="text" id="scoutCity" class="form-control" placeholder="e.g. Pampanga, Cebu, Manila">
+
+        {% if user_role == 'gabay' and user_cities %}
+          {# Gabay: show their assigned cities as chips, locked #}
+          <div style="background:#F8FAFD;border:1px solid #E0E6EF;border-radius:10px;padding:8px 10px">
+            {% for c in user_cities %}
+            <span class="city-chip">{{ c.title() }}</span>
+            {% endfor %}
+          </div>
+          <input type="hidden" id="scoutCity" value="{{ user_cities[0] }}">
+          <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+            <i class="bi bi-lock-fill me-1"></i>Searching in your assigned territory
+          </div>
+        {% else %}
+          <input type="text" id="scoutCity" class="form-control"
+                 placeholder="{% if see_all_cities %}e.g. Pampanga, Cebu (or leave blank for all){% else %}Enter city{% endif %}">
+          {% if see_all_cities %}
+          <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+            <i class="bi bi-globe me-1"></i>Leave blank to search all of Philippines
+          </div>
+          {% endif %}
+        {% endif %}
       </div>
+
+      <!-- Platform -->
       <div class="col-md-3">
         <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
           <i class="bi bi-shop me-1"></i>Platform
         </label>
         <select id="scoutPlatform" class="form-select">
           <option value="all">All Platforms</option>
-          <option value="shopee">Shopee PH</option>
-          <option value="tiktok">TikTok Shop</option>
-          <option value="facebook">Facebook</option>
+          <option value="coffee">☕ Coffee</option>
+          <option value="tiktok">🎵 TikTok Shop</option>
+          <option value="facebook">👥 Facebook</option>
+          <option value="rrld">🏪 Retailer / Reseller / Local Distributor</option>
         </select>
       </div>
+
+      <!-- Scout button -->
       <div class="col-md-2 d-flex align-items-end">
         <button id="scoutBtn" onclick="runScout()" class="btn w-100 fw-bold"
                 style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;padding:10px"
@@ -101,12 +141,12 @@
       </div>
     </div>
 
-    <!-- RRLD FILTER -->
+    <!-- Filters row -->
     <div class="d-flex gap-3 mt-3 flex-wrap align-items-center">
       <div class="form-check form-switch mb-0">
         <input class="form-check-input" type="checkbox" id="rrldOnly">
         <label class="form-check-label fw-bold" for="rrldOnly" style="font-size:12px;color:#7c3aed">
-          <i class="bi bi-gem me-1"></i>RRLD Only — Brand / Multi-branch / High-follower sellers
+          <i class="bi bi-gem me-1"></i>RRLD Only — Brand / Multi-branch / High-follower
         </label>
       </div>
       <div class="form-check form-switch mb-0">
@@ -140,14 +180,14 @@
 <div id="loadingState" style="display:none;text-align:center;padding:48px 0">
   <i class="bi bi-radar spin" style="font-size:40px;color:#7c3aed;display:block;margin-bottom:12px"></i>
   <div style="font-weight:700;color:#7c3aed">Scouting across platforms...</div>
-  <div style="font-size:12px;color:#9aabc5;margin-top:4px">Searching Shopee, TikTok &amp; Facebook in Philippines</div>
+  <div style="font-size:12px;color:#9aabc5;margin-top:4px">Searching Coffee, TikTok, Facebook &amp; Trade networks</div>
 </div>
 
-<!-- RESULTS AREA -->
+<!-- RESULTS -->
 <div id="resultsArea"></div>
 
-<!-- EMPTY STATE -->
-<div id="emptyState">
+<!-- EMPTY -->
+<div id="emptyState" style="display:none;text-align:center;padding:48px 0">
   <i class="bi bi-binoculars" style="font-size:48px;display:block;margin-bottom:12px;color:#CBD5E1"></i>
   <div style="font-weight:700;font-size:16px;color:#9aabc5">No prospects found</div>
   <div style="font-size:13px;color:#CBD5E1;margin-top:6px">Try different keywords, city, or platform</div>
@@ -159,24 +199,38 @@
     <i class="bi bi-info-circle me-1"></i>Legend
   </div>
   <div class="d-flex gap-3 flex-wrap" style="font-size:12px">
-    <span><span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span> = Brand / multi-branch / 10K+ followers — high-value target</span>
+    <span><span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span> = Brand / multi-branch / 10K+ followers</span>
     <span><span style="color:#15803d;font-weight:700">● In LSAMS</span> = already in your pipeline</span>
-    <span><span class="platform-badge badge-shopee">Shopee</span>
-          <span class="platform-badge badge-tiktok ms-1">TikTok</span>
-          <span class="platform-badge badge-facebook ms-1">Facebook</span> = source platform</span>
+    <span>
+      <span class="platform-badge badge-coffee">☕ Coffee</span>
+      <span class="platform-badge badge-tiktok ms-1">🎵 TikTok</span>
+      <span class="platform-badge badge-facebook ms-1">👥 Facebook</span>
+      <span class="platform-badge badge-rrld ms-1">🏪 RRLD</span>
+    </span>
   </div>
 </div>
 
 {% endblock %}
 {% block scripts %}
 <script>
+const USER_CITIES = {{ user_cities | tojson }};
+const SEE_ALL     = {{ 'true' if see_all_cities else 'false' }};
+const USER_ROLE   = '{{ user_role }}';
 let allResults = [];
+
+function getCity() {
+  // For gabay with multiple cities, build comma list for API
+  if (USER_ROLE === 'gabay' && USER_CITIES.length) {
+    return USER_CITIES.join(',');
+  }
+  return document.getElementById('scoutCity').value.trim();
+}
 
 function runScout() {
   const kw = document.getElementById('scoutKeyword').value.trim();
   if (!kw) { alert('Please enter a keyword first'); return; }
 
-  const city     = document.getElementById('scoutCity').value.trim();
+  const city     = getCity();
   const platform = document.getElementById('scoutPlatform').value;
 
   document.getElementById('loadingState').style.display = 'block';
@@ -191,14 +245,11 @@ function runScout() {
     .then(data => {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('scoutBtn').disabled = false;
-      if (data.error) {
-        alert('Scout error: ' + data.error);
-        return;
-      }
+      if (data.error) { alert('Scout error: ' + data.error); return; }
       allResults = data.results || [];
       renderResults();
     })
-    .catch(err => {
+    .catch(() => {
       document.getElementById('loadingState').style.display = 'none';
       document.getElementById('scoutBtn').disabled = false;
       alert('Network error. Please try again.');
@@ -206,9 +257,8 @@ function runScout() {
 }
 
 function renderResults() {
-  const rrldOnly    = document.getElementById('rrldOnly').checked;
-  const hideSystem  = document.getElementById('hideInSystem').checked;
-
+  const rrldOnly   = document.getElementById('rrldOnly').checked;
+  const hideSystem = document.getElementById('hideInSystem').checked;
   let filtered = allResults.filter(r => {
     if (rrldOnly && !r.is_rrld) return false;
     if (hideSystem && r.in_system) return false;
@@ -223,58 +273,56 @@ function renderResults() {
     document.getElementById('resultsArea').style.display = 'none';
     return;
   }
-
   document.getElementById('emptyState').style.display = 'none';
   document.getElementById('resultsArea').style.display = 'block';
 
-  const plat_colors = { shopee:'#EE4D2D', tiktok:'#111111', facebook:'#1877F2' };
-  const plat_icons  = { shopee:'🛍', tiktok:'🎵', facebook:'👥' };
+  const PLAT_LABELS = { coffee:'☕ Coffee', tiktok:'🎵 TikTok', facebook:'👥 Facebook', rrld:'🏪 RRLD' };
+  const PLAT_CLASS  = { coffee:'badge-coffee', tiktok:'badge-tiktok', facebook:'badge-facebook', rrld:'badge-rrld' };
 
   const html = filtered.map(r => {
-    const pColor = plat_colors[r.platform] || '#9aabc5';
-    const pIcon  = plat_icons[r.platform] || '🌐';
-    const pClass = `badge-${r.platform}`;
-    const scoreW = Math.max(4, r.rrld_score);
-
-    const tags = r.rrld_tags.map(t =>
+    const pLabel = PLAT_LABELS[r.platform] || r.platform;
+    const pClass = PLAT_CLASS[r.platform]  || 'badge-rrld';
+    const tags   = r.rrld_tags.map(t =>
       `<span style="background:#7c3aed11;color:#7c3aed;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700">${t}</span>`
     ).join(' ');
-
-    const statusBadge = r.in_system
-      ? `<span class="in-system-tag"><i class="bi bi-check-circle-fill me-1"></i>Already in LSAMS
-         ${r.existing_status ? `<a href="/leads/${r.existing_id}" target="_blank" style="color:#15803d;margin-left:4px">(${r.existing_status})</a>` : ''}</span>`
-      : '';
-
+    const systemTag = r.in_system
+      ? `<span style="color:#15803d;font-size:11px;font-weight:700">
+           <i class="bi bi-check-circle-fill me-1"></i>In LSAMS
+           ${r.existing_status ? `<a href="/leads/${r.existing_id}" target="_blank"
+             style="color:#15803d;margin-left:4px">(${r.existing_status})</a>` : ''}
+         </span>` : '';
+    const rrldBadge = r.is_rrld
+      ? `<span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span>` : '';
     const addBtn = r.in_system ? '' :
-      `<button onclick="addToLeads(this, '${escHtml(r.shop_name)}', '${r.platform}', '${escHtml(r.url)}', '${escHtml(r.snippet.substring(0,200))}')"
-         class="btn btn-sm fw-bold" style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;white-space:nowrap">
+      `<button onclick="addToLeads(this,'${escH(r.shop_name)}','${r.platform}','${escH(r.url)}','${escH(r.snippet.substring(0,200))}')"
+         class="btn btn-sm fw-bold"
+         style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;white-space:nowrap">
          <i class="bi bi-plus-circle me-1"></i>Add to Leads
        </button>`;
 
-    const rrldBadge = r.is_rrld
-      ? `<span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span>` : '';
-
     return `
-    <div class="scout-card ${r.is_rrld ? 'is-rrld' : ''} ${r.in_system ? 'in-system' : ''}">
+    <div class="scout-card ${r.is_rrld?'is-rrld':''} ${r.in_system?'in-system':''}">
       <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
         <div style="flex:1;min-width:0">
           <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
-            <span class="fw-bold" style="font-size:14px;color:#1A1A2E">${escHtml(r.shop_name)}</span>
-            <span class="platform-badge ${pClass}">${pIcon} ${r.platform.charAt(0).toUpperCase()+r.platform.slice(1)}</span>
+            <span class="fw-bold" style="font-size:14px;color:#1A1A2E">${escH(r.shop_name)}</span>
+            <span class="platform-badge ${pClass}">${pLabel}</span>
             ${rrldBadge}
-            ${statusBadge}
+            ${systemTag}
           </div>
-          <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:6px">${escHtml(r.snippet)}</div>
+          <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:6px">${escH(r.snippet)}</div>
           ${tags ? `<div class="d-flex gap-1 flex-wrap mb-2">${tags}</div>` : ''}
           ${r.rrld_score > 0 ? `
-          <div style="font-size:10px;color:#9aabc5;margin-bottom:4px">RRLD Score: ${r.rrld_score}</div>
-          <div class="score-bar" style="max-width:140px"><div class="score-fill" style="width:${scoreW}%"></div></div>
-          ` : ''}
+            <div style="font-size:10px;color:#9aabc5;margin-bottom:3px">RRLD Score: ${r.rrld_score}</div>
+            <div class="score-bar" style="max-width:140px">
+              <div class="score-fill" style="width:${Math.max(4,r.rrld_score)}%"></div>
+            </div>` : ''}
         </div>
         <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
           ${addBtn}
-          <a href="${escHtml(r.url)}" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size:11px">
-            <i class="bi bi-box-arrow-up-right me-1"></i>View Profile
+          <a href="${escH(r.url)}" target="_blank"
+             class="btn btn-sm btn-outline-secondary" style="font-size:11px">
+            <i class="bi bi-box-arrow-up-right me-1"></i>View
           </a>
         </div>
       </div>
@@ -285,36 +333,36 @@ function renderResults() {
 }
 
 function addToLeads(btn, name, platform, url, snippet) {
-  const city = document.getElementById('scoutCity').value.trim();
+  const city       = getCity();
   const campaignId = document.getElementById('targetCampaign').value;
   btn.disabled = true;
   btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Adding...';
   fetch('/api/prospect/add-lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shop_name: name, platform, url, snippet, city, campaign_id: campaignId || null })
+    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null })
   })
   .then(r => r.json())
   .then(d => {
     if (d.ok) {
       btn.outerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
         style="background:#dcfce7;color:#15803d;font-size:11px">
-        <i class="bi bi-check-circle-fill me-1"></i>Added to Leads</a>`;
+        <i class="bi bi-check-circle-fill me-1"></i>Added</a>`;
     } else {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Leads';
-      alert(d.error || 'Failed to add lead');
+      alert(d.error || 'Failed');
     }
   });
 }
 
-function escHtml(s) {
-  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+function escH(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
 }
 
 document.getElementById('rrldOnly').addEventListener('change', renderResults);
 document.getElementById('hideInSystem').addEventListener('change', renderResults);
-
 document.getElementById('scoutKeyword').addEventListener('keydown', e => {
   if (e.key === 'Enter') runScout();
 });
