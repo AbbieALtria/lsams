@@ -41,13 +41,26 @@
   </a>
 </div>
 
-{% if not serp_configured %}
-<div class="alert" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+{% if serp_status == 'ok' %}
+<div class="alert mb-3" style="background:#DCFCE7;border:1.5px solid #86EFAC;border-radius:12px;color:#15803d">
+  <i class="bi bi-check-circle-fill me-2"></i>
+  <strong>SerpAPI connected.</strong>
+  {{ serp_plan }}
+</div>
+{% elif serp_status == 'invalid' %}
+<div class="alert mb-3" style="background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:12px;color:#b91c1c">
+  <i class="bi bi-x-circle-fill me-2"></i>
+  <strong>Invalid API key.</strong> The key was found but SerpAPI rejected it. Please check the key in Railway Variables and re-deploy.
+</div>
+{% elif serp_status == 'error' %}
+<div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
   <i class="bi bi-exclamation-triangle-fill me-2"></i>
-  <strong>SerpAPI not configured.</strong>
-  The Prospect Scout uses Google Search via SerpAPI to find sellers.
-  Add <code>SERPAPI_KEY</code> to your Railway environment variables to enable live search.
-  Get a free key at <strong>serpapi.com</strong>.
+  <strong>Could not reach SerpAPI.</strong> The key is set but the connection timed out. Check your network or try again.
+</div>
+{% else %}
+<div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <strong>SERPAPI_KEY not set.</strong> Add it to your Railway environment variables to enable live search.
 </div>
 {% endif %}
 

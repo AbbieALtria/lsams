@@ -747,11 +747,30 @@ def prospect_scout():
         return redirect(url_for('dashboard'))
     gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority).all()
-    serp_key = os.environ.get('SERPAPI_KEY', '')
+    serp_key = os.environ.get('SERPAPI_KEY', '').strip()
+    # Quick live test — call SerpAPI account info to confirm key is valid
+    serp_status = 'not_set'
+    serp_plan = ''
+    if serp_key:
+        try:
+            import requests as _req
+            r = _req.get('https://serpapi.com/account', params={'api_key': serp_key}, timeout=8)
+            if r.ok:
+                info = r.json()
+                remaining = info.get('plan_searches_left', '?')
+                plan_name = info.get('plan_name', '')
+                serp_status = 'ok'
+                serp_plan = f"{plan_name} · {remaining} searches left"
+            else:
+                serp_status = 'invalid'
+        except Exception:
+            serp_status = 'error'
     return render_template('leads/prospect_scout.html',
                            gabay_users=gabay_users,
                            campaigns=campaigns,
-                           serp_configured=bool(serp_key))
+                           serp_configured=serp_status == 'ok',
+                           serp_status=serp_status,
+                           serp_plan=serp_plan)
 
 
 @app.route('/api/prospect/scout')
