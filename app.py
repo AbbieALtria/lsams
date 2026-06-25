@@ -1941,8 +1941,13 @@ def voice_transcribe():
 
     # ── Step 1: Transcribe with Whisper (auto-detects language) ──────────────
     try:
-        import openai as _openai
-        client = _openai.OpenAI(api_key=openai_key)
+        import openai as _openai, httpx as _httpx
+        # Use a plain httpx client so Railway's HTTPS_PROXY env var doesn't get
+        # injected as a 'proxies' kwarg — removed in openai-python >= 1.x
+        client = _openai.OpenAI(
+            api_key=openai_key,
+            http_client=_httpx.Client(),
+        )
         audio_bytes = audio_file.read()
         import io as _io
         audio_io = _io.BytesIO(audio_bytes)
