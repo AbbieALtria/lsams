@@ -6471,6 +6471,12 @@ def supervisor_tutorial_print():
     return render_template('tutorial_supervisor_print.html')
 
 
+@app.route('/gabay/offline')
+def gabay_offline():
+    """Offline fallback page — served by SW when network is unavailable."""
+    return render_template('gabay_app/offline.html')
+
+
 @app.route('/gabay/app/tutorial/print')
 @login_required
 def gabay_tutorial_print():
