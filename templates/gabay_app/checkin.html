@@ -484,7 +484,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if (navigator.geolocation && !document.getElementById('gps_lat').value) {
     setTimeout(getLocation, 600);
   }
+  updateVoiceOfflineState();
 });
+window.addEventListener('online',  updateVoiceOfflineState);
+window.addEventListener('offline', updateVoiceOfflineState);
 
 function getLocation() {
   const btn = document.getElementById('gpsBtn');
@@ -685,7 +688,27 @@ const OUTCOME_LABELS = {
   rejected:     { label: 'Rejected',    color: '#991b1b', bg: '#fee2e2' },
 };
 
+function updateVoiceOfflineState() {
+  if (!navigator.onLine) {
+    document.getElementById('voiceMicBtn').disabled = true;
+    document.getElementById('voiceMicBtn').style.opacity = '0.4';
+    document.getElementById('voiceStatus').textContent = 'Needs internet connection';
+    document.getElementById('voiceHint').textContent = 'Voice check-in is unavailable offline — fill the form manually';
+  } else {
+    document.getElementById('voiceMicBtn').disabled = false;
+    document.getElementById('voiceMicBtn').style.opacity = '1';
+    if (!isRecording) {
+      document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
+      document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
+    }
+  }
+}
+
 async function toggleRecording() {
+  if (!navigator.onLine) {
+    updateVoiceOfflineState();
+    return;
+  }
   if (isRecording) {
     stopRecording();
   } else {
@@ -852,10 +875,14 @@ async function sendAudio(mimeType, stream) {
     document.getElementById('voiceMicBtn').textContent = '✅';
 
   } catch (err) {
-    document.getElementById('voiceStatus').textContent = 'Could not reach server';
-    document.getElementById('voiceHint').textContent = 'Check your connection and try again';
+    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server';
+    document.getElementById('voiceStatus').textContent = offlineMsg;
+    document.getElementById('voiceHint').textContent = !navigator.onLine
+      ? 'Fill the form manually — it saves offline automatically'
+      : 'Check your connection and try again';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '🎙';
+    updateVoiceOfflineState();
   }
 }
 
