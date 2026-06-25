@@ -678,7 +678,16 @@ def leads():
             Lead.seller_name.ilike(f'%{search}%'),
             Lead.sender_name.ilike(f'%{search}%'),
             Lead.contact_number.ilike(f'%{search}%'),
-            Lead.city.ilike(f'%{search}%')
+            Lead.city.ilike(f'%{search}%'),
+            Lead.barangay.ilike(f'%{search}%'),
+            Lead.province.ilike(f'%{search}%'),
+            Lead.address.ilike(f'%{search}%'),
+            Lead.category.ilike(f'%{search}%'),
+            Lead.cluster.ilike(f'%{search}%'),
+            Lead.project.ilike(f'%{search}%'),
+            Lead.lazada_id.ilike(f'%{search}%'),
+            Lead.email.ilike(f'%{search}%'),
+            Lead.notes.ilike(f'%{search}%'),
         ))
 
     pagination = query.order_by(Lead.imported_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
@@ -690,6 +699,220 @@ def leads():
                            search=search, gabay_users=gabay_users,
                            campaigns=campaigns, campaign_id=campaign_id,
                            selected_campaign=selected_campaign)
+
+
+# ─── AJAX LIVE SEARCH ────────────────────────────────────────────────────────
+
+@app.route('/api/leads/search')
+@login_required
+def api_leads_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    query = Lead.query
+    if current_user.role == 'gabay':
+        query = query.filter_by(gabay_id=current_user.id)
+    results = query.filter(or_(
+        Lead.seller_name.ilike(f'%{q}%'),
+        Lead.contact_number.ilike(f'%{q}%'),
+        Lead.city.ilike(f'%{q}%'),
+        Lead.barangay.ilike(f'%{q}%'),
+        Lead.province.ilike(f'%{q}%'),
+        Lead.category.ilike(f'%{q}%'),
+        Lead.cluster.ilike(f'%{q}%'),
+        Lead.project.ilike(f'%{q}%'),
+        Lead.address.ilike(f'%{q}%'),
+    )).order_by(Lead.seller_name).limit(12).all()
+    return jsonify([{
+        'id': l.id,
+        'name': l.seller_name,
+        'city': l.city or '',
+        'barangay': l.barangay or '',
+        'province': l.province or '',
+        'status': l.status,
+        'status_label': l.status_label,
+        'category': l.category or '',
+        'gabay': l.assigned_gabay.display_name if l.assigned_gabay else None,
+        'url': url_for('lead_detail', lead_id=l.id)
+    } for l in results])
+
+
+# ─── PROSPECT SCOUT ──────────────────────────────────────────────────────────
+
+@app.route('/prospect-scout')
+@login_required
+def prospect_scout():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority).all()
+    serp_key = os.environ.get('SERPAPI_KEY', '')
+    return render_template('leads/prospect_scout.html',
+                           gabay_users=gabay_users,
+                           campaigns=campaigns,
+                           serp_configured=bool(serp_key))
+
+
+@app.route('/api/prospect/scout')
+@login_required
+def api_prospect_scout():
+    """Search Shopee/TikTok/Facebook for potential sellers using SerpAPI."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+
+    import requests as _req
+
+    keyword = request.args.get('keyword', '').strip()
+    city = request.args.get('city', '').strip()
+    platform = request.args.get('platform', 'all').strip()
+    serp_key = os.environ.get('SERPAPI_KEY', '')
+
+    if not keyword:
+        return jsonify({'error': 'Keyword required'}), 400
+    if not serp_key:
+        return jsonify({'error': 'SERPAPI_KEY not configured. Ask your admin to set it in Railway environment variables.'}), 503
+
+    results = []
+    location_str = f'{city} Philippines' if city else 'Philippines'
+
+    platform_queries = {
+        'shopee':   [f'site:shopee.ph {keyword} {city}', f'shopee.ph seller {keyword} {location_str}'],
+        'tiktok':   [f'site:tiktok.com/shop {keyword} {city}', f'tiktok shop seller {keyword} {location_str}'],
+        'facebook': [f'site:facebook.com {keyword} {city} seller', f'facebook marketplace {keyword} {location_str}'],
+    }
+
+    if platform == 'all':
+        queries = [(p, q) for p, qs in platform_queries.items() for q in qs[:1]]
+    else:
+        queries = [(platform, q) for q in platform_queries.get(platform, [])[:2]]
+
+    seen_urls = set()
+    for plat, q in queries:
+        try:
+            resp = _req.get('https://serpapi.com/search', params={
+                'q': q,
+                'api_key': serp_key,
+                'num': 10,
+                'engine': 'google',
+                'gl': 'ph',
+                'hl': 'en',
+            }, timeout=15)
+            if not resp.ok:
+                continue
+            organic = resp.json().get('organic_results', [])
+            for r in organic:
+                url = r.get('link', '')
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                title = r.get('title', '')
+                snippet = r.get('snippet', '')
+
+                # Detect platform from URL
+                detected = plat
+                if 'shopee.ph' in url:
+                    detected = 'shopee'
+                elif 'tiktok.com' in url:
+                    detected = 'tiktok'
+                elif 'facebook.com' in url:
+                    detected = 'facebook'
+
+                # Skip irrelevant pages (shopee homepage, category pages without shop)
+                if detected == 'shopee' and '/shop/' not in url and '/product/' not in url:
+                    if url.rstrip('/') == 'https://shopee.ph':
+                        continue
+
+                # RRLD scoring — brand/high-value signals in the text
+                combined = (title + ' ' + snippet).lower()
+                rrld_score = 0
+                rrld_tags = []
+                brand_signals = ['official', 'brand', 'authorized', 'verified', '★', 'k followers',
+                                  'k sold', 'top seller', 'mall', 'premium', 'official store']
+                multi_branch = ['branches', 'nationwide', 'nationwide delivery', 'all over ph',
+                                'main branch', 'multiple locations', 'store locator']
+                for sig in brand_signals:
+                    if sig in combined:
+                        rrld_score += 15
+                        rrld_tags.append(sig.title())
+                for sig in multi_branch:
+                    if sig in combined:
+                        rrld_score += 20
+                        rrld_tags.append('Multi-Branch')
+                        break
+                # follower/sales count signals
+                import re as _re
+                numbers = _re.findall(r'(\d[\d.,]+)\s*[kK]\s*(followers|sold|sales|reviews)', snippet)
+                for num, label in numbers:
+                    val = float(num.replace(',', '')) * 1000
+                    if val >= 10000:
+                        rrld_score += 25
+                        rrld_tags.append(f'{num}K {label.title()}')
+
+                rrld_score = min(100, rrld_score)
+                is_rrld = rrld_score >= 30
+
+                # Extract shop name from title (strip platform suffix)
+                shop_name = title
+                for suffix in [' | Shopee Philippines', ' - Shopee', ' | TikTok', ' | Facebook', ' (@', ' - Facebook']:
+                    if suffix in shop_name:
+                        shop_name = shop_name[:shop_name.index(suffix)]
+                shop_name = shop_name.strip()
+
+                # Check if already in LSAMS
+                existing = Lead.query.filter(
+                    Lead.seller_name.ilike(f'%{shop_name[:30]}%') if len(shop_name) > 5 else Lead.id == -1
+                ).first()
+
+                results.append({
+                    'shop_name': shop_name,
+                    'platform': detected,
+                    'url': url,
+                    'snippet': snippet,
+                    'rrld_score': rrld_score,
+                    'rrld_tags': list(set(rrld_tags))[:4],
+                    'is_rrld': is_rrld,
+                    'in_system': existing is not None,
+                    'existing_id': existing.id if existing else None,
+                    'existing_status': existing.status if existing else None,
+                })
+        except Exception as e:
+            continue
+
+    # Sort: RRLD first, then by score
+    results.sort(key=lambda x: (-x['rrld_score'], x['shop_name']))
+    return jsonify({'results': results, 'count': len(results)})
+
+
+@app.route('/api/prospect/add-lead', methods=['POST'])
+@login_required
+def api_prospect_add_lead():
+    """Convert a discovered external prospect into an LSAMS lead."""
+    if not current_user.is_supervisor:
+        return jsonify({'error': 'Access denied'}), 403
+
+    data = request.get_json()
+    if not data or not data.get('shop_name'):
+        return jsonify({'error': 'shop_name required'}), 400
+
+    platform = data.get('platform', '')
+    platform_map = {'shopee': 'SHOPEE', 'tiktok': 'TIKTOK', 'facebook': 'FACEBOOK'}
+
+    lead = Lead(
+        seller_name=data['shop_name'],
+        link=data.get('url', ''),
+        city=data.get('city', ''),
+        notes=f"[Prospect Scout] Found on {platform.title()}. Snippet: {data.get('snippet', '')[:300]}",
+        project=platform_map.get(platform, 'EXTERNAL'),
+        status='pool',
+        campaign_id=data.get('campaign_id') or None,
+        imported_at=datetime.utcnow(),
+        batch_ref=f'scout-{datetime.utcnow().strftime("%Y%m%d")}',
+    )
+    db.session.add(lead)
+    db.session.commit()
+
+    return jsonify({'ok': True, 'lead_id': lead.id, 'url': url_for('lead_detail', lead_id=lead.id)})
 
 
 @app.route('/leads/radar')

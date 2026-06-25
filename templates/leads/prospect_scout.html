@@ -1,0 +1,309 @@
+{% extends "base.html" %}
+{% block title %}Prospect Scout{% endblock %}
+{% block extra_head %}
+<style>
+.platform-badge {
+  display:inline-flex;align-items:center;gap:4px;border-radius:20px;
+  padding:3px 10px;font-size:11px;font-weight:700;
+}
+.badge-shopee   { background:#EE4D2D22;color:#EE4D2D; }
+.badge-tiktok   { background:#00000015;color:#111; }
+.badge-facebook { background:#1877F222;color:#1877F2; }
+.badge-rrld     { background:#7c3aed22;color:#7c3aed; }
+.scout-card {
+  border-radius:14px;border:1.5px solid #E8E4EE;background:white;
+  padding:14px 16px;margin-bottom:10px;transition:box-shadow .15s;
+}
+.scout-card:hover { box-shadow:0 4px 18px rgba(139,43,226,.12); }
+.scout-card.is-rrld { border-color:#7c3aed44;background:linear-gradient(135deg,#FAF7FF,white); }
+.scout-card.in-system { border-color:#15803d44;background:linear-gradient(135deg,#F0FDF4,white); }
+.rrld-crown { color:#7c3aed;font-size:13px;font-weight:800; }
+.in-system-tag { color:#15803d;font-size:11px;font-weight:700; }
+.score-bar { height:5px;border-radius:3px;background:#E8E4EE;overflow:hidden;margin-top:4px; }
+.score-fill { height:100%;border-radius:3px;background:linear-gradient(90deg,#8B2BE2,#F5225B); }
+#resultsArea { display:none; }
+#emptyState  { display:none;text-align:center;padding:48px 0;color:#9aabc5; }
+.spin { animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title">
+      <i class="bi bi-radar me-2" style="color:#7c3aed"></i>Prospect Scout
+    </div>
+    <div style="font-size:12px;color:#9aabc5">Discover potential Lazada sellers on Shopee, TikTok &amp; Facebook</div>
+  </div>
+  <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Leads
+  </a>
+</div>
+
+{% if not serp_configured %}
+<div class="alert" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+  <i class="bi bi-exclamation-triangle-fill me-2"></i>
+  <strong>SerpAPI not configured.</strong>
+  The Prospect Scout uses Google Search via SerpAPI to find sellers.
+  Add <code>SERPAPI_KEY</code> to your Railway environment variables to enable live search.
+  Get a free key at <strong>serpapi.com</strong>.
+</div>
+{% endif %}
+
+<!-- SEARCH FORM -->
+<div class="card mb-4" style="border-radius:16px;border:1.5px solid #EDE8F5">
+  <div class="card-body p-4">
+    <div class="row g-3">
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-search me-1"></i>What to look for *
+        </label>
+        <input type="text" id="scoutKeyword" class="form-control" placeholder="e.g. beauty, food, fashion, electronics"
+               value="">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-geo-alt me-1"></i>City / Province
+        </label>
+        <input type="text" id="scoutCity" class="form-control" placeholder="e.g. Pampanga, Cebu, Manila">
+      </div>
+      <div class="col-md-3">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-shop me-1"></i>Platform
+        </label>
+        <select id="scoutPlatform" class="form-select">
+          <option value="all">All Platforms</option>
+          <option value="shopee">Shopee PH</option>
+          <option value="tiktok">TikTok Shop</option>
+          <option value="facebook">Facebook</option>
+        </select>
+      </div>
+      <div class="col-md-2 d-flex align-items-end">
+        <button id="scoutBtn" onclick="runScout()" class="btn w-100 fw-bold"
+                style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;padding:10px"
+                {% if not serp_configured %}disabled{% endif %}>
+          <i class="bi bi-radar me-1"></i>Scout
+        </button>
+      </div>
+    </div>
+
+    <!-- RRLD FILTER -->
+    <div class="d-flex gap-3 mt-3 flex-wrap align-items-center">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="rrldOnly">
+        <label class="form-check-label fw-bold" for="rrldOnly" style="font-size:12px;color:#7c3aed">
+          <i class="bi bi-gem me-1"></i>RRLD Only — Brand / Multi-branch / High-follower sellers
+        </label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="hideInSystem" checked>
+        <label class="form-check-label" for="hideInSystem" style="font-size:12px;color:#9aabc5">
+          Hide sellers already in LSAMS
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS HEADER -->
+<div id="resultsHeader" style="display:none" class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <span id="resultCount" style="font-weight:800;color:#1A1A2E;font-size:15px">0 prospects</span>
+    <span style="font-size:12px;color:#9aabc5;margin-left:6px">found</span>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span style="font-size:11px;color:#9aabc5">Add to campaign:</span>
+    <select id="targetCampaign" class="form-select form-select-sm" style="max-width:200px">
+      <option value="">No campaign</option>
+      {% for c in campaigns %}
+      <option value="{{ c.id }}">[P{{ c.priority }}] {{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingState" style="display:none;text-align:center;padding:48px 0">
+  <i class="bi bi-radar spin" style="font-size:40px;color:#7c3aed;display:block;margin-bottom:12px"></i>
+  <div style="font-weight:700;color:#7c3aed">Scouting across platforms...</div>
+  <div style="font-size:12px;color:#9aabc5;margin-top:4px">Searching Shopee, TikTok &amp; Facebook in Philippines</div>
+</div>
+
+<!-- RESULTS AREA -->
+<div id="resultsArea"></div>
+
+<!-- EMPTY STATE -->
+<div id="emptyState">
+  <i class="bi bi-binoculars" style="font-size:48px;display:block;margin-bottom:12px;color:#CBD5E1"></i>
+  <div style="font-weight:700;font-size:16px;color:#9aabc5">No prospects found</div>
+  <div style="font-size:13px;color:#CBD5E1;margin-top:6px">Try different keywords, city, or platform</div>
+</div>
+
+<!-- LEGEND -->
+<div class="mt-4 p-3" style="background:#F8F7FF;border-radius:12px;border:1px solid #EDE8F5">
+  <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+    <i class="bi bi-info-circle me-1"></i>Legend
+  </div>
+  <div class="d-flex gap-3 flex-wrap" style="font-size:12px">
+    <span><span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span> = Brand / multi-branch / 10K+ followers — high-value target</span>
+    <span><span style="color:#15803d;font-weight:700">● In LSAMS</span> = already in your pipeline</span>
+    <span><span class="platform-badge badge-shopee">Shopee</span>
+          <span class="platform-badge badge-tiktok ms-1">TikTok</span>
+          <span class="platform-badge badge-facebook ms-1">Facebook</span> = source platform</span>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+let allResults = [];
+
+function runScout() {
+  const kw = document.getElementById('scoutKeyword').value.trim();
+  if (!kw) { alert('Please enter a keyword first'); return; }
+
+  const city     = document.getElementById('scoutCity').value.trim();
+  const platform = document.getElementById('scoutPlatform').value;
+
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsHeader').style.display = 'none';
+  document.getElementById('scoutBtn').disabled = true;
+
+  const url = `/api/prospect/scout?keyword=${encodeURIComponent(kw)}&city=${encodeURIComponent(city)}&platform=${platform}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('scoutBtn').disabled = false;
+      if (data.error) {
+        alert('Scout error: ' + data.error);
+        return;
+      }
+      allResults = data.results || [];
+      renderResults();
+    })
+    .catch(err => {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('scoutBtn').disabled = false;
+      alert('Network error. Please try again.');
+    });
+}
+
+function renderResults() {
+  const rrldOnly    = document.getElementById('rrldOnly').checked;
+  const hideSystem  = document.getElementById('hideInSystem').checked;
+
+  let filtered = allResults.filter(r => {
+    if (rrldOnly && !r.is_rrld) return false;
+    if (hideSystem && r.in_system) return false;
+    return true;
+  });
+
+  document.getElementById('resultCount').textContent = filtered.length + ' prospects';
+  document.getElementById('resultsHeader').style.display = filtered.length ? 'flex' : 'none';
+
+  if (!filtered.length) {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('resultsArea').style.display = 'none';
+    return;
+  }
+
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsArea').style.display = 'block';
+
+  const plat_colors = { shopee:'#EE4D2D', tiktok:'#111111', facebook:'#1877F2' };
+  const plat_icons  = { shopee:'🛍', tiktok:'🎵', facebook:'👥' };
+
+  const html = filtered.map(r => {
+    const pColor = plat_colors[r.platform] || '#9aabc5';
+    const pIcon  = plat_icons[r.platform] || '🌐';
+    const pClass = `badge-${r.platform}`;
+    const scoreW = Math.max(4, r.rrld_score);
+
+    const tags = r.rrld_tags.map(t =>
+      `<span style="background:#7c3aed11;color:#7c3aed;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700">${t}</span>`
+    ).join(' ');
+
+    const statusBadge = r.in_system
+      ? `<span class="in-system-tag"><i class="bi bi-check-circle-fill me-1"></i>Already in LSAMS
+         ${r.existing_status ? `<a href="/leads/${r.existing_id}" target="_blank" style="color:#15803d;margin-left:4px">(${r.existing_status})</a>` : ''}</span>`
+      : '';
+
+    const addBtn = r.in_system ? '' :
+      `<button onclick="addToLeads(this, '${escHtml(r.shop_name)}', '${r.platform}', '${escHtml(r.url)}', '${escHtml(r.snippet.substring(0,200))}')"
+         class="btn btn-sm fw-bold" style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;white-space:nowrap">
+         <i class="bi bi-plus-circle me-1"></i>Add to Leads
+       </button>`;
+
+    const rrldBadge = r.is_rrld
+      ? `<span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span>` : '';
+
+    return `
+    <div class="scout-card ${r.is_rrld ? 'is-rrld' : ''} ${r.in_system ? 'in-system' : ''}">
+      <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <span class="fw-bold" style="font-size:14px;color:#1A1A2E">${escHtml(r.shop_name)}</span>
+            <span class="platform-badge ${pClass}">${pIcon} ${r.platform.charAt(0).toUpperCase()+r.platform.slice(1)}</span>
+            ${rrldBadge}
+            ${statusBadge}
+          </div>
+          <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:6px">${escHtml(r.snippet)}</div>
+          ${tags ? `<div class="d-flex gap-1 flex-wrap mb-2">${tags}</div>` : ''}
+          ${r.rrld_score > 0 ? `
+          <div style="font-size:10px;color:#9aabc5;margin-bottom:4px">RRLD Score: ${r.rrld_score}</div>
+          <div class="score-bar" style="max-width:140px"><div class="score-fill" style="width:${scoreW}%"></div></div>
+          ` : ''}
+        </div>
+        <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
+          ${addBtn}
+          <a href="${escHtml(r.url)}" target="_blank" class="btn btn-sm btn-outline-secondary" style="font-size:11px">
+            <i class="bi bi-box-arrow-up-right me-1"></i>View Profile
+          </a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsArea').innerHTML = html;
+}
+
+function addToLeads(btn, name, platform, url, snippet) {
+  const city = document.getElementById('scoutCity').value.trim();
+  const campaignId = document.getElementById('targetCampaign').value;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Adding...';
+  fetch('/api/prospect/add-lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shop_name: name, platform, url, snippet, city, campaign_id: campaignId || null })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      btn.outerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
+        style="background:#dcfce7;color:#15803d;font-size:11px">
+        <i class="bi bi-check-circle-fill me-1"></i>Added to Leads</a>`;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Leads';
+      alert(d.error || 'Failed to add lead');
+    }
+  });
+}
+
+function escHtml(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+document.getElementById('rrldOnly').addEventListener('change', renderResults);
+document.getElementById('hideInSystem').addEventListener('change', renderResults);
+
+document.getElementById('scoutKeyword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runScout();
+});
+</script>
+{% endblock %}

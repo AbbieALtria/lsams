@@ -16,8 +16,20 @@
 <!-- FILTER BAR -->
 <div class="card mb-3">
   <div class="card-body py-2">
-    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
-      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Search seller, business, city..." style="max-width:220px">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center" id="leadFilterForm">
+      <!-- Live search with autocomplete -->
+      <div style="position:relative;max-width:280px;flex:1 1 200px">
+        <input type="text" name="q" id="leadSearchInput" value="{{ search }}"
+               class="form-control form-control-sm"
+               placeholder="Search name, city, barangay, category..."
+               autocomplete="off"
+               oninput="onSearchInput(this.value)">
+        <div id="searchSuggestions"
+             style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;
+                    background:white;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);
+                    border:1px solid #EDE8F5;max-height:340px;overflow-y:auto;margin-top:2px">
+        </div>
+      </div>
       <select name="status" class="form-select form-select-sm" style="max-width:160px">
         <option value="">All Statuses</option>
         {% for s in ['pool','assigned','attempting','negotiation','registration','live','matched','closed'] %}
@@ -40,6 +52,12 @@
       {% endif %}
       <button type="submit" class="btn btn-sm btn-primary">Filter</button>
       <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+      {% if current_user.is_supervisor %}
+      <a href="{{ url_for('prospect_scout') }}" class="btn btn-sm fw-bold ms-auto"
+         style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;white-space:nowrap">
+        <i class="bi bi-radar me-1"></i>Prospect Scout
+      </a>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -156,6 +174,59 @@ function updateBulkBar() {
     if (cnt) cnt.textContent = checked + ' selected';
   }
 }
+
+/* ── Live Search Autocomplete ── */
+let _searchTimer = null;
+const STATUS_COLORS = {
+  pool:'#6b7280', assigned:'#1565C0', attempting:'#d97706',
+  negotiation:'#0d9488', registration:'#7c3aed', live:'#15803d',
+  matched:'#15803d', closed:'#dc2626'
+};
+
+function onSearchInput(val) {
+  clearTimeout(_searchTimer);
+  const box = document.getElementById('searchSuggestions');
+  if (val.length < 2) { box.style.display = 'none'; return; }
+  _searchTimer = setTimeout(() => {
+    fetch('/api/leads/search?q=' + encodeURIComponent(val))
+      .then(r => r.json())
+      .then(data => {
+        if (!data.length) { box.style.display = 'none'; return; }
+        box.innerHTML = data.map(l => {
+          const loc = [l.barangay, l.city, l.province].filter(Boolean).join(', ');
+          const color = STATUS_COLORS[l.status] || '#9aabc5';
+          return `<a href="${l.url}" style="display:block;padding:10px 14px;text-decoration:none;
+                    color:#1A1A2E;border-bottom:1px solid #F5F0FF;font-size:13px"
+                    onmouseover="this.style.background='#F8F7FF'" onmouseout="this.style.background='white'">
+            <div class="fw-bold" style="margin-bottom:2px">${escSuggest(l.name)}</div>
+            <div style="font-size:11px;color:#9aabc5">
+              ${loc ? `<i class="bi bi-geo-alt me-1"></i>${escSuggest(loc)}` : ''}
+              ${l.category ? ` · ${escSuggest(l.category)}` : ''}
+            </div>
+            <div style="margin-top:3px">
+              <span style="border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;
+                           background:${color}22;color:${color}">${l.status_label}</span>
+              ${l.gabay ? `<span style="font-size:10px;color:#9aabc5;margin-left:6px">· ${escSuggest(l.gabay)}</span>` : ''}
+            </div>
+          </a>`;
+        }).join('') +
+        `<div style="padding:6px 14px;font-size:10px;color:#9aabc5;background:#F8FAFD;
+                     border-radius:0 0 10px 10px">
+           Press Enter to search all results
+         </div>`;
+        box.style.display = 'block';
+      });
+  }, 220);
+}
+
+function escSuggest(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#leadSearchInput') && !e.target.closest('#searchSuggestions'))
+    document.getElementById('searchSuggestions').style.display = 'none';
+});
 </script>
 {% endblock %}
 

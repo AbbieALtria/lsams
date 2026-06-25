@@ -503,6 +503,12 @@
   <a href="{{ url_for('leads_radar') }}" class="nav-link {% if request.endpoint == 'leads_radar' %}active-orange{% endif %}">
     <i class="bi bi-broadcast" style="color:var(--lz-orange)"></i> Radar
   </a>
+  <a href="{{ url_for('prospect_scout') }}" class="nav-link {% if request.endpoint == 'prospect_scout' %}active-purple{% endif %}"
+     style="background:{% if request.endpoint == 'prospect_scout' %}var(--lz-purple-light){% else %}transparent{% endif %}">
+    <i class="bi bi-radar" style="color:#7c3aed"></i>
+    <span style="font-weight:700;color:#7c3aed">Prospect Scout</span>
+    <span class="badge ms-auto" style="background:#7c3aed;color:white;font-size:9px">NEW</span>
+  </a>
   {% endif %}
   <a href="{{ url_for('visits') }}" class="nav-link {% if request.endpoint == 'visits' %}active-orange{% endif %}">
     <i class="bi bi-geo-alt" style="color:var(--lz-orange)"></i> Visits
