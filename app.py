@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation, Brand
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -938,6 +938,54 @@ def api_prospect_add_lead():
     db.session.add(lead)
     db.session.commit()
     return jsonify({'ok': True, 'lead_id': lead.id, 'url': url_for('lead_detail', lead_id=lead.id)})
+
+
+# ── Brand Library (Prospect Scout) ──────────────────────────────────────────
+
+def _can_manage_brands():
+    return current_user.role in ('superadmin', 'admin', 'lazada')
+
+@app.route('/api/brands', methods=['GET'])
+@login_required
+def api_brands_list():
+    if not (current_user.is_supervisor or current_user.role == 'lazada'):
+        return jsonify({'error': 'Access denied'}), 403
+    cat = request.args.get('category', '').strip()
+    q = Brand.query.filter_by(is_active=True)
+    if cat:
+        q = q.filter_by(category=cat)
+    brands = q.order_by(Brand.category, Brand.name).all()
+    return jsonify({
+        'brands': [{'id': b.id, 'name': b.name, 'category': b.category} for b in brands],
+        'can_manage': _can_manage_brands(),
+    })
+
+@app.route('/api/brands', methods=['POST'])
+@login_required
+def api_brands_add():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    cat  = (data.get('category') or 'Others').strip()
+    if not name:
+        return jsonify({'error': 'Brand name required'}), 400
+    if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+        return jsonify({'error': 'Brand already exists'}), 409
+    b = Brand(name=name, category=cat, added_by=current_user.id)
+    db.session.add(b)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': b.id, 'name': b.name, 'category': b.category})
+
+@app.route('/api/brands/<int:brand_id>', methods=['DELETE'])
+@login_required
+def api_brands_delete(brand_id):
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    b = Brand.query.get_or_404(brand_id)
+    b.is_active = False
+    db.session.commit()
+    return jsonify({'ok': True})
 
 
 @app.route('/leads/radar')

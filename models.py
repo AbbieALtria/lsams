@@ -574,6 +574,18 @@ class LeadIntelligence(db.Model):
         return [p for p in self.platforms if p.get('status') == 'active']
 
 
+class Brand(db.Model):
+    """Brand library for Prospect Scout — managed by superadmin / lazada team."""
+    __tablename__ = 'brands'
+    id         = db.Column(db.Integer, primary_key=True)
+    name       = db.Column(db.String(120), nullable=False)
+    category   = db.Column(db.String(80), nullable=False, default='Others')
+    added_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active  = db.Column(db.Boolean, default=True)
+    adder      = db.relationship('User', foreign_keys=[added_by])
+
+
 class Presentation(db.Model):
     __tablename__ = 'presentations'
     id            = db.Column(db.Integer, primary_key=True)

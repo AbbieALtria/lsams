@@ -68,6 +68,69 @@
   {% endif %}
 {% endif %}
 
+<!-- BRAND LIBRARY -->
+<div class="card mb-3" style="border-radius:16px;border:1.5px solid #EDE8F5" id="brandLibCard">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="border-radius:14px 14px 0 0;background:#F8F7FF;cursor:pointer"
+       onclick="toggleBrandLib()">
+    <span style="font-weight:800;color:#7c3aed;font-size:13px">
+      <i class="bi bi-tags-fill me-2"></i>Brand Library
+      <span id="brandLibCount" class="badge rounded-pill ms-2" style="background:#7c3aed22;color:#7c3aed;font-size:10px">—</span>
+    </span>
+    <div class="d-flex gap-2 align-items-center">
+      {% if current_user.role in ('superadmin','admin','lazada') %}
+      <button class="btn btn-sm fw-bold" onclick="event.stopPropagation();openAddBrand()"
+              style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;padding:3px 12px">
+        <i class="bi bi-plus-circle me-1"></i>Add Brand
+      </button>
+      {% endif %}
+      <i class="bi bi-chevron-down" id="brandLibChev" style="color:#9aabc5;transition:transform .2s"></i>
+    </div>
+  </div>
+  <div id="brandLibBody" style="display:none;padding:12px 16px">
+    <!-- Category tabs -->
+    <div class="d-flex gap-1 flex-wrap mb-2" id="brandCatTabs">
+      <button class="btn btn-sm active" data-cat="" onclick="filterBrandCat('',this)"
+              style="border-radius:20px;font-size:11px;padding:3px 12px;background:#7c3aed;color:white">All</button>
+    </div>
+    <!-- Brand chips -->
+    <div id="brandChips" class="d-flex gap-1 flex-wrap" style="min-height:32px">
+      <span style="font-size:12px;color:#9aabc5">Loading...</span>
+    </div>
+    <!-- Add brand inline form -->
+    <div id="addBrandForm" style="display:none;margin-top:12px;padding:12px;background:#F8F7FF;border-radius:10px;border:1px solid #EDE8F5">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700">Brand Name *</label>
+          <input type="text" id="newBrandName" class="form-control form-control-sm" placeholder="e.g. Bench, Jollibee, SM">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700">Category</label>
+          <select id="newBrandCat" class="form-select form-select-sm">
+            <option>Beauty & Cosmetics</option>
+            <option>Food & Beverage</option>
+            <option>Fashion & Apparel</option>
+            <option>Electronics & Gadgets</option>
+            <option>Health & Wellness</option>
+            <option>Home & Living</option>
+            <option>Sports & Outdoors</option>
+            <option>Grocery & Supermarket</option>
+            <option>Automotive & Parts</option>
+            <option>Toys & Baby</option>
+            <option>Others</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-sm fw-bold w-100" onclick="saveBrand()"
+                  style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white">Save</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="closeAddBrand()">Cancel</button>
+        </div>
+      </div>
+      <div id="brandSaveMsg" style="font-size:11px;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
 <!-- SEARCH FORM -->
 <div class="card mb-4" style="border-radius:16px;border:1.5px solid #EDE8F5">
   <div class="card-body p-4">
@@ -366,5 +429,124 @@ document.getElementById('hideInSystem').addEventListener('change', renderResults
 document.getElementById('scoutKeyword').addEventListener('keydown', e => {
   if (e.key === 'Enter') runScout();
 });
+
+/* ── Brand Library ── */
+let allBrands = [];
+let brandLibOpen = false;
+let activeCat = '';
+const CAN_MANAGE = {{ 'true' if current_user.role in ('superadmin','admin','lazada') else 'false' }};
+
+function toggleBrandLib() {
+  brandLibOpen = !brandLibOpen;
+  document.getElementById('brandLibBody').style.display = brandLibOpen ? 'block' : 'none';
+  document.getElementById('brandLibChev').style.transform = brandLibOpen ? 'rotate(180deg)' : '';
+  if (brandLibOpen && allBrands.length === 0) loadBrands();
+}
+
+function loadBrands(cat) {
+  cat = cat || '';
+  const url = '/api/brands' + (cat ? '?category=' + encodeURIComponent(cat) : '');
+  fetch(url).then(r => r.json()).then(data => {
+    allBrands = data.brands || [];
+    renderBrandChips(allBrands);
+    buildCatTabs(allBrands);
+    document.getElementById('brandLibCount').textContent = allBrands.length;
+  });
+}
+
+function buildCatTabs(brands) {
+  const cats = [...new Set(brands.map(b => b.category))].sort();
+  const tabs = document.getElementById('brandCatTabs');
+  tabs.innerHTML = `<button class="btn btn-sm ${activeCat===''?'active':''}" data-cat=""
+      onclick="filterBrandCat('',this)"
+      style="border-radius:20px;font-size:11px;padding:3px 12px;${activeCat===''?'background:#7c3aed;color:white':'background:#EDE8F5;color:#6B7280'}">All</button>`;
+  cats.forEach(c => {
+    const active = activeCat === c;
+    tabs.innerHTML += `<button class="btn btn-sm" data-cat="${escH(c)}"
+      onclick="filterBrandCat('${escH(c)}',this)"
+      style="border-radius:20px;font-size:11px;padding:3px 12px;${active?'background:#7c3aed;color:white':'background:#EDE8F5;color:#6B7280'}">${escH(c)}</button>`;
+  });
+}
+
+function filterBrandCat(cat, btn) {
+  activeCat = cat;
+  document.querySelectorAll('#brandCatTabs button').forEach(b => {
+    b.style.background = '#EDE8F5';
+    b.style.color = '#6B7280';
+  });
+  btn.style.background = '#7c3aed';
+  btn.style.color = 'white';
+  const filtered = cat ? allBrands.filter(b => b.category === cat) : allBrands;
+  renderBrandChips(filtered);
+}
+
+function renderBrandChips(brands) {
+  const el = document.getElementById('brandChips');
+  if (!brands.length) {
+    el.innerHTML = '<span style="font-size:12px;color:#9aabc5">No brands yet. Click "Add Brand" to get started.</span>';
+    return;
+  }
+  el.innerHTML = brands.map(b => `
+    <span class="brand-chip" data-id="${b.id}" title="Click to use · ${escH(b.category)}"
+          onclick="useBrand('${escH(b.name)}')"
+          style="display:inline-flex;align-items:center;gap:5px;background:#7c3aed11;color:#7c3aed;
+                 border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;
+                 border:1.5px solid #7c3aed22;transition:background .12s"
+          onmouseover="this.style.background='#7c3aed22'" onmouseout="this.style.background='#7c3aed11'">
+      ${escH(b.name)}
+      ${CAN_MANAGE ? `<i class="bi bi-x" onclick="event.stopPropagation();deleteBrand(${b.id},this)"
+        style="font-size:11px;color:#9aabc5;line-height:1"></i>` : ''}
+    </span>`).join('');
+}
+
+function useBrand(name) {
+  document.getElementById('scoutKeyword').value = name;
+  document.getElementById('scoutKeyword').focus();
+}
+
+function openAddBrand() {
+  document.getElementById('addBrandForm').style.display = 'block';
+  document.getElementById('newBrandName').focus();
+}
+
+function closeAddBrand() {
+  document.getElementById('addBrandForm').style.display = 'none';
+  document.getElementById('newBrandName').value = '';
+  document.getElementById('brandSaveMsg').textContent = '';
+}
+
+function saveBrand() {
+  const name = document.getElementById('newBrandName').value.trim();
+  const cat  = document.getElementById('newBrandCat').value;
+  const msg  = document.getElementById('brandSaveMsg');
+  if (!name) { msg.style.color='#b91c1c'; msg.textContent='Brand name required.'; return; }
+  fetch('/api/brands', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, category: cat})
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      msg.style.color = '#15803d';
+      msg.textContent = `"${d.name}" added!`;
+      document.getElementById('newBrandName').value = '';
+      loadBrands();
+      setTimeout(closeAddBrand, 1200);
+    } else {
+      msg.style.color = '#b91c1c';
+      msg.textContent = d.error || 'Failed to save.';
+    }
+  });
+}
+
+function deleteBrand(id, el) {
+  if (!confirm('Remove this brand?')) return;
+  fetch('/api/brands/' + id, {method:'DELETE'}).then(r => r.json()).then(d => {
+    if (d.ok) {
+      el.closest('.brand-chip').remove();
+      allBrands = allBrands.filter(b => b.id !== id);
+      document.getElementById('brandLibCount').textContent = allBrands.length;
+    }
+  });
+}
 </script>
 {% endblock %}
