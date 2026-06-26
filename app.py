@@ -6952,6 +6952,42 @@ def presentations_view(pid):
     return render_template('presentations/view.html', pres=pres)
 
 
+@app.route('/presentations/download/<int:pid>')
+@login_required
+def presentations_download(pid):
+    pres = Presentation.query.get_or_404(pid)
+    role = current_user.role
+    if pres.visible_to == 'supervisor' and role not in ('supervisor','manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    if pres.visible_to == 'manager' and role not in ('manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    import urllib.request
+    import re
+    safe_title = re.sub(r'[^\w\s-]', '', pres.title).strip()
+    safe_title = re.sub(r'[\s]+', '-', safe_title).lower()[:60] or 'presentation'
+    filename = f'{safe_title}.{pres.file_type}'
+    content_type = 'application/pdf' if pres.file_type == 'pdf' else \
+                   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    try:
+        with urllib.request.urlopen(pres.cloudinary_url) as resp:
+            data = resp.read()
+        from flask import Response
+        return Response(
+            data,
+            status=200,
+            headers={
+                'Content-Type': content_type,
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(data)),
+            }
+        )
+    except Exception as ex:
+        flash(f'Download failed: {str(ex)}', 'danger')
+        return redirect(url_for('presentations_list'))
+
+
 @app.route('/presentations/delete/<int:pid>', methods=['POST'])
 @login_required
 def presentations_delete(pid):
