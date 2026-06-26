@@ -223,7 +223,7 @@
         <button type="button" onclick="sendAudioFromPreview()"
                 style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
                        padding:10px;font-size:13px;font-weight:800;cursor:pointer">
-          🚀 Send to AI
+          🤖 Send to Maria
         </button>
         <button type="button" onclick="redoRecording()"
                 style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
@@ -818,7 +818,7 @@ function showPlayback(mimeType, stream) {
   document.getElementById('voiceDuration').textContent = recSeconds + 's recorded';
   document.getElementById('voicePlaybackBox').style.display = 'block';
   document.getElementById('voiceStatus').textContent = '✅ Recording ready — listen or send';
-  document.getElementById('voiceHint').textContent = 'Play it back to confirm, then tap Send to AI';
+  document.getElementById('voiceHint').textContent = 'Play it back to confirm, then tap Send to Maria';
 }
 
 function sendAudioFromPreview() {
