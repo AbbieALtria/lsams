@@ -212,6 +212,27 @@
       Say seller name, what happened, and any follow-up
     </div>
 
+    <!-- PLAYBACK PREVIEW — shown after recording stops, before sending to AI -->
+    <div id="voicePlaybackBox" style="display:none;margin-top:12px;background:#f0f4ff;
+         border:1.5px solid #c7d2fe;border-radius:12px;padding:12px">
+      <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:6px">
+        ✅ Recording captured — <span id="voiceDuration"></span>
+      </div>
+      <audio id="voiceAudioPlayer" controls style="width:100%;height:36px;border-radius:8px;outline:none"></audio>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button type="button" onclick="sendAudioFromPreview()"
+                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                       padding:10px;font-size:13px;font-weight:800;cursor:pointer">
+          🚀 Send to AI
+        </button>
+        <button type="button" onclick="redoRecording()"
+                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                       border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+          🔄 Re-record
+        </button>
+      </div>
+    </div>
+
     <!-- AI RESULT CARD -->
     <div class="voice-result-box" id="voiceResultBox" style="display:none">
       <!-- Transcript -->
@@ -716,26 +737,60 @@ async function toggleRecording() {
   }
 }
 
+let recSeconds = 0;
+let recTimer = null;
+let pendingMime = null;
+let pendingStream = null;
+
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
+    pendingStream = stream;
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
                    : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4'
                    : 'audio/ogg';
+    pendingMime = mimeType;
 
     mediaRecorder = new MediaRecorder(stream, { mimeType });
     mediaRecorder.addEventListener('dataavailable', e => { if (e.data.size > 0) audioChunks.push(e.data); });
-    mediaRecorder.addEventListener('stop', () => sendAudio(mimeType, stream));
+    mediaRecorder.addEventListener('stop', () => showPlayback(mimeType, stream));
     mediaRecorder.start();
     isRecording = true;
 
+    // Duration counter
+    recSeconds = 0;
+    recTimer = setInterval(() => {
+      recSeconds++;
+      document.getElementById('voiceStatus').textContent = `🔴 Recording… ${recSeconds}s — tap to stop`;
+    }, 1000);
+
+    // Live pulse from mic level
+    try {
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 32;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      const btn = document.getElementById('voiceMicBtn');
+      function pulse() {
+        if (!isRecording) { btn.style.transform = 'scale(1)'; return; }
+        analyser.getByteFrequencyData(buf);
+        const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+        btn.style.transform = `scale(${1 + (avg / 255) * 0.35})`;
+        requestAnimationFrame(pulse);
+      }
+      pulse();
+    } catch (e) { /* AudioContext not available — skip pulse */ }
+
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn recording';
     document.getElementById('voiceMicBtn').textContent = '⏹';
-    document.getElementById('voiceStatus').textContent = 'Recording… tap to stop';
+    document.getElementById('voiceStatus').textContent = '🔴 Recording… 0s — tap to stop';
     document.getElementById('voiceHint').textContent = 'Speak clearly — say the outcome and any notes';
     document.getElementById('voiceResultBox').style.display = 'none';
+    document.getElementById('voicePlaybackBox').style.display = 'none';
   } catch (err) {
     document.getElementById('voiceStatus').textContent = 'Microphone access denied';
     document.getElementById('voiceHint').textContent = 'Please allow microphone in browser settings';
@@ -744,13 +799,47 @@ async function startRecording() {
 
 function stopRecording() {
   if (mediaRecorder && isRecording) {
+    clearInterval(recTimer);
     mediaRecorder.stop();
     isRecording = false;
-    document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
-    document.getElementById('voiceMicBtn').textContent = '⏳';
-    document.getElementById('voiceStatus').textContent = 'Transcribing…';
-    document.getElementById('voiceHint').textContent = 'This takes a few seconds';
+    document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceStatus').textContent = 'Processing recording…';
+    document.getElementById('voiceHint').textContent = '';
   }
+}
+
+function showPlayback(mimeType, stream) {
+  const blob = new Blob(audioChunks, { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const player = document.getElementById('voiceAudioPlayer');
+  player.src = url;
+  document.getElementById('voiceDuration').textContent = recSeconds + 's recorded';
+  document.getElementById('voicePlaybackBox').style.display = 'block';
+  document.getElementById('voiceStatus').textContent = '✅ Recording ready — listen or send';
+  document.getElementById('voiceHint').textContent = 'Play it back to confirm, then tap Send to AI';
+}
+
+function sendAudioFromPreview() {
+  document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
+  document.getElementById('voiceMicBtn').textContent = '⏳';
+  document.getElementById('voiceStatus').textContent = 'Transcribing…';
+  document.getElementById('voiceHint').textContent = 'This takes a few seconds';
+  sendAudio(pendingMime, pendingStream);
+}
+
+function redoRecording() {
+  if (pendingStream) pendingStream.getTracks().forEach(t => t.stop());
+  audioChunks = [];
+  pendingStream = null;
+  pendingMime = null;
+  const player = document.getElementById('voiceAudioPlayer');
+  if (player.src) { URL.revokeObjectURL(player.src); player.src = ''; }
+  document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
+  document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
 }
 
 const STATUS_LABELS = {
@@ -763,7 +852,7 @@ const STATUS_LABELS = {
 };
 
 async function sendAudio(mimeType, stream) {
-  stream.getTracks().forEach(t => t.stop());
+  if (stream) stream.getTracks().forEach(t => t.stop());
   const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
   const blob = new Blob(audioChunks, { type: mimeType });
   const fd = new FormData();
@@ -959,9 +1048,12 @@ function applyVoice() {
 function clearVoice() {
   pendingVoiceData = null;
   audioChunks = [];
+  if (pendingStream) { pendingStream.getTracks().forEach(t => t.stop()); pendingStream = null; }
   document.getElementById('voiceResultBox').style.display = 'none';
+  document.getElementById('voicePlaybackBox').style.display = 'none';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
   document.getElementById('voiceMicBtn').textContent = '🎙';
+  document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
   document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
   document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
   document.getElementById('voiceApplyBtn').textContent = '✅ Apply to Form';
