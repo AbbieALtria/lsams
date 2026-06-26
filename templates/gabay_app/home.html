@@ -456,6 +456,94 @@
 </div>
 {% endif %}
 
+<!-- VOICE CHECK-IN UPDATE MODAL (shown once per device) -->
+<div id="voiceUpdateOverlay" style="display:none;position:fixed;inset:0;
+     background:rgba(0,0,0,0.65);z-index:9999;overflow-y:auto">
+  <div style="background:#0f172a;border-radius:24px 24px 0 0;
+              position:absolute;bottom:0;left:0;right:0;
+              max-height:90vh;overflow-y:auto;
+              border-top:2px solid rgba(99,102,241,0.4)">
+    <div style="background:linear-gradient(135deg,#1e1b4b 0%,#4338ca 100%);
+                padding:20px 18px 18px;border-radius:24px 24px 0 0">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between">
+        <div>
+          <div style="font-size:17px;font-weight:900;color:white">🎙 Voice Check-In Guide</div>
+          <div style="font-size:12px;color:rgba(255,255,255,0.7);margin-top:3px">Updated Steps — June 2026</div>
+        </div>
+        <button onclick="dismissVoiceModal()"
+                style="background:rgba(255,255,255,0.12);border:1.5px solid rgba(255,255,255,0.2);
+                       border-radius:10px;color:white;width:32px;height:32px;font-size:15px;
+                       cursor:pointer;display:flex;align-items:center;justify-content:center;
+                       flex-shrink:0;touch-action:manipulation;margin-left:12px">✕</button>
+      </div>
+    </div>
+    <div style="padding:18px 16px 0 16px">
+      <div style="font-size:13px;color:#94a3b8;margin-bottom:16px;line-height:1.55">
+        New! You can now <strong style="color:#a5b4fc">listen to your recording</strong>
+        before sending it to Maria. Here are the 6 updated steps:
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">1</div>
+        <div style="flex:1;padding-bottom:10px;border-bottom:1px solid #1e293b">
+          <div style="font-size:13px;font-weight:800;color:white;margin-bottom:2px">🎙 Tap the mic button</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5">On Check-In page → tap 🎙. Button pulses and timer starts.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">2</div>
+        <div style="flex:1;padding-bottom:10px;border-bottom:1px solid #1e293b">
+          <div style="font-size:13px;font-weight:800;color:white;margin-bottom:2px">🗣 Speak about the visit</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5">Seller name, outcome, notes, follow-up. Any language!</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">3</div>
+        <div style="flex:1;padding-bottom:10px;border-bottom:1px solid #1e293b">
+          <div style="font-size:13px;font-weight:800;color:white;margin-bottom:2px">⏹ Tap Stop</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5">A <span style="color:#818cf8">blue box</span> appears showing your recording duration.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#4338ca;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">4</div>
+        <div style="flex:1;padding-bottom:10px;border-bottom:1px solid #1e293b;background:rgba(99,102,241,0.06);border-radius:0 8px 8px 0;padding:8px 10px">
+          <div style="display:flex;align-items:center;gap:6px;margin-bottom:2px">
+            <div style="font-size:13px;font-weight:800;color:white">▶ Listen to your recording</div>
+            <span style="background:#4338ca;color:white;font-size:9px;font-weight:800;padding:1px 5px;border-radius:4px">NEW</span>
+          </div>
+          <div style="font-size:12px;color:#a5b4fc;line-height:1.5">Tap Play to hear yourself. Not clear? Tap 🔄 Re-record.</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">5</div>
+        <div style="flex:1;padding-bottom:10px;border-bottom:1px solid #1e293b">
+          <div style="font-size:13px;font-weight:800;color:white;margin-bottom:2px">🤖 Tap "Send to Maria"</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5">Maria transcribes your voice. Needs internet (2–5 seconds).</div>
+        </div>
+      </div>
+      <div style="display:flex;align-items:flex-start;gap:12px;margin-bottom:8px">
+        <div style="width:28px;height:28px;border-radius:50%;background:#1e3a5f;flex-shrink:0;
+                    display:flex;align-items:center;justify-content:center;font-size:12px;font-weight:800;color:white;margin-top:1px">6</div>
+        <div style="flex:1">
+          <div style="font-size:13px;font-weight:800;color:white;margin-bottom:2px">✅ Tap "Apply to Form"</div>
+          <div style="font-size:12px;color:#64748b;line-height:1.5">All fields filled automatically! Review and submit.</div>
+        </div>
+      </div>
+      <button onclick="dismissVoiceModal()"
+              style="width:100%;background:linear-gradient(135deg,#4338ca,#6366f1);
+                     border:none;color:white;border-radius:14px;padding:14px;
+                     font-size:14px;font-weight:800;cursor:pointer;
+                     margin-top:20px;margin-bottom:24px;touch-action:manipulation">
+        ✅ Nakuha ko na! / Got it!
+      </button>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block scripts %}
@@ -578,5 +666,21 @@ function dismissFeaturesNotice() {
   setTimeout(() => el.style.display = 'none', 300);
 }
 showFeaturesNotice();
+
+// ── Voice check-in steps modal (show once after update) ──────────────────
+const VOICE_MODAL_KEY = 'lsams_voice_steps_v1';
+function showVoiceModal() {
+  if (!localStorage.getItem(VOICE_MODAL_KEY)) {
+    document.getElementById('voiceUpdateOverlay').style.display = 'block';
+  }
+}
+function dismissVoiceModal() {
+  localStorage.setItem(VOICE_MODAL_KEY, '1');
+  const el = document.getElementById('voiceUpdateOverlay');
+  el.style.opacity = '0';
+  el.style.transition = 'opacity 0.3s';
+  setTimeout(() => el.style.display = 'none', 300);
+}
+showVoiceModal();
 </script>
 {% endblock %}
