@@ -1967,7 +1967,12 @@ def voice_transcribe():
         )
         text = transcript.text.strip()
     except Exception as e:
-        return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
+        err_str = str(e)
+        if '429' in err_str or 'quota' in err_str.lower() or 'billing' in err_str.lower():
+            return jsonify({'error': 'Voice check-in is temporarily unavailable (API quota reached). Please fill the form manually and inform your supervisor.'}), 503
+        if '401' in err_str or 'invalid' in err_str.lower() and 'key' in err_str.lower():
+            return jsonify({'error': 'Voice feature not configured correctly. Please inform your supervisor.'}), 503
+        return jsonify({'error': f'Transcription failed: {err_str}'}), 500
 
     # ── Step 2: Parse with Claude — extract all structured fields ─────────────
     gid = current_user.id
