@@ -803,8 +803,9 @@ function stopRecording() {
     mediaRecorder.stop();
     isRecording = false;
     document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
-    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
-    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
+    document.getElementById('voiceMicBtn').textContent = '⏳';
+    document.getElementById('voiceMicBtn').disabled = true;
     document.getElementById('voiceStatus').textContent = 'Processing recording…';
     document.getElementById('voiceHint').textContent = '';
   }
@@ -817,6 +818,9 @@ function showPlayback(mimeType, stream) {
   player.src = url;
   document.getElementById('voiceDuration').textContent = recSeconds + 's recorded';
   document.getElementById('voicePlaybackBox').style.display = 'block';
+  document.getElementById('voiceMicBtn').disabled = false;
+  document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+  document.getElementById('voiceMicBtn').textContent = '🎙';
   document.getElementById('voiceStatus').textContent = '✅ Recording ready — listen or send';
   document.getElementById('voiceHint').textContent = 'Play it back to confirm, then tap Send to Maria';
 }
@@ -825,9 +829,16 @@ function sendAudioFromPreview() {
   document.getElementById('voicePlaybackBox').style.display = 'none';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
   document.getElementById('voiceMicBtn').textContent = '⏳';
+  document.getElementById('voiceMicBtn').disabled = true;
   document.getElementById('voiceStatus').textContent = 'Transcribing…';
-  document.getElementById('voiceHint').textContent = 'This takes a few seconds';
-  sendAudio(pendingMime, pendingStream);
+  document.getElementById('voiceHint').textContent = 'Maria is listening…';
+  sendAudio(pendingMime, pendingStream).catch(err => {
+    document.getElementById('voiceStatus').textContent = '❌ ' + (err.message || 'Failed to send — please try again');
+    document.getElementById('voiceHint').textContent = 'Tap mic to record again';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+  });
 }
 
 function redoRecording() {
@@ -852,13 +863,23 @@ const STATUS_LABELS = {
 };
 
 async function sendAudio(mimeType, stream) {
-  if (stream) stream.getTracks().forEach(t => t.stop());
-  const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-  const blob = new Blob(audioChunks, { type: mimeType });
-  const fd = new FormData();
-  fd.append('audio', blob, `voice.${ext}`);
-
   try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    if (!mimeType || audioChunks.length === 0) {
+      document.getElementById('voiceStatus').textContent = '❌ Recording was empty — tap mic to try again';
+      document.getElementById('voiceHint').textContent = '';
+      document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+      document.getElementById('voiceMicBtn').textContent = '🎙';
+      document.getElementById('voiceMicBtn').disabled = false;
+      return;
+    }
+
+    const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const blob = new Blob(audioChunks, { type: mimeType });
+    const fd = new FormData();
+    fd.append('audio', blob, `voice.${ext}`);
+
     const res = await fetch('/gabay/app/voice-transcribe', { method: 'POST', body: fd });
     const data = await res.json();
 
@@ -867,6 +888,7 @@ async function sendAudio(mimeType, stream) {
       document.getElementById('voiceHint').textContent = 'Try again or fill the form manually';
       document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
       document.getElementById('voiceMicBtn').textContent = '🎙';
+      document.getElementById('voiceMicBtn').disabled = false;
       return;
     }
 
@@ -958,19 +980,21 @@ async function sendAudio(mimeType, stream) {
     document.getElementById('voiceUnclearWarn').style.display = data.unclear ? 'block' : 'none';
 
     document.getElementById('voiceResultBox').style.display = 'block';
-    document.getElementById('voiceStatus').textContent = '🧠 AI understood — review below';
+    document.getElementById('voiceStatus').textContent = '🧠 Maria understood — review below';
     document.getElementById('voiceHint').textContent = 'Confirm seller, then tap Apply to Form';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '✅';
+    document.getElementById('voiceMicBtn').disabled = false;
 
   } catch (err) {
-    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server';
+    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server — try again';
     document.getElementById('voiceStatus').textContent = offlineMsg;
     document.getElementById('voiceHint').textContent = !navigator.onLine
       ? 'Fill the form manually — it saves offline automatically'
-      : 'Check your connection and try again';
+      : 'Check connection and tap mic to retry';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
     updateVoiceOfflineState();
   }
 }
@@ -1053,6 +1077,7 @@ function clearVoice() {
   document.getElementById('voicePlaybackBox').style.display = 'none';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
   document.getElementById('voiceMicBtn').textContent = '🎙';
+  document.getElementById('voiceMicBtn').disabled = false;
   document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
   document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
   document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
