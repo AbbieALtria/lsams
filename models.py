@@ -188,6 +188,7 @@ class Lead(db.Model):
     ai_inspected_at = db.Column(db.DateTime)
     is_warehouse = db.Column(db.Boolean, default=False)   # fulfillment center flag
     is_duplicate_addr = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, default=False)     # soft-removed from pool by supervisor
     # AI Lead Intelligence — Phase 3: used for queue ordering
     ai_score = db.Column(db.Integer)          # 0-100 from LeadIntelligence engine
 

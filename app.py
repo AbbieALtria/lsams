@@ -119,6 +119,7 @@ with app.app_context():
         ("is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
         ("campaign_id",       "INTEGER"),
         ("ai_score",          "INTEGER"),
+        ("is_archived",       "BOOLEAN DEFAULT FALSE"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_cols:
@@ -2589,7 +2590,7 @@ def auto_distribute():
     if not current_user.is_supervisor:
         flash('Access denied.', 'danger')
         return redirect(url_for('assign_center'))
-    pool_leads = Lead.query.filter_by(status='pool').order_by(Lead.imported_at.asc()).all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).order_by(Lead.imported_at.asc()).all()
     gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     if not gabay_users:
         flash('No active Gabay agents found. Add agents first.', 'warning')
@@ -2685,7 +2686,7 @@ def smart_assign():
         flash('Access restricted.', 'error')
         return redirect(url_for('dashboard'))
 
-    pool_leads = Lead.query.filter_by(status='pool').all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).all()
 
     # ── Split: leads WITH city vs leads with NO city (excluded from auto-assign)
     no_city_leads = [l for l in pool_leads if not (l.city or '').strip()]
@@ -3388,7 +3389,7 @@ def admin_health():
 
     import re, json as _json
 
-    pool_leads = Lead.query.filter_by(status='pool').all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).all()
 
     # ── 1. DUPLICATE ADDRESS DETECTION ──────────────────────────────────
     def norm_addr(l):
@@ -3603,6 +3604,19 @@ def admin_health_flag_warehouse(lead_id):
     l.is_warehouse = not l.is_warehouse
     db.session.commit()
     return jsonify({'is_warehouse': l.is_warehouse})
+
+
+@app.route('/admin/health/archive-lead/<int:lead_id>', methods=['POST'])
+@login_required
+def admin_health_archive_lead(lead_id):
+    if not current_user.is_supervisor:
+        abort(403)
+    l = Lead.query.get_or_404(lead_id)
+    if l.status != 'pool':
+        return jsonify({'error': 'Only unassigned pool leads can be archived.'}), 400
+    l.is_archived = not l.is_archived
+    db.session.commit()
+    return jsonify({'is_archived': l.is_archived})
 
 
 @app.route('/reports/competitor')
