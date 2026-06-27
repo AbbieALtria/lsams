@@ -233,13 +233,44 @@
       </div>
     </div>
 
+    <!-- TYPEWRITER PANEL — shown right after transcription, before user confirms -->
+    <div id="voiceTypewriterBox" style="display:none;margin-top:12px;background:#f5f3ff;
+         border:1.5px solid #a5b4fc;border-radius:14px;padding:14px;text-align:left">
+      <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:8px;
+                  display:flex;align-items:center;gap:6px">
+        <span style="font-size:16px">🧠</span> Maria heard this:
+      </div>
+      <div id="voiceTypewriterText"
+           style="font-size:13px;color:#1e1b4b;font-style:italic;line-height:1.6;
+                  background:white;border-radius:10px;padding:10px 12px;
+                  min-height:40px;border:1px solid #c7d2fe;word-break:break-word">
+      </div>
+      <div style="font-size:11px;color:#6366f1;margin:10px 0 8px;font-weight:700">
+        Is this correct?
+      </div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="confirmTranscript()" id="voiceConfirmBtn"
+                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                       padding:11px;font-size:13px;font-weight:800;cursor:pointer">
+          ✅ Yes, that's correct
+        </button>
+        <button type="button" onclick="redoFromTypewriter()"
+                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                       border-radius:10px;padding:11px;font-size:12px;font-weight:700;cursor:pointer">
+          🔄 Re-record
+        </button>
+      </div>
+    </div>
+
     <!-- AI RESULT CARD -->
     <div class="voice-result-box" id="voiceResultBox" style="display:none">
-      <!-- Transcript -->
-      <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:4px;
-                  text-transform:uppercase;letter-spacing:.05em">🎙 What I heard:</div>
-      <div id="voiceTranscript" style="font-size:12px;color:#374151;font-style:italic;
-           margin-bottom:10px;line-height:1.5;padding:8px;background:#f8fafd;border-radius:8px"></div>
+      <!-- Transcript (compact, already confirmed) -->
+      <div style="background:#f5f3ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;
+                  display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:13px;flex-shrink:0">🧠</span>
+        <div id="voiceTranscript" style="font-size:11px;color:#4338ca;font-style:italic;
+             line-height:1.5;flex:1"></div>
+      </div>
 
       <!-- Seller match -->
       <div id="voiceSellerSection" style="display:none;margin-bottom:10px">
@@ -280,7 +311,7 @@
       </div>
 
       <!-- Action buttons -->
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px" id="voiceActionBtns">
         <button type="button" onclick="applyVoice()" id="voiceApplyBtn"
                 style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
                        padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer">
@@ -291,6 +322,31 @@
                        padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer">
           🔄 Redo
         </button>
+      </div>
+
+      <!-- COMPLETION BANNER — shown after Apply is tapped -->
+      <div id="voiceAppliedBanner" style="display:none;margin-top:12px;
+           background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+           border:2px solid #15803d;border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:26px;margin-bottom:6px">✅</div>
+        <div style="font-size:14px;font-weight:800;color:#14532d;margin-bottom:4px">
+          Form Updated!
+        </div>
+        <div style="font-size:12px;color:#166534;line-height:1.5;margin-bottom:10px">
+          Seller information has been filled in below.<br>
+          Review and tap <strong>Submit Check-In</strong> when ready.
+        </div>
+        <div id="voiceAppliedOfflineNote" style="display:none;background:#fef3c7;
+             border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;
+             border-left:3px solid #d97706;text-align:left">
+          📵 <strong>You're offline</strong> — no problem. Your check-in will be saved on your phone
+          and seller info will sync to LSAMS automatically when you have internet.
+        </div>
+        <div id="voiceAppliedOnlineNote" style="display:none;background:#e0f2fe;
+             border-radius:8px;padding:8px 10px;font-size:11px;color:#0369a1;
+             border-left:3px solid #0284c7;text-align:left;margin-top:6px">
+          🌐 <strong>Connected</strong> — seller info will update immediately when you submit.
+        </div>
       </div>
     </div>
   </div>
@@ -827,6 +883,9 @@ function showPlayback(mimeType, stream) {
 
 function sendAudioFromPreview() {
   document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  document.getElementById('voiceResultBox').style.display = 'none';
+  document.getElementById('voiceAppliedBanner').style.display = 'none';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
   document.getElementById('voiceMicBtn').textContent = '⏳';
   document.getElementById('voiceMicBtn').disabled = true;
@@ -839,6 +898,35 @@ function sendAudioFromPreview() {
     document.getElementById('voiceMicBtn').textContent = '🎙';
     document.getElementById('voiceMicBtn').disabled = false;
   });
+}
+
+// Typewriter effect — types text character by character
+function typewriterEffect(elementId, text, onDone) {
+  const el = document.getElementById(elementId);
+  el.textContent = '';
+  if (!text) { if (onDone) onDone(); return; }
+  const speed = Math.max(18, Math.min(45, 2200 / text.length));
+  let i = 0;
+  function next() {
+    if (i < text.length) {
+      el.textContent += text.charAt(i++);
+      setTimeout(next, speed);
+    } else if (onDone) {
+      setTimeout(onDone, 250);
+    }
+  }
+  next();
+}
+
+function redoFromTypewriter() {
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  redoRecording();
+}
+
+function confirmTranscript() {
+  if (!pendingVoiceData) return;
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  showVoiceResult(pendingVoiceData);
 }
 
 function redoRecording() {
@@ -894,7 +982,34 @@ async function sendAudio(mimeType, stream) {
 
     pendingVoiceData = data;
 
-    // Transcript
+    // ── Step A: show typewriter transcript, wait for user to confirm ──────
+    document.getElementById('voiceStatus').textContent = '🧠 Maria understood — confirm below';
+    document.getElementById('voiceHint').textContent = 'Read what Maria heard, then confirm';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+
+    document.getElementById('voiceTypewriterBox').style.display = 'block';
+    document.getElementById('voiceConfirmBtn').disabled = true;
+    typewriterEffect('voiceTypewriterText', data.text, () => {
+      document.getElementById('voiceConfirmBtn').disabled = false;
+    });
+    return; // wait for confirmTranscript() to call showVoiceResult()
+  } catch (err) {
+    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server — try again';
+    document.getElementById('voiceStatus').textContent = offlineMsg;
+    document.getElementById('voiceHint').textContent = !navigator.onLine
+      ? 'Fill the form manually — it saves offline automatically'
+      : 'Check connection and tap mic to retry';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+    updateVoiceOfflineState();
+  }
+}
+
+function showVoiceResult(data) {
+    // Transcript (compact confirmed version)
     document.getElementById('voiceTranscript').textContent = '"' + data.text + '"';
 
     // Seller section
@@ -980,23 +1095,11 @@ async function sendAudio(mimeType, stream) {
     document.getElementById('voiceUnclearWarn').style.display = data.unclear ? 'block' : 'none';
 
     document.getElementById('voiceResultBox').style.display = 'block';
-    document.getElementById('voiceStatus').textContent = '🧠 Maria understood — review below';
-    document.getElementById('voiceHint').textContent = 'Confirm seller, then tap Apply to Form';
+    document.getElementById('voiceStatus').textContent = '✅ Confirmed — review fields below';
+    document.getElementById('voiceHint').textContent = 'Tap Apply to Form to fill everything in';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '✅';
     document.getElementById('voiceMicBtn').disabled = false;
-
-  } catch (err) {
-    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server — try again';
-    document.getElementById('voiceStatus').textContent = offlineMsg;
-    document.getElementById('voiceHint').textContent = !navigator.onLine
-      ? 'Fill the form manually — it saves offline automatically'
-      : 'Check connection and tap mic to retry';
-    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
-    document.getElementById('voiceMicBtn').textContent = '🎙';
-    document.getElementById('voiceMicBtn').disabled = false;
-    updateVoiceOfflineState();
-  }
 }
 
 function selectVoiceSeller(id, name, el) {
@@ -1060,11 +1163,21 @@ function applyVoice() {
   const notesEl = document.querySelector('textarea[name="notes"]');
   if (notesEl && d.notes) notesEl.value = d.notes;
 
-  // Visual confirmation
+  // Hide action buttons, show completion banner
+  document.getElementById('voiceActionBtns').style.display = 'none';
+  const banner = document.getElementById('voiceAppliedBanner');
+  banner.style.display = 'block';
+  if (navigator.onLine) {
+    document.getElementById('voiceAppliedOnlineNote').style.display = 'block';
+    document.getElementById('voiceAppliedOfflineNote').style.display = 'none';
+  } else {
+    document.getElementById('voiceAppliedOfflineNote').style.display = 'block';
+    document.getElementById('voiceAppliedOnlineNote').style.display = 'none';
+  }
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
   document.getElementById('voiceStatus').textContent = '✅ Applied to form!';
   document.getElementById('voiceHint').textContent = 'All fields filled — review and submit';
-  document.getElementById('voiceApplyBtn').textContent = '✅ Applied!';
-  document.getElementById('voiceApplyBtn').style.background = '#15803d';
   document.getElementById('step5num') && (document.getElementById('step5num').className = 'step-num done');
   validateForm();
 }
@@ -1075,6 +1188,9 @@ function clearVoice() {
   if (pendingStream) { pendingStream.getTracks().forEach(t => t.stop()); pendingStream = null; }
   document.getElementById('voiceResultBox').style.display = 'none';
   document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  document.getElementById('voiceAppliedBanner').style.display = 'none';
+  document.getElementById('voiceActionBtns').style.display = 'flex';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
   document.getElementById('voiceMicBtn').textContent = '🎙';
   document.getElementById('voiceMicBtn').disabled = false;
