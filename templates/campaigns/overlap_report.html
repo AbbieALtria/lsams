@@ -6,8 +6,239 @@
     <div class="page-title"><i class="bi bi-intersect me-2"></i>Campaign Overlap Report</div>
     <div style="color:#9aabc5;font-size:12px">Compare two campaigns — find leads that exist in both</div>
   </div>
-  <a href="{{ url_for('campaign_manage') }}" class="btn btn-sm btn-outline-secondary">Back to Campaigns</a>
+  <div class="d-flex gap-2">
+    <button onclick="toggleHelp()" id="helpToggleBtn"
+      style="background:linear-gradient(135deg,#7c3aed,#4f46e5);color:white;border:none;
+             border-radius:10px;padding:8px 16px;font-size:13px;font-weight:700;cursor:pointer">
+      <i class="bi bi-question-circle me-1"></i>Help Guide
+    </button>
+    <a href="{{ url_for('campaign_manage') }}" class="btn btn-sm btn-outline-secondary">Back to Campaigns</a>
+  </div>
 </div>
+
+<!-- ══ HELP PANEL ══ -->
+<div id="helpPanel" style="display:none;margin-bottom:20px">
+  <div style="background:linear-gradient(135deg,#1e1b4b,#312e81);border-radius:16px;padding:28px;color:white">
+
+    <!-- Header -->
+    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:24px">
+      <div>
+        <div style="font-size:20px;font-weight:800;margin-bottom:4px">
+          📘 Campaign Overlap Report — Complete Guide
+        </div>
+        <div style="font-size:13px;color:#a5b4fc">
+          For supervisors & team leaders · No technical knowledge needed
+        </div>
+      </div>
+      <button onclick="toggleHelp()"
+        style="background:rgba(255,255,255,0.15);border:none;color:white;border-radius:8px;
+               padding:6px 14px;font-size:13px;cursor:pointer">✕ Close</button>
+    </div>
+
+    <!-- Section 1: What is this page? -->
+    <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:12px">🧭 What is this page for?</div>
+      <div style="font-size:13px;color:#c7d2fe;line-height:1.8">
+        This page helps you compare <strong style="color:white">two campaigns side by side</strong> to find sellers
+        that appear in <em>both</em> campaigns at the same time.<br><br>
+        <strong style="color:#fbbf24">Why does this matter?</strong> When a new campaign is uploaded (like RRLD Wave 2),
+        some sellers from the old campaign (Legacy) may already be in the new list. This tool finds those
+        <strong style="color:white">duplicate sellers</strong> so you can decide what to do — for example,
+        keep the Gabay assignments the same, or mark the old campaign as finished.
+      </div>
+    </div>
+
+    <!-- Section 2: The 4 Numbers -->
+    <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:16px">📊 What do the 4 numbers mean?</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:12px">
+
+        <div style="background:rgba(31,56,100,0.6);border-radius:10px;padding:14px">
+          <div style="font-size:22px;margin-bottom:4px">🔵</div>
+          <div style="font-weight:800;font-size:14px">Campaign A Total</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:6px;line-height:1.6">
+            The <strong style="color:white">total number of sellers</strong> in the NEW campaign you just uploaded
+            (e.g. RRLD Wave 2). This is the campaign you want to activate.
+          </div>
+        </div>
+
+        <div style="background:rgba(99,115,139,0.4);border-radius:10px;padding:14px">
+          <div style="font-size:22px;margin-bottom:4px">⚪</div>
+          <div style="font-weight:800;font-size:14px">Campaign B Total</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:6px;line-height:1.6">
+            The <strong style="color:white">total number of sellers</strong> in the OLD campaign
+            (e.g. Legacy). This is the campaign you are migrating away from.
+          </div>
+        </div>
+
+        <div style="background:rgba(217,119,6,0.3);border-radius:10px;padding:14px">
+          <div style="font-size:22px;margin-bottom:4px">🟡 Overlap</div>
+          <div style="font-weight:800;font-size:14px">Sellers in BOTH</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:6px;line-height:1.6">
+            Sellers who appear in <strong style="color:#fbbf24">both campaigns at the same time</strong>.
+            These are the sellers that need attention — we need to decide who handles them
+            and what their status should be.
+          </div>
+        </div>
+
+        <div style="background:rgba(22,163,74,0.3);border-radius:10px;padding:14px">
+          <div style="font-size:22px;margin-bottom:4px">🟢 Already Visited</div>
+          <div style="font-weight:800;font-size:14px">Safe — already worked on</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:6px;line-height:1.6">
+            Of the overlapping sellers, how many were <strong style="color:#86efac">already visited</strong>
+            by a Gabay in the old campaign. Their visit history is
+            <strong style="color:white">safe and will not be lost</strong>.
+            The red number below shows how many still need a visit.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 3: The Table -->
+    <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:16px">📋 What does the table show?</div>
+      <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(200px,1fr));gap:10px">
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Seller</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            The store or seller's name that appears in both campaigns.
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Phone</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            The phone number on file. A dash (—) means none was provided.
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Status in B</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            The current status of this seller in the <strong style="color:white">old campaign</strong> (Campaign B).<br>
+            <span style="color:#86efac">● live</span> = active &nbsp;
+            <span style="color:#c4b5fd">● registration</span> = almost done &nbsp;
+            <span style="color:#fcd34d">● attempting</span> = being worked on
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Assigned Gabay</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            Which Gabay (field agent) is currently handling this seller in the old campaign.
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Visits</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            How many times a Gabay has already visited this seller (total check-ins logged).
+          </div>
+        </div>
+
+        <div style="background:rgba(0,0,0,0.2);border-radius:8px;padding:12px">
+          <div style="font-weight:800;font-size:13px;color:#fbbf24">Visited?</div>
+          <div style="font-size:12px;color:#c7d2fe;margin-top:4px;line-height:1.6">
+            <span style="background:#16a34a;color:white;padding:1px 6px;border-radius:4px;font-size:11px">✓ Visited</span>
+            = at least one visit was logged.<br>
+            <span style="background:#6b7280;color:white;padding:1px 6px;border-radius:4px;font-size:11px">Not yet</span>
+            = no visit recorded yet.
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+    <!-- Section 4: The 3 Buttons -->
+    <div style="background:rgba(255,255,255,0.08);border-radius:12px;padding:20px;margin-bottom:16px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:16px">🔘 What do the buttons do?</div>
+
+      <!-- Button 1 -->
+      <div style="background:rgba(31,56,100,0.6);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="background:#1F3864;color:white;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800">
+            ⇄ Sync Assignments &amp; Status → Wave 2
+          </span>
+        </div>
+        <div style="font-size:13px;color:#c7d2fe;line-height:1.8">
+          <strong style="color:white">What it does:</strong> For every seller that appears in both campaigns,
+          this button <strong style="color:#93c5fd">copies the Gabay name and seller status</strong> from the
+          old campaign (Legacy) into the new campaign (Wave 2). So the same Gabay keeps their sellers —
+          you don't have to reassign everyone manually.<br><br>
+          <strong style="color:#fbbf24">⚠️ Nothing is deleted.</strong> Visit history stays in the old campaign.
+          This just makes sure the new campaign starts with the right assignments.<br><br>
+          <strong style="color:white">When to use:</strong> After comparing, if you want the new campaign to
+          start with all the same Gabay assignments already in place.
+        </div>
+      </div>
+
+      <!-- Button 2 -->
+      <div style="background:rgba(127,29,29,0.4);border-radius:10px;padding:16px;margin-bottom:12px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="background:#ef4444;color:white;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800">
+            🚩 Set Legacy → P99 · Set Wave 2 → P1 Active
+          </span>
+        </div>
+        <div style="font-size:13px;color:#c7d2fe;line-height:1.8">
+          <strong style="color:white">What it does:</strong> This button does two things at the same time:<br>
+          &nbsp;&nbsp;1. <strong style="color:#fca5a5">Archives the old campaign (Legacy)</strong> by setting its priority
+          to 99 — meaning it moves to the bottom of the list and is no longer active.<br>
+          &nbsp;&nbsp;2. <strong style="color:#86efac">Activates the new campaign (Wave 2)</strong> by setting it to
+          Priority 1 — meaning it becomes the main active campaign your Gabays work from.<br><br>
+          <strong style="color:#fbbf24">⚠️ Use this with care.</strong> This changes which campaign is "live".
+          Do this <em>after</em> syncing assignments (button above), so your Gabays are already set up in Wave 2.<br><br>
+          <strong style="color:white">When to use:</strong> When you are ready to officially switch from
+          the old campaign to the new one.
+        </div>
+      </div>
+
+      <!-- Button 3 -->
+      <div style="background:rgba(22,101,52,0.4);border-radius:10px;padding:16px">
+        <div style="display:flex;align-items:center;gap:10px;margin-bottom:10px">
+          <span style="background:#16a34a;color:white;border-radius:8px;padding:6px 12px;font-size:12px;font-weight:800">
+            📥 Download CSV
+          </span>
+        </div>
+        <div style="font-size:13px;color:#c7d2fe;line-height:1.8">
+          <strong style="color:white">What it does:</strong> Downloads the full list of overlapping sellers
+          as a <strong style="color:#86efac">spreadsheet file</strong> (CSV — opens in Excel or Google Sheets).
+          The file includes seller name, phone, status, assigned Gabay, visit count, and whether they were visited.<br><br>
+          <strong style="color:white">When to use:</strong> When you need to review the overlap list offline,
+          share it with management, or print it for a team meeting.
+        </div>
+      </div>
+    </div>
+
+    <!-- Section 5: Step by step guide -->
+    <div style="background:rgba(124,58,237,0.2);border:1px solid rgba(167,139,250,0.4);border-radius:12px;padding:20px">
+      <div style="font-size:15px;font-weight:800;margin-bottom:16px">✅ Recommended Step-by-Step Process</div>
+      <div style="display:flex;flex-direction:column;gap:10px">
+        {% set steps = [
+          ('1', '🔍', 'Choose your campaigns', 'Select Campaign A (the new one, e.g. RRLD Wave 2) and Campaign B (the old one, e.g. Legacy), then click Compare.'),
+          ('2', '📊', 'Review the numbers', 'Check the Overlap count. Look at the table to see which sellers are in both — and which ones still need a visit.'),
+          ('3', '⇄', 'Sync Assignments', 'Click "Sync Assignments &amp; Status → Wave 2" so your Gabays keep their sellers in the new campaign. Wait for the green confirmation.'),
+          ('4', '🚩', 'Activate the new campaign', 'Once synced, click "Set Legacy → P99 · Set Wave 2 → P1 Active" to officially switch to the new campaign.'),
+          ('5', '📥', 'Download for your records', 'Optionally download the CSV to keep a record of which sellers overlapped and who was assigned to them.')
+        ] %}
+        {% for num, icon, title, desc in steps %}
+        <div style="display:flex;gap:14px;align-items:flex-start">
+          <div style="background:rgba(167,139,250,0.3);color:#c4b5fd;font-weight:800;font-size:13px;
+                      min-width:28px;height:28px;border-radius:50%;display:flex;align-items:center;
+                      justify-content:center;flex-shrink:0;margin-top:2px">{{ num }}</div>
+          <div>
+            <div style="font-weight:800;font-size:13px;color:white">{{ icon }} {{ title }}</div>
+            <div style="font-size:12px;color:#c7d2fe;margin-top:3px;line-height:1.6">{{ desc }}</div>
+          </div>
+        </div>
+        {% endfor %}
+      </div>
+    </div>
+
+  </div>
+</div>
+<!-- ══ END HELP PANEL ══ -->
 
 <!-- Campaign Selector -->
 <div class="card mb-4">
@@ -158,6 +389,17 @@
 {% endblock %}
 {% block scripts %}
 <script>
+function toggleHelp() {
+  const panel = document.getElementById('helpPanel');
+  const btn = document.getElementById('helpToggleBtn');
+  const open = panel.style.display === 'none';
+  panel.style.display = open ? 'block' : 'none';
+  btn.innerHTML = open
+    ? '<i class="bi bi-x-circle me-1"></i>Close Guide'
+    : '<i class="bi bi-question-circle me-1"></i>Help Guide';
+  if (open) panel.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
+
 async function confirmSync() {
   if (!confirm('Sync {{ results.overlap if results else 0 }} overlapping sellers?\n\nThis will copy the Gabay assignment and status from Legacy to RRLD Wave 2.\nVisit history stays in Legacy. Nothing is deleted.')) return;
   const btn = event.target.closest('button');
