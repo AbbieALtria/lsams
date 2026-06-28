@@ -27,6 +27,8 @@ class User(UserMixin, db.Model):
 
     # Telegram chat_id set when gabay sends /start <username> to the bot
     telegram_chat_id = db.Column(db.String(30))
+    # Superadmin controls who receives the scheduled daily Telegram reports
+    telegram_reports_enabled = db.Column(db.Boolean, default=False)
 
     # Contact info
     mobile = db.Column(db.String(20))

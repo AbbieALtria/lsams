@@ -65,7 +65,8 @@ with app.app_context():
     # Add new User columns if they don't exist (safe for existing Railway DB)
     _new_user_cols = [
         ("whatsapp_alerts_enabled", "BOOLEAN DEFAULT TRUE"),
-        ("telegram_chat_id", "VARCHAR(30)"),
+        ("telegram_chat_id",        "VARCHAR(30)"),
+        ("telegram_reports_enabled", "BOOLEAN DEFAULT FALSE"),
         ("mobile",         "VARCHAR(20)"),
         ("mobile2",        "VARCHAR(20)"),
         ("viber",          "VARCHAR(20)"),
@@ -631,9 +632,20 @@ def _build_daily_report(period: str) -> str:
 def _send_daily_report(period: str):
     with app.app_context():
         try:
+            from telegram_bot import send_message as tg_send
             message = _build_daily_report(period)
-            _notify_managers_telegram(message)
-            app.logger.info(f'[TG] Daily {period} report sent.')
+            recipients = User.query.filter(
+                User.is_active == True,
+                User.telegram_chat_id.isnot(None),
+                User.telegram_chat_id != '',
+                User.telegram_reports_enabled == True,
+            ).all()
+            for r in recipients:
+                try:
+                    tg_send(r.telegram_chat_id, message)
+                except Exception as e:
+                    app.logger.error(f'[TG Report] Failed for {r.username}: {e}')
+            app.logger.info(f'[TG] Daily {period} report sent to {len(recipients)} user(s).')
         except Exception as e:
             app.logger.error(f'[TG] Daily report error: {e}', exc_info=True)
 
@@ -5637,6 +5649,19 @@ def admin_toggle_wa_alerts(user_id):
     u.whatsapp_alerts_enabled = not u.whatsapp_alerts_enabled
     db.session.commit()
     return jsonify({'enabled': u.whatsapp_alerts_enabled, 'name': u.full_name})
+
+
+@app.route('/admin/users/<int:user_id>/toggle-tg-reports', methods=['POST'])
+@login_required
+def admin_toggle_tg_reports(user_id):
+    if not current_user.is_superadmin:
+        return jsonify({'error': 'forbidden'}), 403
+    u = User.query.get_or_404(user_id)
+    if not u.telegram_chat_id:
+        return jsonify({'error': 'User has not linked their Telegram yet.'}), 400
+    u.telegram_reports_enabled = not u.telegram_reports_enabled
+    db.session.commit()
+    return jsonify({'enabled': u.telegram_reports_enabled, 'name': u.full_name})
 
 
 # ─── LAZADA READ-ONLY PORTAL ──────────────────────────────────────────────────
