@@ -177,7 +177,7 @@ body {
               <div style="margin-top:16px;background:rgba(255,255,255,0.1);border-radius:10px;padding:10px 14px;text-align:left;width:200px">
                 <div style="font-size:8px;font-weight:800;color:rgba(255,255,255,0.4);margin-bottom:6px">TOPICS COVERED</div>
                 <div style="font-size:9px;color:rgba(255,255,255,0.8);line-height:2">
-                  📍 Check In &amp; GPS<br>📡 Seller Radar<br>📷 Photo Upload<br>📱 WhatsApp Bot<br>🎙 Voice Notes<br>📊 My Reports
+                  📍 Check In &amp; GPS<br>📡 Seller Radar<br>📷 Photo Upload<br>📱 WhatsApp Bot<br>✈️ Telegram Bot<br>🎙 Voice Notes<br>📊 My Reports
                 </div>
               </div>
               <div style="margin-top:14px;font-size:9px;color:rgba(255,255,255,0.3)">Altria Call Center · 2026</div>
@@ -779,6 +779,7 @@ body {
                   📝 Add notes &amp; follow-up date<br>
                   📷 Upload selfie proof photo<br>
                   📱 Use WhatsApp to log visits<br>
+                  ✈️ Use Telegram bot (text or voice)<br>
                   🎙 Voice notes work in Tagalog<br>
                   🔭 Scout new leads (if enabled)<br>
                   📊 Check Reports at day-end
@@ -863,6 +864,90 @@ body {
             </div>
           </div>
 
+          <!-- ══ SCENE scr19: TELEGRAM — REGISTER ══ -->
+          <div class="screen-inner" id="scr19">
+            <div class="sc" style="background:#eef3f7">
+              <div class="status-bar" style="background:#0088cc"><span>9:41</span><span>LSAMS Bot</span><span>📶 🔋</span></div>
+              <div style="background:#0088cc;padding:8px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px">✈️</div>
+                <div><div style="font-size:11px;font-weight:800;color:white">LSAMS Bot</div><div style="font-size:8px;color:rgba(255,255,255,0.7)">bot · tap to register</div></div>
+              </div>
+              <div style="flex:1;background:#eef3f7;padding:8px 10px;overflow:hidden">
+                <div style="text-align:center;font-size:8px;color:#9aabc5;margin-bottom:7px">ONE-TIME SETUP — 30 seconds!</div>
+                <div style="background:white;border-radius:10px;padding:8px 10px;margin-bottom:7px">
+                  <div style="font-size:9px;font-weight:800;color:#0088cc;margin-bottom:4px">📋 How to Register</div>
+                  <div style="font-size:9px;color:#374151;line-height:1.7">
+                    1️⃣ Open <strong>Telegram</strong> on your phone<br>
+                    2️⃣ Search: <strong>lsams_notify_bot</strong><br>
+                    3️⃣ Tap <strong>START</strong><br>
+                    4️⃣ Type: <strong>/start your_username</strong>
+                  </div>
+                </div>
+                <div style="background:#d5eeff;border-radius:10px 10px 0 10px;padding:6px 9px;margin-bottom:5px;margin-left:24px;font-size:10px;color:#111">
+                  /start juan123
+                  <div style="font-size:8px;color:#9aabc5;text-align:right;margin-top:2px">9:41 ✓✓</div>
+                </div>
+                <div style="background:white;border-radius:10px 10px 10px 0;padding:6px 9px;margin-right:24px;font-size:9px;color:#111">
+                  ✅ <strong>Linked! Welcome, Juan!</strong><br><br>
+                  You can now log visits:<br>
+                  <em style="color:#0088cc">"Visited Chokorean Online — interested"</em><br><br>
+                  Or send a 🎙 voice note — I'll transcribe it!<br>
+                  Type <strong>help</strong> for commands.
+                  <div style="font-size:8px;color:#9aabc5;text-align:right;margin-top:2px">9:41</div>
+                </div>
+              </div>
+              <div style="background:#f1f3f4;padding:6px 8px;display:flex;align-items:center;gap:6px;flex-shrink:0;border-top:1px solid #e2e8f0">
+                <div style="flex:1;background:white;border-radius:20px;padding:5px 10px;font-size:9px;color:#bbb;border:1px solid #e2e8f0">Message...</div>
+                <div style="width:30px;height:30px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;font-size:14px">🎙</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- ══ SCENE scr20: TELEGRAM — LOG VISIT & COMMANDS ══ -->
+          <div class="screen-inner" id="scr20">
+            <div class="sc" style="background:#eef3f7">
+              <div class="status-bar" style="background:#0088cc"><span>2:00 PM</span><span>LSAMS Bot</span><span>📶 🔋</span></div>
+              <div style="background:#0088cc;padding:8px 10px;display:flex;align-items:center;gap:8px;flex-shrink:0">
+                <div style="width:28px;height:28px;border-radius:50%;background:rgba(255,255,255,0.2);display:flex;align-items:center;justify-content:center;font-size:16px">✈️</div>
+                <div><div style="font-size:11px;font-weight:800;color:white">LSAMS Bot</div><div style="font-size:8px;color:rgba(255,255,255,0.7)">online</div></div>
+              </div>
+              <div style="flex:1;background:#eef3f7;padding:8px 10px;overflow:hidden">
+                <div style="text-align:center;font-size:8px;color:#9aabc5;margin-bottom:6px">Text or voice — both work!</div>
+                <!-- Text visit -->
+                <div style="background:#d5eeff;border-radius:10px 10px 0 10px;padding:6px 9px;margin-bottom:5px;margin-left:24px;font-size:10px;color:#111">
+                  Visited BVS Online Shop — interested, call next week
+                  <div style="font-size:8px;color:#9aabc5;text-align:right;margin-top:2px">2:00 PM ✓✓</div>
+                </div>
+                <div style="background:white;border-radius:10px 10px 10px 0;padding:6px 9px;margin-bottom:6px;margin-right:24px;font-size:9px;color:#111">
+                  ✅ <strong>Visit Logged!</strong><br>
+                  📍 BVS Online Shop<br>
+                  🟢 Outcome: Interested<br>
+                  📅 Follow-up: Jun 24, 2026
+                  <div style="font-size:8px;color:#9aabc5;text-align:right;margin-top:2px">2:00 PM</div>
+                </div>
+                <!-- Voice note -->
+                <div style="background:#d5eeff;border-radius:10px 10px 0 10px;padding:6px 9px;margin-bottom:5px;margin-left:24px;font-size:9px;color:#111">
+                  🎙 <em style="color:#0088cc">Voice note · 0:07</em>
+                  <div style="background:#a8d8f8;height:14px;border-radius:8px;margin:4px 0;display:flex;align-items:center;padding:0 6px">
+                    <div style="font-size:8px;color:#0066aa">▶ ~~ ~ ~~ 0:07</div>
+                  </div>
+                  <div style="font-size:8px;color:#9aabc5;text-align:right">2:05 PM ✓✓</div>
+                </div>
+                <div style="background:white;border-radius:10px 10px 10px 0;padding:6px 9px;margin-right:24px;font-size:9px;color:#111">
+                  🎙 <em style="color:#9aabc5;font-size:8px">"Pumunta sa Nano Shop — wala siya"</em><br><br>
+                  ✅ <strong>Visit Logged!</strong><br>
+                  📍 Nano Shop PH<br>
+                  ⚪ Outcome: Not Home
+                  <div style="font-size:8px;color:#9aabc5;text-align:right;margin-top:2px">2:05 PM</div>
+                </div>
+              </div>
+              <div style="background:#f1f3f4;padding:5px 8px;display:flex;align-items:center;gap:6px;flex-shrink:0;border-top:1px solid #e2e8f0">
+                <div style="flex:1;background:white;border-radius:20px;padding:5px 10px;font-size:9px;color:#bbb;border:1px solid #e2e8f0">Visited [seller] — [outcome]…</div>
+                <div style="width:30px;height:30px;border-radius:50%;background:#0088cc;display:flex;align-items:center;justify-content:center;font-size:14px" class="tap-me">🎙</div>
+              </div>
+            </div>
+          </div>
+
         </div><!-- /phone-screen -->
       </div><!-- /phone -->
     </div><!-- /phone-wrap -->
@@ -918,20 +1003,24 @@ const scenes = [
     narration:'You can speak your visit instead of typing! Hold the WhatsApp microphone button and say your visit in Tagalog, Filipino, or English. For example: "Pumunta ako sa Nano Shop — wala siya." The bot transcribes your voice, identifies the seller, and logs the visit automatically — completely hands-free!' },
   { screen:13, label:'WhatsApp Bot', title:'Step 14 — Bot Commands', duration:7000,
     narration:'The bot also has quick commands. Type "status" to see your full performance summary — leads, live sellers, visits today, and this week. Type "today" to list all visits from today with their outcomes. Type "help" to see all available commands and examples.' },
-  { screen:14, label:'Reports', title:'Step 15 — My Performance Report', duration:8000,
+  { screen:19, label:'Telegram Bot', title:'Step 15 — Telegram Bot: Register Once', duration:9000,
+    narration:'LSAMS also has a Telegram Bot — another fast way to log visits without opening the app! Registration is a one-time setup. Open Telegram, search for lsams_notify_bot, tap Start, then type /start followed by your LSAMS username — for example /start juan123. The bot replies: Linked! Welcome! — you are now connected. Ask your supervisor for your username if you forgot it.' },
+  { screen:20, label:'Telegram Bot', title:'Step 16 — Telegram Bot: Log Visits & Voice', duration:9000,
+    narration:'Once linked, just type your visit — for example: Visited BVS Online Shop — interested, call next week. The bot saves the visit and replies with confirmation. You can also send a voice note in Tagalog or English and the bot transcribes it automatically! Quick commands: type status for your summary, today for today\'s visits, and help for all options. It needs internet to send — but messages queue in Telegram and send automatically once you have signal.' },
+  { screen:14, label:'Reports', title:'Step 17 — My Performance Report', duration:8000,
     narration:'Tap Reports on the bottom menu to see your monthly performance. You can see total visits, outcome breakdown — how many sellers were Interested, Callback, Not Home, or Rejected — and your registration funnel showing how many sellers progressed from Assigned all the way to Live!' },
-  { screen:15, label:'Reports', title:'Step 16 — Visit History', duration:7000,
+  { screen:15, label:'Reports', title:'Step 18 — Visit History', duration:7000,
     narration:'The Visit History tab shows every single visit you logged — date, time, seller name, outcome, GPS confirmation, and photo status. Your supervisor uses this to verify your work. Make sure every visit has a GPS check and photos uploaded — it protects you and proves your hard work!' },
-  { screen:2,  label:'🌸 Maria Intel', title:'Step 17 — Seller 360 Rating', duration:8000,
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 19 — Seller 360 Rating', duration:8000,
     narration:'Before every visit, open the lead and scroll to the Maria card. At the top you will see a Seller 360 Rating badge — AAA, AA, A, B, or C. AAA means this seller is a top priority — active on multiple platforms with many followers and no Lazada account yet. C means low priority. Always visit your AAA and AA sellers first. The number on the right is Maria\'s score out of 100.' },
-  { screen:2,  label:'🌸 Maria Intel', title:'Step 18 — Maria\'s Pitch Script', duration:8000,
+  { screen:2,  label:'🌸 Maria Intel', title:'Step 20 — Maria\'s Pitch Script', duration:8000,
     narration:'Below the Visit Brief you will see a purple card: Maria\'s Pitch Script — Say This When You Arrive. Maria has written three lines specifically for this seller: an opening line that references their business, a Lazada value pitch tailored to their product category, and a clear call to action. Read these before you knock on the door. You do not need to memorize them — just glance at your phone once before entering.' },
-  { screen:18, label:'🔭 Prospect Scout', title:'Step 19 — Prospect Scout (Special Access)', duration:8000,
+  { screen:18, label:'🔭 Prospect Scout', title:'Step 21 — Prospect Scout (Special Access)', duration:8000,
     narration:'If your supervisor enables Prospect Scout for your account, you can search for brand-new seller prospects on Google, Facebook, Shopee, and TikTok — all from inside LSAMS! Pick a category and brand, choose your city, and tap Scout Now. The results show sellers who have no Lazada presence yet — your next big lead! Not all Gabay agents have this access — ask your supervisor if you think you should.' },
-  { screen:2,  label:'🏅 Badges', title:'Step 20 — Your Achievement Badges', duration:8000,
+  { screen:2,  label:'🏅 Badges', title:'Step 22 — Your Achievement Badges', duration:8000,
     narration:'Your home screen shows your achievement badges at the top. The 🥇 Conversion Champion badge appears when you have live sellers. The 🔥 7-Day Streak badge appears when you log visits every single day for 7 days in a row. The ⭐ Perfect Visit Day badge appears when you log 3 or more visits in one day. The 🚀 Fast Activator badge appears when a seller you were assigned went live within 14 days. Earn all four to show your supervisor what you are made of!' },
   { screen:16, label:'Complete!', title:'You\'re Ready — Daily Checklist', duration:9000,
-    narration:'That is everything! Follow this daily checklist: check your badges and priority leads every morning, glance at Maria\'s 360 Rating and Pitch Script before each visit, use Plan My Day for your route, check Seller Radar for bonus leads, always check in after every visit — even offline!, add notes and follow-up dates, upload your selfie proof, use WhatsApp when on the go, and check your Reports at the end of each day. If your supervisor gave you Prospect Scout access, use it to find fresh leads in your city. Good luck — Maria is with you!' }
+    narration:'That is everything! Follow this daily checklist: check your badges and priority leads every morning, glance at Maria\'s 360 Rating and Pitch Script before each visit, use Plan My Day for your route, check Seller Radar for bonus leads, always check in after every visit — even offline!, add notes and follow-up dates, upload your selfie proof, use WhatsApp or Telegram to log visits on the go, and check your Reports at the end of each day. If your supervisor gave you Prospect Scout access, use it to find fresh leads in your city. Good luck — Maria is with you!' }
 ];
 
 let current = 0, playing = false, timer = null;
