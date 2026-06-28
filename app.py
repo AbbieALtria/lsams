@@ -5634,7 +5634,9 @@ def admin_toggle_user(user_id):
         return jsonify({'error': 'forbidden'}), 403
     u = User.query.get_or_404(user_id)
     if u.id == current_user.id:
-        return jsonify({'error': 'Cannot deactivate yourself'}), 400
+        return jsonify({'error': 'Cannot deactivate yourself.'}), 400
+    if u.role == 'superadmin':
+        return jsonify({'error': 'Superadmin accounts cannot be deactivated.'}), 400
     u.is_active = not u.is_active
     db.session.commit()
     return jsonify({'active': u.is_active, 'name': u.full_name})
