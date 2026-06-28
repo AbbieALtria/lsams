@@ -7049,6 +7049,12 @@ def gabay_tutorial_print():
     return render_template('gabay_tutorial_print.html')
 
 
+@app.route('/whats-new')
+@login_required
+def whats_new():
+    return render_template('whats_new_print.html')
+
+
 @app.route('/gabay/telegram-guide')
 @login_required
 def gabay_telegram_guide():
