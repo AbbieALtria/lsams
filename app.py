@@ -558,6 +558,115 @@ def _notify_managers_telegram(message: str):
     threading.Thread(target=_send, daemon=True).start()
 
 
+# ─── TELEGRAM DAILY REPORT ───────────────────────────────────────────────────
+
+def _build_daily_report(period: str) -> str:
+    """Build the 8 AM / 8 PM Telegram report for all linked managers."""
+    from datetime import timezone, timedelta as _td
+    _PHT = timezone(_td(hours=8))
+    now_pht = datetime.now(_PHT)
+    today_pht = now_pht.date()
+
+    # UTC window for "today PHT"
+    day_start_utc = datetime(today_pht.year, today_pht.month, today_pht.day, 0, 0, 0) - timedelta(hours=8)
+    day_end_utc   = day_start_utc + timedelta(days=1)
+
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    emoji = '🌅' if period == 'morning' else '🌙'
+    label = 'Morning' if period == 'morning' else 'Evening'
+    lines = [
+        f"{emoji} *LSAMS {label} Report*",
+        f"📅 {now_pht.strftime('%b %d, %Y — %I:%M %p')} PHT",
+        f"",
+        f"👥 *Gabay Activity ({len(gabays)} agents)*",
+    ]
+
+    total_visits = 0
+    for g in gabays:
+        # Check if logged in today (PHT)
+        logged_in = (
+            g.last_seen and
+            day_start_utc <= g.last_seen.replace(tzinfo=None) < day_end_utc
+        )
+        # Visits today
+        visits_today = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            Visit.visited_at >= day_start_utc,
+            Visit.visited_at < day_end_utc,
+        ).all()
+
+        total_visits += len(visits_today)
+        name = g.display_name or g.full_name
+
+        if visits_today:
+            outcome_counts = {}
+            for v in visits_today:
+                o = (v.outcome or 'unknown').replace('_', ' ')
+                outcome_counts[o] = outcome_counts.get(o, 0) + 1
+            outcome_str = ', '.join(f"{cnt} {o}" for o, cnt in outcome_counts.items())
+            status_icon = '✅'
+            activity = f"{len(visits_today)} visit{'s' if len(visits_today)>1 else ''} ({outcome_str})"
+        elif logged_in:
+            status_icon = '🟡'
+            activity = 'Logged in — no visits yet'
+        else:
+            status_icon = '⚪'
+            activity = 'Not active today'
+
+        lines.append(f"{status_icon} {name} — {activity}")
+
+    lines += [
+        f"",
+        f"📊 Total visits today: *{total_visits}*",
+    ]
+
+    # Live sellers count
+    live_count = Lead.query.filter_by(status='live').count()
+    lines.append(f"✅ Live sellers (all time): *{live_count}*")
+
+    return '\n'.join(lines)
+
+
+def _send_daily_report(period: str):
+    with app.app_context():
+        try:
+            message = _build_daily_report(period)
+            _notify_managers_telegram(message)
+            app.logger.info(f'[TG] Daily {period} report sent.')
+        except Exception as e:
+            app.logger.error(f'[TG] Daily report error: {e}', exc_info=True)
+
+
+# Start APScheduler — 8 AM and 8 PM Philippine Time daily
+def _start_scheduler():
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        import pytz
+        _tz = pytz.timezone('Asia/Manila')
+        scheduler = BackgroundScheduler(timezone=_tz)
+        scheduler.add_job(
+            lambda: _send_daily_report('morning'),
+            CronTrigger(hour=8, minute=0, timezone=_tz),
+            id='daily_morning_report', replace_existing=True,
+        )
+        scheduler.add_job(
+            lambda: _send_daily_report('evening'),
+            CronTrigger(hour=20, minute=0, timezone=_tz),
+            id='daily_evening_report', replace_existing=True,
+        )
+        scheduler.start()
+        app.logger.info('[TG] Daily report scheduler started (8 AM & 8 PM PHT)')
+    except Exception as e:
+        app.logger.warning(f'[TG] Scheduler not started: {e}')
+
+
+# Only start once (not on every gunicorn worker fork)
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'false':
+    _start_scheduler()
+
+
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
 @app.route('/', methods=['GET', 'POST'])
@@ -576,11 +685,13 @@ def login():
             # Notify managers when a Gabay agent logs in
             if user.role == 'gabay':
                 from datetime import datetime as _dt
-                _notify_managers_whatsapp(
+                _login_msg = (
                     f"📱 *Gabay Login*\n"
                     f"👤 {user.full_name} just logged in to LSAMS\n"
                     f"🕐 {_dt.now().strftime('%b %d, %Y at %I:%M %p')}"
                 )
+                _notify_managers_whatsapp(_login_msg)
+                _notify_managers_telegram(_login_msg)
             dest = request.args.get('next')
             if not dest:
                 if user.role == 'gabay':
@@ -1658,6 +1769,15 @@ def import_update_confirm():
         ).all() if campaign_id else []
         for _l in new_db_leads:
             _enrich_lead_background(_l.id, trigger='auto')
+
+        # Telegram alert for power users
+        camp_label = campaign.name if campaign else 'No Campaign'
+        _notify_managers_telegram(
+            f"📥 *Lead Upload Complete*\n"
+            f"👤 By: {current_user.full_name}\n"
+            f"📋 Campaign: {camp_label}\n"
+            f"✅ Added: {created} · 🔄 Updated: {updated} · ⏭ Skipped: {skipped}"
+        )
 
         return jsonify({
             'created': created,
@@ -4708,6 +4828,20 @@ def telegram_test():
     return f'<pre>Sent to chat_id {chat_id}\nResult: {json.dumps(result, indent=2)}</pre>'
 
 
+@app.route('/admin/telegram-report-now')
+@login_required
+def telegram_report_now():
+    """Send the daily report immediately (for testing or manual trigger)."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    from datetime import timezone, timedelta as _td
+    _PHT = timezone(_td(hours=8))
+    hour = datetime.now(_PHT).hour
+    period = 'morning' if hour < 12 else 'evening'
+    _send_daily_report(period)
+    return f'<pre>✅ Report sent to all linked managers!\n\nPeriod: {period}\n\nRefresh and check Telegram.</pre>'
+
+
 @app.route('/admin/telegram-unlink/<int:user_id>', methods=['POST'])
 @login_required
 def telegram_unlink(user_id):
@@ -6577,7 +6711,7 @@ def gabay_quick_checkin():
                 'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅',
             }.get(outcome,'📋')
             status_line = f"\n📊 Lead status → *{lead.status_label}*" if new_status else ''
-            _notify_managers_whatsapp(
+            _visit_msg = (
                 f"{outcome_emoji} *Visit Logged*\n"
                 f"👤 Agent: {current_user.full_name}\n"
                 f"🏪 Seller: {lead.seller_name}\n"
@@ -6585,6 +6719,8 @@ def gabay_quick_checkin():
                 f"{status_line}\n"
                 f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
             )
+            _notify_managers_whatsapp(_visit_msg)
+            _notify_managers_telegram(_visit_msg)
 
         if visit.photo_pending:
             flash('Visit logged! 📷 Don\'t forget to upload your selfie proof photo when you\'re back online.', 'warning')

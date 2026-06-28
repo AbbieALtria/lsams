@@ -16,3 +16,5 @@ requests==2.32.3
 scikit-learn==1.5.2
 numpy==1.26.4
 cloudinary==1.40.0
+APScheduler==3.10.4
+pytz==2024.1
