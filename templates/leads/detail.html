@@ -57,7 +57,57 @@
           </td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">Batch</th><td><small>{{ lead.batch_ref or '—' }}</small></td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">Imported</th><td><small>{{ lead.imported_at.strftime('%b %d, %Y') if lead.imported_at else '—' }}</small></td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Competitor</th><td>
+            <span id="compDisplay" style="font-size:12px">
+              {% if lead.competitor_brand %}
+              <span style="background:#fef3c7;color:#d97706;border-radius:6px;padding:2px 8px;font-weight:700">{{ lead.competitor_brand }}</span>
+              {% else %}<span style="color:#CBD5E1">None logged</span>{% endif %}
+            </span>
+            <input id="compInput" type="text" class="form-control form-control-sm mt-1"
+                   style="display:none;max-width:200px" value="{{ lead.competitor_brand or '' }}"
+                   placeholder="e.g. Shopee Mall, Shein...">
+            <a href="#" onclick="toggleCompEdit(event)" style="font-size:10px;color:#4338ca;margin-left:6px" id="compEditBtn">edit</a>
+          </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">In Mall</th><td>
+            {% if lead.is_in_mall %}
+            <span style="background:#7c3aed18;border:1px solid #7c3aed44;color:#7c3aed;
+                         border-radius:8px;padding:2px 10px;font-size:11px;font-weight:700">
+              🏪 {{ lead.mall_name or 'Mall Seller' }}
+            </span>
+            <span style="font-size:11px;color:#9aabc5;margin-left:6px">— managed by mall team</span>
+            {% else %}<span style="color:#15803d;font-size:12px;font-weight:700">✓ Outside Mall</span>{% endif %}
+          </td></tr>
+          {% if lead.suggested_next_visit %}
+          <tr><th style="color:#9aabc5;font-size:11px">Next Visit</th><td>
+            {% set snv = lead.suggested_next_visit %}
+            <span style="font-size:12px;font-weight:700;color:#7c3aed">
+              📅 {{ snv.strftime('%b %d, %Y') }}
+            </span>
+          </td></tr>
+          {% endif %}
         </table>
+
+        <!-- Tags -->
+        <div style="border-top:1px solid #f1f5f9;padding:10px 0 2px">
+          <div style="font-size:10px;color:#9aabc5;font-weight:700;margin-bottom:6px;padding-left:4px">SELLER TAGS</div>
+          <div id="tagsContainer" style="display:flex;gap:6px;flex-wrap:wrap;padding-left:4px;min-height:28px">
+            {% for t in lead.tags_list %}
+            <span onclick="toggleTag('{{ t }}', this)" data-tag="{{ t }}"
+                  style="background:#EEF2FF;color:#4338ca;border-radius:8px;padding:3px 10px;
+                         font-size:11px;font-weight:700;cursor:pointer;border:1px solid #c7d2fe">{{ t }} ×</span>
+            {% endfor %}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;padding-left:4px">
+            {% set preset_tags = ['Hot Lead','Needs Follow-up','Declined','Ready to Register','Key Account','Revisit','Competition: Strong','New Discovery'] %}
+            {% for t in preset_tags %}
+            {% if t not in lead.tags_list %}
+            <span onclick="toggleTag('{{ t }}', this)" data-tag="{{ t }}"
+                  style="background:#f8fafc;color:#9aabc5;border-radius:8px;padding:3px 10px;
+                         font-size:11px;font-weight:600;cursor:pointer;border:1px dashed #e2e8f0">+ {{ t }}</span>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -354,6 +404,49 @@ function triggerScan(leadId, btn) {
       if (d.ok) location.reload();
       else { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cpu me-1"></i>Scan Now'; alert(d.error || 'Scan failed'); }
     });
+}
+
+// Tags
+function toggleTag(tag, el) {
+  fetch('/api/leads/{{ lead.id }}/tags', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({tag})
+  }).then(r => r.json()).then(d => {
+    if (d.error) return;
+    // Reload tags container
+    const container = document.getElementById('tagsContainer');
+    if (d.action === 'added') {
+      el.style.background = '#EEF2FF';
+      el.style.color = '#4338ca';
+      el.style.border = '1px solid #c7d2fe';
+      el.textContent = tag + ' ×';
+      el.onclick = function(){ toggleTag(tag, el); };
+      container.appendChild(el);
+    } else {
+      el.remove();
+    }
+    location.reload();
+  });
+}
+
+// Competitor inline edit
+function toggleCompEdit(e) {
+  e.preventDefault();
+  const display = document.getElementById('compDisplay');
+  const input = document.getElementById('compInput');
+  const btn = document.getElementById('compEditBtn');
+  if (input.style.display === 'none') {
+    display.style.display = 'none';
+    input.style.display = 'block';
+    btn.textContent = 'save';
+  } else {
+    fetch('/api/leads/{{ lead.id }}/field-intel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({competitor_brand: input.value})
+    }).then(() => location.reload());
+  }
 }
 </script>
 {% endblock %}

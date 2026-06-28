@@ -133,6 +133,22 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
+    # Add field-intelligence columns to leads
+    _new_lead_intel_cols = [
+        ("competitor_brand",     "VARCHAR(150)"),
+        ("seller_tags",          "TEXT"),
+        ("is_in_mall",           "BOOLEAN DEFAULT FALSE"),
+        ("mall_name",            "VARCHAR(100)"),
+        ("suggested_next_visit", "DATE"),
+    ]
+    with db.engine.connect() as _conn:
+        for _col, _type in _new_lead_intel_cols:
+            try:
+                _conn.execute(text(f"ALTER TABLE leads ADD COLUMN {_col} {_type}"))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
+
     # Add is_priority to brands table
     with db.engine.connect() as _conn:
         try:
@@ -840,6 +856,7 @@ def leads():
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', '')
     gabay_filter = request.args.get('gabay', '', type=str)
+    mall_filter = request.args.get('mall', '')
     search = request.args.get('q', '')
     campaign_id = request.args.get('campaign_id', type=int)
     per_page = 20
@@ -853,6 +870,10 @@ def leads():
         query = query.filter_by(status=status_filter)
     if gabay_filter:
         query = query.filter_by(gabay_id=gabay_filter)
+    if mall_filter == 'in_mall':
+        query = query.filter(Lead.is_in_mall == True)
+    elif mall_filter == 'outside':
+        query = query.filter((Lead.is_in_mall == False) | (Lead.is_in_mall == None))
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
@@ -2366,10 +2387,134 @@ def new_visit(lead_id):
             lead.status = 'negotiation'
         elif lead.status == 'assigned':
             lead.status = 'attempting'
+        # Save field intelligence from visit form
+        competitor = request.form.get('competitor_brand', '').strip()
+        if competitor:
+            lead.competitor_brand = competitor
+        if request.form.get('is_in_mall'):
+            lead.is_in_mall = True
+            lead.mall_name = request.form.get('mall_name', '').strip() or lead.mall_name
+        # Compute suggested next visit based on outcome
+        from datetime import date as _date, timedelta as _td
+        _today = _date.today()
+        _fup = visit.follow_up_date
+        _next_map = {
+            'interested':     _fup or (_today + _td(days=3)),
+            'follow_up':      _fup or (_today + _td(days=5)),
+            'callback':       _fup or (_today + _td(days=3)),
+            'not_interested': _today + _td(days=14),
+            'no_contact':     _today + _td(days=2),
+            'not_home':       _today + _td(days=2),
+            'rejected':       _today + _td(days=30),
+            'registered':     _today + _td(days=7),
+        }
+        lead.suggested_next_visit = _next_map.get(outcome, _today + _td(days=7))
         db.session.commit()
         flash('Visit recorded successfully.', 'success')
         return redirect(url_for('lead_detail', lead_id=lead_id))
     return render_template('visits/new.html', lead=lead)
+
+
+# ─── LEAD FIELD INTELLIGENCE (tags, competitor, mall) ────────────────────────
+
+@app.route('/api/leads/<int:lead_id>/tags', methods=['POST'])
+@login_required
+def lead_toggle_tag(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role not in ('gabay', 'supervisor', 'manager', 'admin', 'superadmin'):
+        return jsonify({'error': 'Access denied'}), 403
+    tag = (request.json or {}).get('tag', '').strip()
+    if not tag:
+        return jsonify({'error': 'No tag provided'}), 400
+    tags = lead.tags_list
+    if tag in tags:
+        tags.remove(tag)
+        action = 'removed'
+    else:
+        tags.append(tag)
+        action = 'added'
+    lead.seller_tags = json.dumps(tags)
+    db.session.commit()
+    return jsonify({'tags': tags, 'action': action})
+
+
+@app.route('/api/leads/<int:lead_id>/field-intel', methods=['POST'])
+@login_required
+def lead_update_field_intel(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role not in ('gabay', 'supervisor', 'manager', 'admin', 'superadmin'):
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.json or {}
+    if 'competitor_brand' in data:
+        lead.competitor_brand = data['competitor_brand'].strip() or None
+    if 'is_in_mall' in data:
+        lead.is_in_mall = bool(data['is_in_mall'])
+        lead.mall_name = data.get('mall_name', '').strip() or lead.mall_name
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/leads/heat-map')
+@login_required
+def leads_heat_map():
+    if not current_user.is_supervisor:
+        return redirect(url_for('leads'))
+    from sqlalchemy import func
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    rows_q = db.session.query(
+        Lead.barangay, Lead.city,
+        func.count(Lead.id).label('total'),
+        func.sum(db.case((Lead.status.in_(['live', 'matched']), 1), else_=0)).label('active'),
+        func.sum(db.case((Lead.status.in_(['negotiation', 'registration']), 1), else_=0)).label('warm'),
+        func.sum(db.case((Lead.status.in_(['pool', 'assigned', 'attempting']), 1), else_=0)).label('cold'),
+        func.sum(db.case((Lead.is_in_mall == True, 1), else_=0)).label('in_mall'),
+    ).filter(Lead.is_archived == False).group_by(Lead.barangay, Lead.city)\
+     .order_by(func.count(Lead.id).desc()).limit(60).all()
+
+    visit_q = db.session.query(
+        Lead.barangay, Lead.city, func.count(Visit.id).label('visits')
+    ).join(Visit, Visit.lead_id == Lead.id).filter(
+        Visit.visited_at >= cutoff
+    ).group_by(Lead.barangay, Lead.city).all()
+    visit_map = {(r.barangay, r.city): r.visits for r in visit_q}
+
+    rows = []
+    for r in rows_q:
+        rows.append({
+            'barangay': r.barangay or '—',
+            'city': r.city or '—',
+            'total': r.total,
+            'active': int(r.active or 0),
+            'warm': int(r.warm or 0),
+            'cold': int(r.cold or 0),
+            'in_mall': int(r.in_mall or 0),
+            'visits_30d': visit_map.get((r.barangay, r.city), 0),
+        })
+    return render_template('leads/heat_map.html', rows=rows)
+
+
+@app.route('/leads/funnel')
+@login_required
+def leads_funnel():
+    if not current_user.is_supervisor:
+        return redirect(url_for('leads'))
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    funnel_data = []
+    for g in gabay_users:
+        leads = Lead.query.filter_by(gabay_id=g.id, is_archived=False).all()
+        cold = sum(1 for l in leads if l.status in ('pool', 'assigned'))
+        attempting = sum(1 for l in leads if l.status == 'attempting')
+        negotiation = sum(1 for l in leads if l.status == 'negotiation')
+        active = sum(1 for l in leads if l.status in ('registration', 'live', 'matched'))
+        total = len(leads)
+        funnel_data.append({
+            'gabay': g, 'total': total,
+            'cold': cold, 'attempting': attempting,
+            'negotiation': negotiation, 'active': active,
+        })
+    funnel_data.sort(key=lambda x: x['active'], reverse=True)
+    return render_template('leads/funnel.html', funnel_data=funnel_data)
 
 
 # ─── REGISTRATIONS ───────────────────────────────────────────────────────────

@@ -196,6 +196,12 @@ class Lead(db.Model):
     is_archived = db.Column(db.Boolean, default=False)     # soft-removed from pool by supervisor
     # AI Lead Intelligence — Phase 3: used for queue ordering
     ai_score = db.Column(db.Integer)          # 0-100 from LeadIntelligence engine
+    # Field intelligence — filled by Gabay agents during visits
+    competitor_brand = db.Column(db.String(150))        # competitor brand currently carried by seller
+    seller_tags = db.Column(db.Text)                    # JSON array of tag strings
+    is_in_mall = db.Column(db.Boolean, default=False)   # seller operates inside a mall / LazMall
+    mall_name = db.Column(db.String(100))               # SM North, Ayala Mall, LazMall, etc.
+    suggested_next_visit = db.Column(db.Date)           # auto-set when a visit is saved
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
@@ -203,6 +209,15 @@ class Lead(db.Model):
     @property
     def latest_visit(self):
         return self.visits.order_by(Visit.visited_at.desc()).first()
+
+    @property
+    def tags_list(self):
+        if not self.seller_tags:
+            return []
+        try:
+            return json.loads(self.seller_tags)
+        except Exception:
+            return []
 
     @property
     def status_label(self):

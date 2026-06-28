@@ -1,0 +1,118 @@
+{% extends "base.html" %}
+{% block title %}Conversion Funnel{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('leads') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to Leads
+    </a>
+    <div class="page-title mt-1"><i class="bi bi-bar-chart-steps me-2" style="color:#d97706"></i>Conversion Funnel</div>
+    <div style="font-size:12px;color:#9aabc5">Pipeline progression per Gabay agent</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('leads_heat_map') }}" class="btn btn-sm fw-bold"
+       style="background:#0d9488;color:white">
+      <i class="bi bi-map me-1"></i>Heat Map
+    </a>
+  </div>
+</div>
+
+<!-- Stage legend -->
+<div class="d-flex gap-3 flex-wrap mb-3 align-items-center" style="font-size:12px">
+  <span><span style="display:inline-block;width:12px;height:12px;background:#9aabc5;border-radius:3px;margin-right:4px"></span>Cold — Pool / Assigned</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#d97706;border-radius:3px;margin-right:4px"></span>Attempting Contact</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#0d9488;border-radius:3px;margin-right:4px"></span>Negotiation</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#15803d;border-radius:3px;margin-right:4px"></span>Active (Reg / Live)</span>
+</div>
+
+<!-- Summary cards -->
+{% if funnel_data %}
+<div class="row g-3 mb-4">
+  {% set total_leads = funnel_data | sum(attribute='total') %}
+  {% set total_active = funnel_data | sum(attribute='active') %}
+  {% set total_neg = funnel_data | sum(attribute='negotiation') %}
+  {% set total_att = funnel_data | sum(attribute='attempting') %}
+  {% set total_cold = funnel_data | sum(attribute='cold') %}
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:900;color:#9aabc5">{{ total_cold }}</div>
+      <div style="font-size:11px;color:#9aabc5;font-weight:700">COLD</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:900;color:#d97706">{{ total_att }}</div>
+      <div style="font-size:11px;color:#9aabc5;font-weight:700">ATTEMPTING</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:900;color:#0d9488">{{ total_neg }}</div>
+      <div style="font-size:11px;color:#9aabc5;font-weight:700">NEGOTIATION</div>
+    </div>
+  </div>
+  <div class="col-6 col-md-3">
+    <div class="card text-center py-3">
+      <div style="font-size:28px;font-weight:900;color:#15803d">{{ total_active }}</div>
+      <div style="font-size:11px;color:#9aabc5;font-weight:700">ACTIVE</div>
+    </div>
+  </div>
+</div>
+{% endif %}
+
+<!-- Per-agent funnel bars -->
+<div class="card">
+  <div class="card-header">Gabay Agent Breakdown</div>
+  <div class="card-body">
+    {% for row in funnel_data %}
+    {% if row.total > 0 %}
+    <div style="margin-bottom:18px">
+      <div class="d-flex align-items-center justify-content-between mb-1">
+        <div>
+          <span style="font-size:13px;font-weight:700;color:#1F3864">{{ row.gabay.display_name }}</span>
+          <span style="font-size:11px;color:#9aabc5;margin-left:6px">{{ row.total }} leads</span>
+        </div>
+        <div class="d-flex gap-3" style="font-size:11px;font-weight:700">
+          <span style="color:#9aabc5">{{ row.cold }} cold</span>
+          <span style="color:#d97706">{{ row.attempting }} att</span>
+          <span style="color:#0d9488">{{ row.negotiation }} neg</span>
+          <span style="color:#15803d">{{ row.active }} active</span>
+        </div>
+      </div>
+      <!-- Stacked bar -->
+      <div style="display:flex;height:14px;border-radius:8px;overflow:hidden;background:#f1f5f9">
+        {% if row.cold %}
+        <div style="width:{{ (row.cold / row.total * 100) | int }}%;background:#e2e8f0"
+             title="{{ row.cold }} cold"></div>
+        {% endif %}
+        {% if row.attempting %}
+        <div style="width:{{ (row.attempting / row.total * 100) | int }}%;background:#fcd34d"
+             title="{{ row.attempting }} attempting"></div>
+        {% endif %}
+        {% if row.negotiation %}
+        <div style="width:{{ (row.negotiation / row.total * 100) | int }}%;background:#5eead4"
+             title="{{ row.negotiation }} negotiation"></div>
+        {% endif %}
+        {% if row.active %}
+        <div style="width:{{ (row.active / row.total * 100) | int }}%;background:#15803d"
+             title="{{ row.active }} active"></div>
+        {% endif %}
+      </div>
+      <!-- Conversion rate -->
+      {% set conv_rate = ((row.active + row.negotiation) / row.total * 100) | int if row.total else 0 %}
+      <div style="font-size:10px;color:#9aabc5;margin-top:2px">
+        {{ conv_rate }}% in pipeline (neg + active)
+        {% if row.active > 0 %}
+        · <span style="color:#15803d;font-weight:700">{{ ((row.active / row.total) * 100) | int }}% live</span>
+        {% endif %}
+      </div>
+    </div>
+    {% endif %}
+    {% else %}
+    <div class="text-center text-muted py-5">No Gabay agents with assigned leads yet.</div>
+    {% endfor %}
+  </div>
+</div>
+
+{% endblock %}

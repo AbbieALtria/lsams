@@ -1,0 +1,103 @@
+{% extends "base.html" %}
+{% block title %}Barangay Heat Map{% endblock %}
+{% block content %}
+
+<div class="page-header">
+  <div>
+    <a href="{{ url_for('leads') }}" class="text-muted text-decoration-none" style="font-size:12px">
+      <i class="bi bi-arrow-left me-1"></i>Back to Leads
+    </a>
+    <div class="page-title mt-1"><i class="bi bi-map me-2" style="color:#0d9488"></i>Barangay Heat Map</div>
+    <div style="font-size:12px;color:#9aabc5">Seller activity by area — top 60 barangays ranked by lead count</div>
+  </div>
+  <div class="d-flex gap-2">
+    <a href="{{ url_for('leads_funnel') }}" class="btn btn-sm fw-bold"
+       style="background:#d97706;color:white">
+      <i class="bi bi-bar-chart-steps me-1"></i>Funnel View
+    </a>
+  </div>
+</div>
+
+<!-- Legend -->
+<div class="d-flex gap-3 flex-wrap mb-3" style="font-size:12px">
+  <span><span style="display:inline-block;width:12px;height:12px;background:#15803d;border-radius:3px;margin-right:4px"></span>Active (Live/Matched)</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#0d9488;border-radius:3px;margin-right:4px"></span>Warm (Negotiation/Reg)</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#9aabc5;border-radius:3px;margin-right:4px"></span>Cold (Pool/Assigned)</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#7c3aed;border-radius:3px;margin-right:4px"></span>🏪 Mall Sellers</span>
+  <span><span style="display:inline-block;width:12px;height:12px;background:#f59e0b;border-radius:3px;margin-right:4px"></span>Visits (last 30d)</span>
+</div>
+
+<div class="card">
+  <div class="table-responsive">
+    <table class="table table-hover mb-0" style="font-size:13px">
+      <thead style="background:#f8fafc">
+        <tr>
+          <th style="width:36px">#</th>
+          <th>Barangay</th>
+          <th>City</th>
+          <th class="text-center">Total</th>
+          <th class="text-center" style="color:#15803d">Active</th>
+          <th class="text-center" style="color:#0d9488">Warm</th>
+          <th class="text-center" style="color:#9aabc5">Cold</th>
+          <th class="text-center" style="color:#7c3aed">🏪 Mall</th>
+          <th class="text-center" style="color:#f59e0b">Visits 30d</th>
+          <th style="min-width:140px">Distribution</th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for row in rows %}
+        {% set pct_active = (row.active / row.total * 100) | int if row.total else 0 %}
+        {% set pct_warm   = (row.warm   / row.total * 100) | int if row.total else 0 %}
+        {% set pct_cold   = (row.cold   / row.total * 100) | int if row.total else 0 %}
+        {% set heat = 'high' if row.active >= 3 else ('med' if row.active >= 1 else 'low') %}
+        <tr style="{% if heat == 'high' %}background:#f0fdf4{% elif heat == 'med' %}background:#f0fdfa{% endif %}">
+          <td style="color:#9aabc5;font-size:11px">{{ loop.index }}</td>
+          <td>
+            <strong>{{ row.barangay }}</strong>
+            {% if row.in_mall > 0 %}
+            <span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;
+                         padding:1px 5px;font-size:10px;font-weight:700;margin-left:4px">
+              🏪 {{ row.in_mall }}
+            </span>
+            {% endif %}
+          </td>
+          <td style="color:#4a5568">{{ row.city }}</td>
+          <td class="text-center fw-bold">{{ row.total }}</td>
+          <td class="text-center fw-bold" style="color:#15803d">{{ row.active }}</td>
+          <td class="text-center fw-bold" style="color:#0d9488">{{ row.warm }}</td>
+          <td class="text-center" style="color:#9aabc5">{{ row.cold }}</td>
+          <td class="text-center" style="color:#7c3aed;font-weight:700">
+            {% if row.in_mall %}{{ row.in_mall }}{% else %}—{% endif %}
+          </td>
+          <td class="text-center">
+            {% if row.visits_30d > 0 %}
+            <span style="background:#fef3c7;color:#d97706;border-radius:6px;
+                         padding:1px 8px;font-size:11px;font-weight:700">{{ row.visits_30d }}</span>
+            {% else %}<span style="color:#CBD5E1">0</span>{% endif %}
+          </td>
+          <td>
+            <div style="display:flex;height:10px;border-radius:5px;overflow:hidden;background:#f1f5f9">
+              {% if pct_active %}
+              <div style="width:{{ pct_active }}%;background:#15803d"></div>
+              {% endif %}
+              {% if pct_warm %}
+              <div style="width:{{ pct_warm }}%;background:#0d9488"></div>
+              {% endif %}
+              {% if pct_cold %}
+              <div style="width:{{ pct_cold }}%;background:#e2e8f0"></div>
+              {% endif %}
+            </div>
+            <div style="font-size:10px;color:#9aabc5;margin-top:2px">
+              {{ pct_active }}% active
+            </div>
+          </td>
+        </tr>
+        {% else %}
+        <tr><td colspan="10" class="text-center text-muted py-5">No lead data yet.</td></tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+</div>
+
+{% endblock %}
