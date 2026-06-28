@@ -550,6 +550,21 @@ function renderResults() {
                   </span>`;
     }
 
+    const isMallHint = r.rrld_tags.some(t => /mall|lazmall/i.test(t))
+                    || /\b(sm |ayala|robinsons|megamall|lazmall|sm mall|inside mall|in the mall)\b/i.test(r.shop_name + ' ' + r.snippet);
+    const mallSection = r.in_system ? '' : `
+      <div class="mall-section mt-2 pt-2" style="border-top:1px solid #f1f5f9">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;
+                      color:${isMallHint?'#7c3aed':'#9aabc5'};font-weight:${isMallHint?'700':'400'}">
+          <input type="checkbox" class="mall-check" ${isMallHint?'checked':''} onchange="toggleMallInput(this)" style="cursor:pointer">
+          🏪 This seller is inside a Mall / LazMall
+          ${isMallHint?'<span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;padding:1px 6px;font-size:10px">Auto-detected</span>':''}
+        </label>
+        <input type="text" class="mall-name-input form-control form-control-sm mt-1"
+               style="display:${isMallHint?'block':'none'};max-width:220px;font-size:11px"
+               placeholder="Mall name (e.g. SM North, Ayala, LazMall...)">
+      </div>`;
+
     const addBtn = r.in_system ? '' :
       `<button onclick="addToLeads(this,'${escH(r.shop_name)}','${r.platform}','${escH(r.url)}','${escH(r.snippet.substring(0,200))}')"
          class="btn btn-sm fw-bold"
@@ -576,6 +591,7 @@ function renderResults() {
             <div class="score-bar" style="max-width:140px">
               <div class="score-fill" style="width:${Math.max(4,r.rrld_score)}%"></div>
             </div>` : ''}
+          ${mallSection}
         </div>
         <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
           ${addBtn}
@@ -591,7 +607,18 @@ function renderResults() {
   document.getElementById('resultsArea').innerHTML = html;
 }
 
+function toggleMallInput(cb) {
+  const input = cb.closest('.mall-section').querySelector('.mall-name-input');
+  input.style.display = cb.checked ? 'block' : 'none';
+}
+
 function addToLeads(btn, name, platform, url, snippet) {
+  const card      = btn.closest('.scout-card');
+  const mallCheck = card && card.querySelector('.mall-check');
+  const mallInput = card && card.querySelector('.mall-name-input');
+  const is_in_mall = !!(mallCheck && mallCheck.checked);
+  const mall_name  = (mallInput && is_in_mall) ? mallInput.value.trim() : '';
+
   const city       = getCity();
   const campaignId = document.getElementById('targetCampaign').value;
   btn.disabled = true;
@@ -599,14 +626,17 @@ function addToLeads(btn, name, platform, url, snippet) {
   fetch('/api/prospect/add-lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null })
+    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null, is_in_mall, mall_name })
   })
   .then(r => r.json())
   .then(d => {
     if (d.ok) {
-      btn.outerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
+      const mallBadge = is_in_mall
+        ? `<span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">🏪 ${mall_name||'Mall'}</span>`
+        : '';
+      btn.closest('.d-flex').innerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
         style="background:#dcfce7;color:#15803d;font-size:11px">
-        <i class="bi bi-check-circle-fill me-1"></i>Added</a>`;
+        <i class="bi bi-check-circle-fill me-1"></i>Added${mallBadge}</a>`;
     } else {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Leads';

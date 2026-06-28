@@ -1230,6 +1230,8 @@ def api_prospect_add_lead():
         campaign_id=data.get('campaign_id') or None,
         imported_at=datetime.utcnow(),
         batch_ref=f'scout-{datetime.utcnow().strftime("%Y%m%d")}',
+        is_in_mall=bool(data.get('is_in_mall', False)),
+        mall_name=data.get('mall_name', '').strip() or None,
     )
     db.session.add(lead)
     db.session.commit()
