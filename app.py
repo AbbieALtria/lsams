@@ -4665,7 +4665,7 @@ def telegram_setup():
     token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
     if not token:
         return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
-    base_url = request.host_url.rstrip('/')
+    base_url = f'https://{request.host}'
     webhook_url = f'{base_url}/webhook/telegram'
     try:
         r = _req.post(
