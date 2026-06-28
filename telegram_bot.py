@@ -117,10 +117,10 @@ def _handle_start(chat_id, text: str):
         )
         return
 
-    user = User.query.filter_by(username=username, role='gabay', is_active=True).first()
+    user = User.query.filter_by(username=username, is_active=True).first()
     if not user:
         send_message(chat_id,
-            f"❌ Username *{username}* not found or not a Gabay account.\n\n"
+            f"❌ Username *{username}* not found in LSAMS.\n\n"
             "Check the spelling and try again, or ask your supervisor."
         )
         return
@@ -137,12 +137,16 @@ def _handle_start(chat_id, text: str):
     user.telegram_chat_id = str(chat_id)
     db.session.commit()
 
-    send_message(chat_id,
-        f"✅ *Linked!* Welcome, {user.display_name}!\n\n"
+    role_note = (
         "You can now log visits by sending a message like:\n"
         "_\"Visited Chokorean Online — interested, will call next week\"_\n\n"
         "Or send a *voice note* — I'll transcribe it automatically! 🎙️\n\n"
         "Type *help* to see all commands."
+        if user.role == 'gabay' else
+        "You will now receive visit alerts and team notifications here."
+    )
+    send_message(chat_id,
+        f"✅ *Linked!* Welcome, {user.display_name}!\n\n{role_note}"
     )
 
 
