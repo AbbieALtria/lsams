@@ -65,6 +65,7 @@ with app.app_context():
     # Add new User columns if they don't exist (safe for existing Railway DB)
     _new_user_cols = [
         ("whatsapp_alerts_enabled", "BOOLEAN DEFAULT TRUE"),
+        ("telegram_chat_id", "VARCHAR(30)"),
         ("mobile",         "VARCHAR(20)"),
         ("mobile2",        "VARCHAR(20)"),
         ("viber",          "VARCHAR(20)"),
@@ -534,6 +535,26 @@ def _notify_managers_whatsapp(message: str):
                     send_message(m.mobile, message)
                 except Exception as e:
                     app.logger.error(f'[WA Notify] Failed to notify {m.username}: {e}')
+    threading.Thread(target=_send, daemon=True).start()
+
+
+def _notify_managers_telegram(message: str):
+    """Send a Telegram message to all managers/admins who have linked their Telegram."""
+    import threading
+    from telegram_bot import send_message as tg_send
+    managers = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
+        User.telegram_chat_id.isnot(None),
+        User.telegram_chat_id != '',
+    ).all()
+    def _send():
+        with app.app_context():
+            for m in managers:
+                try:
+                    tg_send(m.telegram_chat_id, message)
+                except Exception as e:
+                    app.logger.error(f'[TG Notify] Failed to notify {m.username}: {e}')
     threading.Thread(target=_send, daemon=True).start()
 
 
@@ -4613,6 +4634,90 @@ def whatsapp_test():
         return f'<pre>Status: {r.status_code}\nToken set: {"YES" if token else "NO (empty!)"}\nPhone ID: {phone_id}\nResponse: {r.text}</pre>'
     except Exception as e:
         return f'<pre>Exception: {e}\nToken set: {"YES" if token else "NO"}</pre>'
+
+
+# ── Telegram Webhook ──────────────────────────────────────────────────────────
+
+@app.route('/webhook/telegram', methods=['POST'])
+def telegram_incoming():
+    """Telegram POSTs incoming updates here."""
+    import threading
+    data = request.get_json(silent=True) or {}
+    app.logger.info(f'[TG] Incoming update: {str(data)[:200]}')
+    def _process():
+        with app.app_context():
+            try:
+                from telegram_bot import handle_update
+                handle_update(data)
+            except Exception as e:
+                app.logger.error(f'[TG] handle_update error: {e}', exc_info=True)
+    threading.Thread(target=_process, daemon=True).start()
+    return 'OK', 200
+
+
+@app.route('/admin/telegram-setup')
+@login_required
+def telegram_setup():
+    """Register the Telegram webhook with Telegram's servers (run once after deploy)."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    import requests as _req
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
+    base_url = request.host_url.rstrip('/')
+    webhook_url = f'{base_url}/webhook/telegram'
+    try:
+        r = _req.post(
+            f'https://api.telegram.org/bot{token}/setWebhook',
+            json={'url': webhook_url, 'allowed_updates': ['message', 'edited_message']},
+            timeout=10,
+        )
+        result = r.json()
+        status = '✅ Webhook registered!' if result.get('ok') else '❌ Failed'
+        return (
+            f'<pre>{status}\n\n'
+            f'Webhook URL: {webhook_url}\n\n'
+            f'Telegram response:\n{json.dumps(result, indent=2)}\n\n'
+            f'Next step: Have Gabay agents open the bot and send:\n'
+            f'  /start their_lsams_username\n\n'
+            f'Managers can also link their Telegram to receive visit alerts.</pre>'
+        )
+    except Exception as e:
+        return f'<pre>Exception: {e}</pre>'
+
+
+@app.route('/admin/telegram-test')
+@login_required
+def telegram_test():
+    """Send a test message to the current user's linked Telegram."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    from telegram_bot import send_message as tg_send
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
+    chat_id = current_user.telegram_chat_id
+    if not chat_id:
+        return (
+            '<pre>⚠️ Your account has no Telegram linked.\n\n'
+            'Open the bot on your phone and send: /start your_lsams_username\n'
+            'Then come back here and refresh.</pre>'
+        )
+    result = tg_send(chat_id, '✅ LSAMS Telegram bot test — working!')
+    return f'<pre>Sent to chat_id {chat_id}\nResult: {json.dumps(result, indent=2)}</pre>'
+
+
+@app.route('/admin/telegram-unlink/<int:user_id>', methods=['POST'])
+@login_required
+def telegram_unlink(user_id):
+    """Unlink a user's Telegram account (superadmin only)."""
+    if not current_user.is_supervisor:
+        abort(403)
+    u = User.query.get_or_404(user_id)
+    u.telegram_chat_id = None
+    db.session.commit()
+    return jsonify({'ok': True, 'name': u.full_name})
 
 
 @app.route('/admin/send-gabay-briefings', methods=['POST'])

@@ -25,6 +25,9 @@ class User(UserMixin, db.Model):
     # WhatsApp alert preference (manager/admin only — superadmin can toggle per user)
     whatsapp_alerts_enabled = db.Column(db.Boolean, default=True)
 
+    # Telegram chat_id set when gabay sends /start <username> to the bot
+    telegram_chat_id = db.Column(db.String(30))
+
     # Contact info
     mobile = db.Column(db.String(20))
     mobile2 = db.Column(db.String(20))
