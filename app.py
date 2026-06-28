@@ -6902,6 +6902,14 @@ def gabay_tutorial_print():
     return render_template('gabay_tutorial_print.html')
 
 
+@app.route('/gabay/telegram-guide')
+@login_required
+def gabay_telegram_guide():
+    if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
+        return redirect(url_for('dashboard'))
+    return render_template('telegram_guide_print.html')
+
+
 @app.route('/campaigns/slide')
 @login_required
 def campaign_slide():
