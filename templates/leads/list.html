@@ -88,7 +88,7 @@
         <tr>
           {% if current_user.is_supervisor %}<th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>{% endif %}
           <th>Shop Name</th><th>Project / Cluster</th><th>City</th><th>Status</th>
-          <th>Priority</th><th>Gabay</th><th>Contact</th><th>Actions</th>
+          <th>Health</th><th>Last Visit</th><th>Gabay</th><th>Contact</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -112,12 +112,28 @@
           <td>{% if lead.city %}<span data-hv-city='{"name":"{{ lead.city }}","cid":{{ campaign_id or 'null' }}}' style="cursor:pointer;text-decoration:underline dotted">{{ lead.city }}</span>{% else %}—{% endif %}</td>
           <td><span class="badge badge-{{ lead.status }} rounded-pill" data-hv-lead="{{ lead.id }}">{{ lead.status_label }}</span></td>
           <td>
-            {% if lead.status not in ('pool','live','matched','closed') %}
-            {% set pl = lead.priority_label %}
-            <span style="font-size:11px;font-weight:700;color:{{ pl[1] }};white-space:nowrap">
-              <i class="bi {{ pl[2] }}"></i> {{ pl[0] }}
+            {% set cs = lead.conversion_score %}
+            {% set hl = 'A' if cs >= 75 else ('B' if cs >= 50 else ('C' if cs >= 25 else 'D')) %}
+            {% set hc = '#15803d' if cs >= 75 else ('#0d9488' if cs >= 50 else ('#d97706' if cs >= 25 else '#dc2626')) %}
+            <span style="display:inline-flex;align-items:center;gap:3px;background:{{ hc }}18;
+                         border:1px solid {{ hc }}44;border-radius:8px;padding:2px 8px">
+              <span style="font-size:13px;font-weight:900;color:{{ hc }}">{{ hl }}</span>
+              <span style="font-size:10px;color:{{ hc }};opacity:.7;font-weight:600">{{ cs }}</span>
             </span>
-            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% set lvd = lead.last_visit_days %}
+            {% if lvd is none %}
+              <span style="font-size:11px;color:#CBD5E1">Never</span>
+            {% elif lvd == 0 %}
+              <span style="font-size:11px;font-weight:700;color:#15803d">Today</span>
+            {% elif lvd < 7 %}
+              <span style="font-size:11px;font-weight:700;color:#15803d">{{ lvd }}d ago</span>
+            {% elif lvd < 14 %}
+              <span style="font-size:11px;font-weight:700;color:#d97706">{{ lvd }}d ago</span>
+            {% else %}
+              <span style="font-size:11px;font-weight:700;color:#dc2626">{{ lvd }}d ago</span>
+            {% endif %}
           </td>
           <td style="font-size:12px">{% if lead.assigned_gabay %}<span data-hv-gabay="{{ lead.gabay_id }}">{{ lead.assigned_gabay.display_name }}</span>{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
           <td style="font-size:12px">{{ lead.contact_number or '—' }}</td>
@@ -126,7 +142,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No leads found. {% if current_user.is_manager %}<a href="{{ url_for('import_leads') }}">Import leads</a> to get started.{% endif %}</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">No leads found. {% if current_user.is_manager %}<a href="{{ url_for('import_leads') }}">Import leads</a> to get started.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>

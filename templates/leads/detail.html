@@ -175,15 +175,70 @@
     </div>
     {% endif %}
 
-    <!-- PRIORITY INDICATOR -->
-    <div class="card mt-3">
-      <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">
-        <span style="font-size:12px;color:#9aabc5;font-weight:700">PRIORITY SCORE</span>
-        {% set pl = lead.priority_label %}
-        <span style="font-weight:800;font-size:14px;color:{{ pl[1] }}">
-          <i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }} ({{ lead.priority_score }} pts)
+    <!-- SELLER HEALTH -->
+    {% set cs = lead.conversion_score %}
+    {% set hl = 'A' if cs >= 75 else ('B' if cs >= 50 else ('C' if cs >= 25 else 'D')) %}
+    {% set hc = '#15803d' if cs >= 75 else ('#0d9488' if cs >= 50 else ('#d97706' if cs >= 25 else '#dc2626')) %}
+    {% set lvd = lead.last_visit_days %}
+    <div class="card mt-3" style="border-left:4px solid {{ hc }}">
+      <div class="card-header d-flex align-items-center justify-content-between py-2"
+           style="background:{{ hc }}10">
+        <span style="font-size:12px;font-weight:800;color:{{ hc }}">
+          <i class="bi bi-heart-pulse-fill me-1"></i>Seller Health
         </span>
-        <span style="font-size:11px;color:#9aabc5">{{ lead.age_days }} days in pipeline</span>
+        <span style="background:{{ hc }};color:white;border-radius:20px;
+                     padding:2px 12px;font-size:11px;font-weight:900">
+          Grade {{ hl }}
+        </span>
+      </div>
+      <div class="card-body py-2 px-3">
+        <!-- 4-stat row -->
+        <div class="row g-0 text-center" style="margin-bottom:10px">
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            <div style="font-size:28px;font-weight:900;color:{{ hc }};line-height:1">{{ hl }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Grade</div>
+          </div>
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            <div style="font-size:20px;font-weight:800;color:#1F3864;line-height:1.2">{{ cs }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Score/100</div>
+          </div>
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            {% if lvd is none %}
+              <div style="font-size:16px;font-weight:800;color:#CBD5E1;line-height:1.3">—</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Last Visit</div>
+            {% elif lvd == 0 %}
+              <div style="font-size:14px;font-weight:800;color:#15803d;line-height:1.5">Today</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Last Visit</div>
+            {% else %}
+              {% set lvc = '#15803d' if lvd < 7 else ('#d97706' if lvd < 14 else '#dc2626') %}
+              <div style="font-size:20px;font-weight:800;color:{{ lvc }};line-height:1.2">{{ lvd }}d</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Since Visit</div>
+            {% endif %}
+          </div>
+          <div class="col-3" style="padding:4px 0">
+            <div style="font-size:20px;font-weight:800;color:#1F3864;line-height:1.2">{{ visits|length }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Total Visits</div>
+          </div>
+        </div>
+        <!-- Recent outcome trend -->
+        {% if visits %}
+        <div style="border-top:1px solid #f1f5f9;padding-top:8px">
+          <div style="font-size:10px;color:#9aabc5;font-weight:700;margin-bottom:5px">RECENT OUTCOMES</div>
+          <div class="d-flex gap-2 flex-wrap">
+            {% for v in visits[:4] %}
+            <span class="badge bg-{{ v.outcome_color }}" style="font-size:10px">{{ v.outcome_label }}</span>
+            {% endfor %}
+            {% if visits|length > 4 %}<span style="font-size:11px;color:#9aabc5">+{{ visits|length - 4 }} more</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <!-- Footer line -->
+        <div style="font-size:11px;color:#9aabc5;margin-top:8px">
+          <i class="bi bi-calendar-range me-1"></i>{{ lead.age_days }} days in pipeline
+          &nbsp;·&nbsp;
+          {% set pl = lead.priority_label %}
+          <span style="color:{{ pl[1] }};font-weight:700"><i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }}</span>
+        </div>
       </div>
     </div>
 
