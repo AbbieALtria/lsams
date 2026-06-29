@@ -140,6 +140,7 @@ with app.app_context():
         ("is_in_mall",           "BOOLEAN DEFAULT FALSE"),
         ("mall_name",            "VARCHAR(100)"),
         ("suggested_next_visit", "DATE"),
+        ("store_type",           "VARCHAR(50)"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_intel_cols:
@@ -1232,6 +1233,7 @@ def api_prospect_add_lead():
         batch_ref=f'scout-{datetime.utcnow().strftime("%Y%m%d")}',
         is_in_mall=bool(data.get('is_in_mall', False)),
         mall_name=data.get('mall_name', '').strip() or None,
+        store_type=data.get('store_type', '').strip() or None,
     )
     db.session.add(lead)
     db.session.commit()
@@ -2452,6 +2454,8 @@ def lead_update_field_intel(lead_id):
     if 'is_in_mall' in data:
         lead.is_in_mall = bool(data['is_in_mall'])
         lead.mall_name = data.get('mall_name', '').strip() or lead.mall_name
+    if 'store_type' in data:
+        lead.store_type = data['store_type'].strip() or None
     db.session.commit()
     return jsonify({'ok': True})
 

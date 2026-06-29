@@ -122,6 +122,12 @@
                          color:#7c3aed;border-radius:6px;padding:1px 6px;font-size:10px;
                          font-weight:700;margin-left:4px">🏪 Mall</span>
             {% endif %}
+            {% if lead.store_type %}
+            {% set st_icon = {'sari_sari':'🛒','physical_store':'🏪','retailer':'🏬','distributor':'📦','online_seller':'💻','manufacturer':'🏭','reseller':'🛍️'} %}
+            <span style="display:inline-block;background:#0d948818;border:1px solid #0d948844;
+                         color:#0d9488;border-radius:6px;padding:1px 6px;font-size:10px;
+                         font-weight:700;margin-left:4px">{{ st_icon.get(lead.store_type,'🏪') }} {{ lead.store_type.replace('_',' ').title() }}</span>
+            {% endif %}
             {% if lead.tags_list %}
             <div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">
               {% for t in lead.tags_list[:3] %}

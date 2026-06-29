@@ -77,6 +77,22 @@
             <span style="font-size:11px;color:#9aabc5;margin-left:6px">— managed by mall team</span>
             {% else %}<span style="color:#15803d;font-size:12px;font-weight:700">✓ Outside Mall</span>{% endif %}
           </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Store Type</th><td>
+            {% set st_icon = {'sari_sari':'🛒','physical_store':'🏪','retailer':'🏬','distributor':'📦','online_seller':'💻','manufacturer':'🏭','reseller':'🛍️'} %}
+            <select id="storeTypeSelect" onchange="saveStoreType(this)"
+                    style="font-size:12px;border:1px solid #E0E6EF;border-radius:8px;
+                           padding:3px 8px;color:#1F3864;background:white;cursor:pointer">
+              <option value="">— Not classified —</option>
+              <option value="sari_sari"      {% if lead.store_type=='sari_sari' %}selected{% endif %}>🛒 Sari-Sari Store</option>
+              <option value="physical_store" {% if lead.store_type=='physical_store' %}selected{% endif %}>🏪 Physical Store</option>
+              <option value="retailer"       {% if lead.store_type=='retailer' %}selected{% endif %}>🏬 Retailer</option>
+              <option value="distributor"    {% if lead.store_type=='distributor' %}selected{% endif %}>📦 Distributor</option>
+              <option value="online_seller"  {% if lead.store_type=='online_seller' %}selected{% endif %}>💻 Online Seller</option>
+              <option value="manufacturer"   {% if lead.store_type=='manufacturer' %}selected{% endif %}>🏭 Manufacturer</option>
+              <option value="reseller"       {% if lead.store_type=='reseller' %}selected{% endif %}>🛍️ Reseller</option>
+            </select>
+            <span id="storeTypeSaved" style="display:none;font-size:10px;color:#15803d;margin-left:6px;font-weight:700">✓ Saved</span>
+          </td></tr>
           {% if lead.suggested_next_visit %}
           <tr><th style="color:#9aabc5;font-size:11px">Next Visit</th><td>
             {% set snv = lead.suggested_next_visit %}
@@ -447,6 +463,20 @@ function toggleCompEdit(e) {
       body: JSON.stringify({competitor_brand: input.value})
     }).then(() => location.reload());
   }
+}
+
+function saveStoreType(sel) {
+  const saved = document.getElementById('storeTypeSaved');
+  fetch('/api/leads/{{ lead.id }}/field-intel', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({store_type: sel.value})
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      saved.style.display = 'inline';
+      setTimeout(() => { saved.style.display = 'none'; }, 2000);
+    }
+  });
 }
 </script>
 {% endblock %}

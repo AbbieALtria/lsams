@@ -565,6 +565,41 @@ function renderResults() {
                placeholder="Mall name (e.g. SM North, Ayala, LazMall...)">
       </div>`;
 
+    // ── Store classification auto-detection ──────────────────────────────
+    const storeText = (r.shop_name + ' ' + r.snippet + ' ' + r.rrld_tags.join(' ')).toLowerCase();
+    let detectedType = '';
+    if (/sari.sari|sari store/.test(storeText))                                      detectedType = 'sari_sari';
+    else if (/distributor|distributes|wholesale|wholesaler|distribucion/.test(storeText)) detectedType = 'distributor';
+    else if (/manufacturer|factory|producer|made by|manufacturing/.test(storeText))  detectedType = 'manufacturer';
+    else if (/reseller|resell/.test(storeText))                                       detectedType = 'reseller';
+    else if (/online shop|online store|digital store|e-commerce|ecommerce/.test(storeText)) detectedType = 'online_seller';
+    else if (/retail chain|chain store|franchise/.test(storeText))                   detectedType = 'retailer';
+    else if (r.platform === 'rrld')                                                   detectedType = 'physical_store';
+
+    const STORE_TYPE_LABELS = {
+      '': '— Select store type —',
+      sari_sari: '🛒 Sari-Sari Store',
+      physical_store: '🏪 Physical Store',
+      retailer: '🏬 Retailer',
+      distributor: '📦 Distributor',
+      online_seller: '💻 Online Seller',
+      manufacturer: '🏭 Manufacturer',
+      reseller: '🛍️ Reseller',
+    };
+    const storeOptions = Object.entries(STORE_TYPE_LABELS).map(([v,l]) =>
+      `<option value="${v}" ${v===detectedType?'selected':''}>${l}</option>`
+    ).join('');
+    const storeSection = r.in_system ? '' : `
+      <div class="store-type-section mt-2 pt-2" style="border-top:1px solid #f1f5f9">
+        <div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:.04em;margin-bottom:4px">
+          Store Classification
+          ${detectedType?`<span style="background:#0d948818;color:#0d9488;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700">Auto-detected</span>`:''}
+        </div>
+        <select class="store-type-select form-select form-select-sm" style="max-width:260px;font-size:12px">
+          ${storeOptions}
+        </select>
+      </div>`;
+
     const addBtn = r.in_system ? '' :
       `<button onclick="addToLeads(this,'${escH(r.shop_name)}','${r.platform}','${escH(r.url)}','${escH(r.snippet.substring(0,200))}')"
          class="btn btn-sm fw-bold"
@@ -592,6 +627,7 @@ function renderResults() {
               <div class="score-fill" style="width:${Math.max(4,r.rrld_score)}%"></div>
             </div>` : ''}
           ${mallSection}
+          ${storeSection}
         </div>
         <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
           ${addBtn}
@@ -612,12 +648,19 @@ function toggleMallInput(cb) {
   input.style.display = cb.checked ? 'block' : 'none';
 }
 
+const STORE_TYPE_EMOJI = {
+  sari_sari: '🛒', physical_store: '🏪', retailer: '🏬',
+  distributor: '📦', online_seller: '💻', manufacturer: '🏭', reseller: '🛍️',
+};
+
 function addToLeads(btn, name, platform, url, snippet) {
-  const card      = btn.closest('.scout-card');
-  const mallCheck = card && card.querySelector('.mall-check');
-  const mallInput = card && card.querySelector('.mall-name-input');
+  const card       = btn.closest('.scout-card');
+  const mallCheck  = card && card.querySelector('.mall-check');
+  const mallInput  = card && card.querySelector('.mall-name-input');
+  const storeTypeSel = card && card.querySelector('.store-type-select');
   const is_in_mall = !!(mallCheck && mallCheck.checked);
   const mall_name  = (mallInput && is_in_mall) ? mallInput.value.trim() : '';
+  const store_type = storeTypeSel ? storeTypeSel.value : '';
 
   const city       = getCity();
   const campaignId = document.getElementById('targetCampaign').value;
@@ -626,7 +669,7 @@ function addToLeads(btn, name, platform, url, snippet) {
   fetch('/api/prospect/add-lead', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null, is_in_mall, mall_name })
+    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null, is_in_mall, mall_name, store_type })
   })
   .then(r => r.json())
   .then(d => {
@@ -634,9 +677,12 @@ function addToLeads(btn, name, platform, url, snippet) {
       const mallBadge = is_in_mall
         ? `<span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">🏪 ${mall_name||'Mall'}</span>`
         : '';
+      const stBadge = store_type
+        ? `<span style="background:#0d948818;color:#0d9488;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">${STORE_TYPE_EMOJI[store_type]||''} ${store_type.replace('_',' ')}</span>`
+        : '';
       btn.closest('.d-flex').innerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
         style="background:#dcfce7;color:#15803d;font-size:11px">
-        <i class="bi bi-check-circle-fill me-1"></i>Added${mallBadge}</a>`;
+        <i class="bi bi-check-circle-fill me-1"></i>Added${mallBadge}${stBadge}</a>`;
     } else {
       btn.disabled = false;
       btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Leads';

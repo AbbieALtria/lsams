@@ -202,6 +202,7 @@ class Lead(db.Model):
     is_in_mall = db.Column(db.Boolean, default=False)   # seller operates inside a mall / LazMall
     mall_name = db.Column(db.String(100))               # SM North, Ayala Mall, LazMall, etc.
     suggested_next_visit = db.Column(db.Date)           # auto-set when a visit is saved
+    store_type = db.Column(db.String(50))               # sari_sari, distributor, physical_store, retailer, online_seller, manufacturer, reseller
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
