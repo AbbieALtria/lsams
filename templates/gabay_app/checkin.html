@@ -649,9 +649,7 @@ function selectOutcome(el) {
 function validateForm() {
   const hasLead    = !!document.getElementById('leadSelect').value;
   const hasOutcome = !!document.getElementById('outcomeInput').value;
-  // Allow submit if voice was applied (outcome filled by Maria) even without manual tap
-  const voiceApplied = document.getElementById('voiceAppliedBanner').style.display !== 'none';
-  const ok = hasLead && (hasOutcome || voiceApplied);
+  const ok = hasLead && hasOutcome;
   const btn = document.getElementById('submitBtn');
   const hint = document.getElementById('hintText');
   btn.disabled = !ok;
@@ -662,9 +660,17 @@ function validateForm() {
     hint.style.color = '#15803d';
     hint.style.fontWeight = '700';
   } else {
-    hint.textContent = t('checkin_hint');
-    hint.style.color = '#9aabc5';
-    hint.style.fontWeight = '400';
+    // Check if voice was applied but Maria missed the outcome
+    const voiceApplied = document.getElementById('voiceAppliedBanner').style.display !== 'none';
+    if (voiceApplied && hasLead && !hasOutcome) {
+      hint.textContent = '⚠️ Maria wasn\'t sure of the outcome — please tap one above';
+      hint.style.color = '#d97706';
+      hint.style.fontWeight = '700';
+    } else {
+      hint.textContent = t('checkin_hint');
+      hint.style.color = '#9aabc5';
+      hint.style.fontWeight = '400';
+    }
   }
 }
 
