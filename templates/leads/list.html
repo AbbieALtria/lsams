@@ -57,7 +57,7 @@
       </select>
       <button type="submit" class="btn btn-sm btn-primary">Filter</button>
       <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
-      {% if current_user.is_supervisor or current_user.is_lazada %}
+      {% if current_user.is_supervisor or current_user.can_scout %}
       <div class="d-flex gap-2 ms-auto flex-wrap">
         {% if current_user.is_supervisor %}
         <a href="{{ url_for('leads_heat_map') }}" class="btn btn-sm fw-bold"

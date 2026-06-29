@@ -944,9 +944,9 @@ def api_leads_search():
 @app.route('/prospect-scout')
 @login_required
 def prospect_scout():
-    # Lazada team + supervisors + admins + gabay users with scout permission
-    if not (current_user.is_supervisor or current_user.role == 'lazada'
-            or (current_user.role == 'gabay' and current_user.can_scout)):
+    # Supervisors/admins always; gabay/lazada only if can_scout is enabled
+    if not (current_user.is_supervisor
+            or ((current_user.role in ('gabay', 'lazada')) and current_user.can_scout)):
         flash('Access denied.', 'danger')
         return redirect(url_for('dashboard'))
 
@@ -993,8 +993,8 @@ def prospect_scout():
 @app.route('/api/prospect/scout')
 @login_required
 def api_prospect_scout():
-    if not (current_user.is_supervisor or current_user.role == 'lazada'
-            or (current_user.role == 'gabay' and current_user.can_scout)):
+    if not (current_user.is_supervisor
+            or ((current_user.role in ('gabay', 'lazada')) and current_user.can_scout)):
         return jsonify({'error': 'Access denied'}), 403
 
     import requests as _req, re as _re
@@ -1210,8 +1210,8 @@ def api_prospect_scout():
 @app.route('/api/prospect/add-lead', methods=['POST'])
 @login_required
 def api_prospect_add_lead():
-    if not (current_user.is_supervisor or current_user.role == 'lazada'
-            or (current_user.role == 'gabay' and current_user.can_scout)):
+    if not (current_user.is_supervisor
+            or ((current_user.role in ('gabay', 'lazada')) and current_user.can_scout)):
         return jsonify({'error': 'Access denied'}), 403
 
     data = request.get_json()
@@ -5742,6 +5742,7 @@ def admin_new_user():
             u.set_password(password)
             if role == 'gabay':
                 u.assigned_city = request.form.get('assigned_city', '').strip() or None
+            if role in ('gabay', 'lazada'):
                 u.can_scout = 'can_scout' in request.form
             db.session.add(u)
             db.session.commit()
@@ -5765,9 +5766,11 @@ def admin_edit_user(user_id):
         if u.role == 'gabay':
             u.assigned_city = request.form.get('assigned_city', '').strip() or None
             u.mobile = request.form.get('mobile', '').strip() or None
-            u.can_scout = 'can_scout' in request.form
         else:
             u.assigned_city = None
+        if u.role in ('gabay', 'lazada'):
+            u.can_scout = 'can_scout' in request.form
+        else:
             u.can_scout = False
         new_pw = request.form.get('password', '').strip()
         if new_pw:
