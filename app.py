@@ -741,11 +741,11 @@ def login():
             db.session.commit()
             # Notify managers when a Gabay agent logs in
             if user.role == 'gabay':
-                from datetime import datetime as _dt
+                _pht_now = datetime.utcnow() + timedelta(hours=8)
                 _login_msg = (
                     f"📱 *Gabay Login*\n"
                     f"👤 {user.full_name} just logged in to LSAMS\n"
-                    f"🕐 {_dt.now().strftime('%b %d, %Y at %I:%M %p')}"
+                    f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')}"
                 )
                 _notify_managers_whatsapp(_login_msg)
                 _notify_managers_telegram(_login_msg)
