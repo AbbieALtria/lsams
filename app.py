@@ -166,7 +166,18 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
-    # Add unique constraint on brands(name, category) to prevent duplicates
+    # Deduplicate brands first, then add unique index to prevent future duplicates
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                DELETE FROM brands
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM brands GROUP BY lower(name), category
+                )
+            """))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
     with db.engine.connect() as _conn:
         try:
             _conn.execute(text("""
@@ -1392,20 +1403,6 @@ def api_brands_load_defaults():
     db.session.commit()
     return jsonify({'ok': True, 'added': added, 'skipped': skipped})
 
-
-# Deduplicate brands table — keep lowest id per (lower(name), category)
-with app.app_context():
-    try:
-        with db.engine.connect() as _conn:
-            _conn.execute(text("""
-                DELETE FROM brands
-                WHERE id NOT IN (
-                    SELECT MIN(id) FROM brands GROUP BY lower(name), category
-                )
-            """))
-            _conn.commit()
-    except Exception:
-        pass
 
 # Auto-seed FMCG defaults on first deploy if brands table is empty
 with app.app_context():
