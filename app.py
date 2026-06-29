@@ -2338,101 +2338,101 @@ def gabay_plan_route():
     maps_key = os.environ.get('GOOGLE_MAPS_API_KEY', '')
     p1 = _priority1_campaign()
 
-    # Fetch today's unvisited / priority leads that have an address (priority1 campaign only)
-    from datetime import date as _date
+    # Fetch all active leads for this Gabay
     route_q = Lead.query.filter(
         Lead.gabay_id == gid,
         Lead.status.in_(['assigned', 'attempting', 'negotiation', 'registration']),
-        Lead.address != None,
-        Lead.address != ''
     )
     if p1:
         route_q = route_q.filter(Lead.campaign_id == p1.id)
-    active_leads = route_q.all()
+    active_leads = route_q.order_by(Lead.city, Lead.seller_name).all()
 
-    if not active_leads:
+    # ── POST: Gabay manually selected which leads to include ──────────
+    if request.method == 'POST':
+        selected_ids = request.form.getlist('lead_ids')
+        if not selected_ids:
+            return render_template('gabay_app/route.html',
+                mode='select', all_leads=active_leads,
+                stops=[], maps_url='', waze_url='', optimized=False,
+                error='Please select at least one lead.',
+                maps_key=maps_key, radar_leads=[])
+
+        # Filter to only the selected leads that have addresses
+        id_set = set(int(i) for i in selected_ids)
+        route_leads = [l for l in active_leads if l.id in id_set and l.address]
+        no_addr = [l for l in active_leads if l.id in id_set and not l.address]
+
+        if not route_leads:
+            return render_template('gabay_app/route.html',
+                mode='select', all_leads=active_leads,
+                stops=[], maps_url='', waze_url='', optimized=False,
+                error='None of the selected leads have addresses. Add addresses first.',
+                maps_key=maps_key, radar_leads=[])
+
+        # Limit to 10 for Maps API
+        route_leads = route_leads[:10]
+
+        import urllib.parse, urllib.request
+        maps_url = ''
+        waze_url = ''
+        error = None
+
+        if maps_key and len(route_leads) >= 2:
+            try:
+                origin = route_leads[0].address
+                destination = route_leads[-1].address
+                waypoints_raw = [l.address for l in route_leads[1:-1]]
+                waypoints_str = 'optimize:true|' + '|'.join(
+                    urllib.parse.quote(w) for w in waypoints_raw
+                ) if waypoints_raw else ''
+                url = (
+                    'https://maps.googleapis.com/maps/api/directions/json'
+                    f'?origin={urllib.parse.quote(origin)}'
+                    f'&destination={urllib.parse.quote(destination)}'
+                    + (f'&waypoints={waypoints_str}' if waypoints_str else '')
+                    + f'&key={maps_key}&region=PH'
+                )
+                with urllib.request.urlopen(url, timeout=8) as resp:
+                    data = json.loads(resp.read().decode())
+                if data.get('status') == 'OK':
+                    wp_order = data['routes'][0].get('waypoint_order', [])
+                    middle = [route_leads[i + 1] for i in wp_order] if wp_order else route_leads[1:-1]
+                    route_leads = [route_leads[0]] + middle + [route_leads[-1]]
+                else:
+                    error = f"Maps API: {data.get('status', 'unknown error')}"
+            except Exception as e:
+                error = f'Route optimization unavailable: {str(e)}'
+
+        if route_leads:
+            import urllib.parse as _up
+            wps = '/'.join(_up.quote(l.address) for l in route_leads)
+            maps_url = f'https://www.google.com/maps/dir/{wps}'
+            waze_url = f'https://waze.com/ul?q={_up.quote(route_leads[0].address)}&navigate=yes'
+
         return render_template('gabay_app/route.html',
-            stops=[], maps_url='', optimized=False,
-            error='No leads with addresses found. Add addresses to your leads first.',
-            maps_key=maps_key)
+            mode='route', all_leads=active_leads,
+            stops=route_leads, maps_url=maps_url, waze_url=waze_url,
+            optimized=(bool(maps_key) and error is None),
+            error=error, maps_key=maps_key,
+            no_addr_leads=no_addr, radar_leads=[])
 
-    # Sort locally by conversion_score desc as default order
-    active_leads.sort(key=lambda l: l.conversion_score, reverse=True)
-    # Limit to top 10 for route optimization (Maps API limit)
-    route_leads = active_leads[:10]
-
-    optimized_order = list(range(len(route_leads)))
-    maps_url = ''
-    error = None
-
-    import urllib.parse
-    import urllib.request
-
-    if maps_key and len(route_leads) >= 2:
-        try:
-
-            origin = route_leads[0].address
-            destination = route_leads[-1].address
-            waypoints_raw = [l.address for l in route_leads[1:-1]]
-            waypoints_str = 'optimize:true|' + '|'.join(
-                urllib.parse.quote(w) for w in waypoints_raw
-            ) if waypoints_raw else ''
-
-            url = (
-                'https://maps.googleapis.com/maps/api/directions/json'
-                f'?origin={urllib.parse.quote(origin)}'
-                f'&destination={urllib.parse.quote(destination)}'
-                + (f'&waypoints={waypoints_str}' if waypoints_str else '')
-                + f'&key={maps_key}'
-                + '&region=PH'
-            )
-            with urllib.request.urlopen(url, timeout=8) as resp:
-                data = json.loads(resp.read().decode())
-
-            if data.get('status') == 'OK':
-                route = data['routes'][0]
-                wp_order = route.get('waypoint_order', [])
-                # Rebuild order: origin(0) + optimized waypoints + destination(last)
-                middle = [route_leads[i + 1] for i in wp_order] if wp_order else route_leads[1:-1]
-                route_leads = [route_leads[0]] + middle + [route_leads[-1]]
-                optimized_order = list(range(len(route_leads)))
-            else:
-                error = f"Maps API: {data.get('status', 'unknown error')}"
-        except Exception as e:
-            error = f'Route optimization unavailable: {str(e)}'
-
-    # Build Google Maps navigation deep-link for all stops
-    if route_leads:
-        wps = '/'.join(urllib.parse.quote(l.address) for l in route_leads)
-        maps_url = f'https://www.google.com/maps/dir/{wps}'
-
-    # Build Waze link for first stop only
-    waze_url = ''
-    if route_leads:
-        waze_url = f'https://waze.com/ul?q={urllib.parse.quote(route_leads[0].address)}&navigate=yes'
-
-    # ── RADAR: unassigned pool sellers in the same cities ──────────────
+    # ── GET: Show selection screen ────────────────────────────────────
+    # Radar: unassigned pool sellers in the same cities
     radar_leads = []
-    gabay_cities = current_user.city_list  # normalized lowercase list
+    gabay_cities = current_user.city_list
     if gabay_cities:
-        pool_candidates = Lead.query.filter(
-            Lead.status == 'pool',
-            Lead.gabay_id == None
-        ).all()
+        pool_candidates = Lead.query.filter(Lead.status == 'pool', Lead.gabay_id == None).all()
         for pl in pool_candidates:
             if pl.city and pl.city.strip().lower() in gabay_cities:
                 radar_leads.append(pl)
-        # Sort by priority tier then conversion score
         tier_order = {'P0': 0, 'P1': 1, 'P2': 2, 'P3': 3}
         radar_leads.sort(key=lambda l: (tier_order.get(l.priority_tier or 'P3', 3), -l.conversion_score))
-        radar_leads = radar_leads[:8]  # top 8 nearby unassigned
+        radar_leads = radar_leads[:8]
 
     return render_template('gabay_app/route.html',
-        stops=route_leads, maps_url=maps_url, waze_url=waze_url,
-        optimized=(maps_key != '' and error is None),
-        error=error, maps_key=maps_key,
-        total_leads=len(active_leads),
-        radar_leads=radar_leads)
+        mode='select', all_leads=active_leads,
+        stops=[], maps_url='', waze_url='', optimized=False,
+        error=None, maps_key=maps_key, radar_leads=radar_leads)
 
 
 @app.route('/visits/new/<int:lead_id>', methods=['GET', 'POST'])

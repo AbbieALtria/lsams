@@ -2,22 +2,16 @@
 {% block title %}Plan My Day{% endblock %}
 {% block content %}
 
+{% if mode == 'select' %}
+<!-- ══════════════════════════════════════════════ -->
+<!--  STEP 1 — SELECTION SCREEN                    -->
+<!-- ══════════════════════════════════════════════ -->
+
 <!-- HEADER -->
 <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
   <div>
-    <div style="font-size:18px;font-weight:800;color:#1F3864">
-      🗺️ Plan My Day
-    </div>
-    <div style="font-size:12px;color:#9aabc5">
-      {% if optimized %}
-        AI-optimized route · {{ stops|length }} stops
-      {% else %}
-        Ranked by priority score · {{ stops|length }} stops
-      {% endif %}
-      {% if total_leads and total_leads > stops|length %}
-        <span style="color:#b45309"> · showing top {{ stops|length }} of {{ total_leads }}</span>
-      {% endif %}
-    </div>
+    <div style="font-size:18px;font-weight:800;color:#1F3864">🗺️ Plan My Day</div>
+    <div style="font-size:12px;color:#9aabc5">Pick the stops for today's route</div>
   </div>
   <a href="{{ url_for('gabay_home') }}"
      style="background:#f1f5f9;color:#4a5568;border:none;border-radius:12px;
@@ -26,49 +20,270 @@
   </a>
 </div>
 
-<!-- STATUS BANNER -->
 {% if error %}
 <div style="background:#FEF2F2;border-left:4px solid #b91c1c;border-radius:12px;
             padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;
             display:flex;gap:10px;align-items:flex-start">
   <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;flex-shrink:0;margin-top:1px"></i>
-  <div>
-    <strong>Route optimization unavailable</strong> — {{ error }}<br>
-    <span style="opacity:.8">Stops are sorted by conversion score instead.</span>
+  <div>{{ error }}</div>
+</div>
+{% endif %}
+
+{% if not all_leads %}
+<!-- Empty state -->
+<div style="text-align:center;padding:48px 24px">
+  <div style="font-size:48px;margin-bottom:12px">📭</div>
+  <div style="font-weight:800;color:#1F3864;font-size:16px">No active leads</div>
+  <div style="font-size:13px;color:#9aabc5;margin-top:6px">You have no assigned, attempting, or negotiation leads right now.</div>
+  <a href="{{ url_for('gabay_app_leads') }}"
+     style="display:inline-block;margin-top:16px;background:#1F3864;color:white;
+            border-radius:14px;padding:10px 22px;font-size:13px;font-weight:800;text-decoration:none">
+    View My Leads
+  </a>
+</div>
+
+{% else %}
+
+<!-- CITY FILTER CHIPS -->
+{% set cities = all_leads | map(attribute='city') | select | unique | list | sort %}
+<div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:14px" id="cityChips">
+  <button type="button" onclick="filterCity('ALL')"
+          class="city-chip active" data-city="ALL"
+          style="background:#1F3864;color:white;border:none;border-radius:20px;
+                 padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+    All Cities
+  </button>
+  {% for city in cities %}
+  <button type="button" onclick="filterCity('{{ city|e }}')"
+          class="city-chip" data-city="{{ city|e }}"
+          style="background:#EEF2FF;color:#4338ca;border:none;border-radius:20px;
+                 padding:5px 13px;font-size:12px;font-weight:700;cursor:pointer">
+    {{ city }}
+  </button>
+  {% endfor %}
+</div>
+
+<!-- Select/Deselect all -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:10px">
+  <span style="font-size:12px;color:#9aabc5" id="selCount">0 selected</span>
+  <div style="display:flex;gap:8px">
+    <button type="button" onclick="selectVisible(true)"
+            style="background:#F0FDF4;color:#15803d;border:1.5px solid #86efac;
+                   border-radius:8px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer">
+      Select All
+    </button>
+    <button type="button" onclick="selectVisible(false)"
+            style="background:#FEF2F2;color:#b91c1c;border:1.5px solid #fca5a5;
+                   border-radius:8px;padding:4px 11px;font-size:11px;font-weight:700;cursor:pointer">
+      Clear
+    </button>
   </div>
+</div>
+
+<!-- LEAD SELECTION FORM -->
+<form method="POST" id="routeForm">
+  {% set status_colors = {
+    'assigned':'#2E75B6','attempting':'#E07B00',
+    'negotiation':'#7c3aed','registration':'#be185d','live':'#15803d'
+  } %}
+
+  {% set current_city = namespace(val='') %}
+  {% for lead in all_leads %}
+    {% if lead.city != current_city.val %}
+      {% if not loop.first %}</div>{% endif %}
+      {% set current_city.val = lead.city %}
+      <div class="city-group" data-city="{{ lead.city or '' }}"
+           style="margin-bottom:12px">
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;
+                    letter-spacing:.8px;padding:4px 0 6px;border-bottom:1.5px solid #EDE8F5;
+                    margin-bottom:8px">
+          <i class="bi bi-geo-alt-fill me-1"></i>{{ lead.city or 'No City' }}
+        </div>
+    {% endif %}
+
+    {% set sc = status_colors.get(lead.status, '#9aabc5') %}
+    {% set score = lead.conversion_score %}
+
+    <label class="lead-row" data-city="{{ lead.city or '' }}"
+           style="display:flex;align-items:center;gap:12px;
+                  background:white;border:1.5px solid #E8ECF4;border-radius:12px;
+                  padding:11px 13px;margin-bottom:8px;cursor:pointer;
+                  transition:border-color .15s">
+      <input type="checkbox" name="lead_ids" value="{{ lead.id }}"
+             class="lead-check" onchange="updateCount()"
+             style="width:18px;height:18px;accent-color:#7c3aed;flex-shrink:0">
+      <div style="flex:1;min-width:0">
+        <div style="font-weight:800;font-size:13px;color:#1F3864;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          {{ lead.seller_name }}
+        </div>
+        <div style="font-size:11px;color:#6b7280;margin-top:2px;
+                    white-space:nowrap;overflow:hidden;text-overflow:ellipsis">
+          {% if lead.address %}<i class="bi bi-geo-alt me-1" style="color:#9aabc5"></i>{{ lead.address }}{% if lead.barangay %}, {{ lead.barangay }}{% endif %}
+          {% else %}<span style="color:#fca5a5"><i class="bi bi-exclamation-triangle me-1"></i>No address</span>{% endif %}
+        </div>
+      </div>
+      <div style="display:flex;flex-direction:column;align-items:flex-end;gap:3px;flex-shrink:0">
+        <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:8px;
+                     background:{{ sc }}20;color:{{ sc }}">
+          {{ lead.status_label }}
+        </span>
+        <span style="font-size:10px;font-weight:700;color:#9aabc5">Score {{ score }}</span>
+      </div>
+    </label>
+
+    {% if loop.last %}</div>{% endif %}
+  {% endfor %}
+
+  <!-- STICKY BUILD BUTTON -->
+  <div style="position:sticky;bottom:70px;z-index:100;margin-top:16px;padding:10px 0">
+    <button type="submit" id="buildBtn"
+            style="width:100%;background:linear-gradient(135deg,#7c3aed,#F5225B);
+                   color:white;border:none;border-radius:16px;padding:15px 24px;
+                   font-size:15px;font-weight:800;cursor:pointer;
+                   box-shadow:0 4px 20px rgba(124,58,237,.35)">
+      <i class="bi bi-map-fill me-2"></i>Build My Route
+      <span id="buildCount" style="font-size:12px;opacity:.85;margin-left:4px">(0 stops)</span>
+    </button>
+  </div>
+</form>
+
+{% endif %}<!-- /all_leads -->
+
+<!-- ══ RADAR SECTION ══ -->
+{% if radar_leads %}
+<div style="margin-top:24px">
+  <button onclick="document.getElementById('radar-panel').style.display=
+                   document.getElementById('radar-panel').style.display==='none'?'block':'none'"
+          style="width:100%;background:linear-gradient(135deg,#0f766e,#0d9488);
+                 color:white;border:none;border-radius:16px;padding:14px 18px;
+                 display:flex;align-items:center;gap:12px;cursor:pointer;
+                 font-size:14px;font-weight:800;text-align:left">
+    <span style="font-size:22px">📡</span>
+    <div style="flex:1">
+      <div>Seller Radar — {{ radar_leads|length }} Nearby</div>
+      <div style="font-size:11px;font-weight:500;opacity:.85">Unassigned sellers in your area</div>
+    </div>
+    <span style="font-size:18px;opacity:.7">▾</span>
+  </button>
+  <div id="radar-panel" style="display:none;margin-top:10px">
+    <div style="background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:14px;
+                padding:10px 14px;margin-bottom:10px;font-size:11px;color:#0f766e">
+      <i class="bi bi-info-circle me-1"></i>
+      These sellers are in your city but not yet assigned. Check in and your supervisor can assign them to you.
+    </div>
+    {% set tier_colors = {'P0':'#b91c1c','P1':'#d97706','P2':'#2563eb','P3':'#6b7280'} %}
+    {% set tier_bgs    = {'P0':'#fee2e2','P1':'#fef3c7','P2':'#dbeafe','P3':'#f3f4f6'} %}
+    {% for lead in radar_leads %}
+    <div style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;
+                padding:13px 14px;margin-bottom:10px;
+                border-left:4px solid {{ tier_colors.get(lead.priority_tier or 'P3','#6b7280') }}">
+      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
+        <span style="font-weight:800;font-size:13px;color:#1F3864;flex:1">{{ lead.seller_name }}</span>
+        {% if lead.priority_tier %}
+        <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;
+                     background:{{ tier_bgs.get(lead.priority_tier,'#f3f4f6') }};
+                     color:{{ tier_colors.get(lead.priority_tier,'#6b7280') }}">{{ lead.priority_tier }}</span>
+        {% endif %}
+      </div>
+      {% if lead.address or lead.city %}
+      <div style="font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.4">
+        <i class="bi bi-geo-alt me-1" style="color:#0d9488"></i>
+        {% if lead.address %}{{ lead.address }}{% endif %}
+        {% if lead.barangay %}, {{ lead.barangay }}{% endif %}
+        {% if lead.city %}, {{ lead.city }}{% endif %}
+      </div>
+      {% endif %}
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        {% if lead.address %}
+        <a href="https://www.google.com/maps/search/?api=1&query={{ lead.address|urlencode }}" target="_blank"
+           style="background:#4285F418;border:1.5px solid #4285F4;color:#4285F4;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
+          <i class="bi bi-map me-1"></i>Maps
+        </a>
+        {% endif %}
+        <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
+           style="background:#0f766e18;border:1.5px solid #0f766e;color:#0f766e;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
+          <i class="bi bi-eye me-1"></i>View
+        </a>
+        <a href="{{ url_for('gabay_quick_checkin') }}?lead_id={{ lead.id }}"
+           style="background:#15803d18;border:1.5px solid #15803d;color:#15803d;
+                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
+          <i class="bi bi-check2-circle me-1"></i>Check In
+        </a>
+      </div>
+    </div>
+    {% endfor %}
+  </div>
+</div>
+{% endif %}
+
+{% else %}
+<!-- ══════════════════════════════════════════════ -->
+<!--  STEP 2 — ROUTE VIEW                          -->
+<!-- ══════════════════════════════════════════════ -->
+
+<!-- HEADER -->
+<div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:14px">
+  <div>
+    <div style="font-size:18px;font-weight:800;color:#1F3864">🗺️ Plan My Day</div>
+    <div style="font-size:12px;color:#9aabc5">
+      {% if optimized %}AI-optimized route{% else %}Your selected stops{% endif %}
+       · {{ stops|length }} stops
+    </div>
+  </div>
+  <a href="{{ url_for('gabay_plan_route') }}"
+     style="background:#EDE8F5;color:#7c3aed;border:none;border-radius:12px;
+            padding:8px 14px;font-size:12px;font-weight:700;text-decoration:none">
+    <i class="bi bi-arrow-left me-1"></i>Change
+  </a>
+</div>
+
+<!-- STATUS BANNER -->
+{% if no_addr_leads %}
+<div style="background:#FFFBEB;border-left:4px solid #d97706;border-radius:12px;
+            padding:10px 14px;margin-bottom:10px;font-size:12px;color:#78350f">
+  <i class="bi bi-exclamation-triangle-fill me-1" style="color:#d97706"></i>
+  <strong>{{ no_addr_leads|length }} lead(s) skipped</strong> — no address on file:
+  {{ no_addr_leads | map(attribute='seller_name') | join(', ') }}
+</div>
+{% endif %}
+{% if error %}
+<div style="background:#FEF2F2;border-left:4px solid #b91c1c;border-radius:12px;
+            padding:12px 14px;margin-bottom:14px;font-size:12px;color:#7f1d1d;
+            display:flex;gap:10px;align-items:flex-start">
+  <i class="bi bi-exclamation-triangle-fill" style="color:#b91c1c;flex-shrink:0;margin-top:1px"></i>
+  <div><strong>Route optimization unavailable</strong> — {{ error }}<br>
+    <span style="opacity:.8">Stops are in your selected order instead.</span></div>
 </div>
 {% elif optimized %}
 <div style="background:#F0FDF4;border-left:4px solid #15803d;border-radius:12px;
             padding:12px 14px;margin-bottom:14px;font-size:12px;color:#14532d;
             display:flex;gap:10px;align-items:center">
   <i class="bi bi-check-circle-fill" style="color:#15803d;flex-shrink:0"></i>
-  <div>
-    <strong>Route optimized by Google Maps</strong> — shortest travel time order
-  </div>
+  <div><strong>Route optimized by Google Maps</strong> — shortest travel time order</div>
 </div>
 {% else %}
 <div style="background:#FFFBEB;border-left:4px solid #d97706;border-radius:12px;
             padding:12px 14px;margin-bottom:14px;font-size:12px;color:#78350f;
             display:flex;gap:10px;align-items:center">
   <i class="bi bi-info-circle-fill" style="color:#d97706;flex-shrink:0"></i>
-  <div>
-    Sorted by priority score. Add a <strong>GOOGLE_MAPS_API_KEY</strong> in Railway for AI route optimization.
-  </div>
+  <div>Showing stops in your selected order. Add a <strong>GOOGLE_MAPS_API_KEY</strong> for route optimization.</div>
 </div>
 {% endif %}
 
 {% if not stops %}
-<!-- EMPTY STATE -->
 <div style="text-align:center;padding:48px 24px">
   <div style="font-size:48px;margin-bottom:12px">📭</div>
-  <div style="font-weight:800;color:#1F3864;font-size:16px">No leads with addresses</div>
+  <div style="font-weight:800;color:#1F3864;font-size:16px">No stops with addresses</div>
   <div style="font-size:13px;color:#9aabc5;margin-top:6px">
-    Add complete addresses to your leads so the route optimizer can plan your day.
+    Add addresses to your leads so the route optimizer can plan your day.
   </div>
-  <a href="{{ url_for('gabay_app_leads') }}"
-     style="display:inline-block;margin-top:16px;background:#1F3864;color:white;
+  <a href="{{ url_for('gabay_plan_route') }}"
+     style="display:inline-block;margin-top:16px;background:#7c3aed;color:white;
             border-radius:14px;padding:10px 22px;font-size:13px;font-weight:800;text-decoration:none">
-    View My Leads
+    ← Back to Selection
   </a>
 </div>
 
@@ -103,18 +318,13 @@
   {% set sc = status_colors.get(lead.status, '#9aabc5') %}
 
   <div style="padding:14px 0;border-bottom:1px solid #F0F4FA{% if loop.last %};border-bottom:none{% endif %}">
-
-    <!-- Stop number + seller -->
     <div style="display:flex;align-items:flex-start;gap:12px">
-      <!-- Circle number -->
       <div style="width:32px;height:32px;border-radius:50%;background:#1F3864;color:white;
                   display:flex;align-items:center;justify-content:center;
                   font-size:14px;font-weight:900;flex-shrink:0;margin-top:2px">
         {{ loop.index }}
       </div>
-
       <div style="flex:1;min-width:0">
-        <!-- Name + score -->
         <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap">
           <div style="font-weight:800;font-size:14px;color:#1F3864">{{ lead.seller_name }}</div>
           <span style="font-size:10px;font-weight:800;padding:2px 7px;border-radius:10px;
@@ -126,187 +336,111 @@
             {{ lead.status_label }}
           </span>
         </div>
-
-        <!-- Address -->
         <div style="font-size:12px;color:#6b7280;margin-top:3px;line-height:1.4">
           <i class="bi bi-geo-alt me-1" style="color:#9aabc5"></i>
           {{ lead.address }}{% if lead.barangay %}, {{ lead.barangay }}{% endif %}{% if lead.city %}, {{ lead.city }}{% endif %}
         </div>
-
         {% if lead.contact_number %}
         <div style="font-size:11px;color:#9aabc5;margin-top:2px">
           <i class="bi bi-telephone me-1"></i>{{ lead.contact_number }}
         </div>
         {% endif %}
-
-        <!-- Action buttons -->
         <div style="display:flex;gap:6px;margin-top:8px;flex-wrap:wrap">
           <a href="https://waze.com/ul?q={{ lead.address|urlencode }}&navigate=yes" target="_blank"
              style="background:#00AAFF18;border:1.5px solid #00AAFF;color:#00AAFF;
-                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                    text-decoration:none">
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
             <i class="bi bi-navigation-fill me-1"></i>Waze
           </a>
           <a href="https://www.google.com/maps/search/?api=1&query={{ lead.address|urlencode }}" target="_blank"
              style="background:#4285F418;border:1.5px solid #4285F4;color:#4285F4;
-                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                    text-decoration:none">
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
             <i class="bi bi-map me-1"></i>Maps
           </a>
           <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
              style="background:#1F386418;border:1.5px solid #1F3864;color:#1F3864;
-                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                    text-decoration:none">
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
             <i class="bi bi-person-lines-fill me-1"></i>View Lead
           </a>
           <a href="{{ url_for('gabay_quick_checkin') }}?lead_id={{ lead.id }}"
              style="background:#15803d18;border:1.5px solid #15803d;color:#15803d;
-                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                    text-decoration:none">
+                    border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;text-decoration:none">
             <i class="bi bi-check2-circle me-1"></i>Check In
           </a>
         </div>
       </div>
     </div>
-
   </div>
   {% endfor %}
 </div>
 
-<!-- REFRESH BUTTON -->
+<!-- REPLAN BUTTON -->
 <div style="text-align:center;margin-top:16px">
   <a href="{{ url_for('gabay_plan_route') }}"
      style="background:#f1f5f9;color:#4a5568;border-radius:12px;padding:10px 22px;
             font-size:13px;font-weight:700;text-decoration:none;display:inline-block">
-    <i class="bi bi-arrow-clockwise me-1"></i>Refresh Route
+    <i class="bi bi-arrow-clockwise me-1"></i>Plan a Different Route
   </a>
 </div>
 
+{% endif %}{% endif %}
+
+{% endblock %}
+{% block scripts %}
+<script>
+{% if mode == 'select' %}
+let _activeCity = 'ALL';
+
+function filterCity(city) {
+  _activeCity = city;
+  // Update chip styles
+  document.querySelectorAll('.city-chip').forEach(c => {
+    const active = c.dataset.city === city;
+    c.style.background = active ? '#1F3864' : '#EEF2FF';
+    c.style.color = active ? 'white' : '#4338ca';
+  });
+  // Show/hide lead rows
+  document.querySelectorAll('.lead-row').forEach(row => {
+    const show = city === 'ALL' || row.dataset.city === city;
+    row.style.display = show ? 'flex' : 'none';
+  });
+  // Show/hide city group headers
+  document.querySelectorAll('.city-group').forEach(g => {
+    const show = city === 'ALL' || g.dataset.city === city;
+    g.style.display = show ? 'block' : 'none';
+  });
+  updateCount();
+}
+
+function selectVisible(checked) {
+  document.querySelectorAll('.lead-row').forEach(row => {
+    if (row.style.display !== 'none') {
+      row.querySelector('.lead-check').checked = checked;
+    }
+  });
+  updateCount();
+}
+
+function updateCount() {
+  const n = document.querySelectorAll('.lead-check:checked').length;
+  const selCount = document.getElementById('selCount');
+  const buildCount = document.getElementById('buildCount');
+  if (selCount) selCount.textContent = n + ' selected';
+  if (buildCount) buildCount.textContent = '(' + n + ' stop' + (n !== 1 ? 's' : '') + ')';
+  // Highlight checked rows
+  document.querySelectorAll('.lead-row').forEach(row => {
+    const cb = row.querySelector('.lead-check');
+    row.style.borderColor = cb.checked ? '#7c3aed' : '#E8ECF4';
+    row.style.background = cb.checked ? '#F5F0FF' : 'white';
+  });
+}
+
+document.getElementById('routeForm').addEventListener('submit', function(e) {
+  const n = document.querySelectorAll('.lead-check:checked').length;
+  if (n === 0) {
+    e.preventDefault();
+    alert('Please select at least one stop.');
+  }
+});
 {% endif %}
-
-<!-- ══ RADAR SECTION ══ -->
-{% if radar_leads %}
-<div style="margin-top:24px">
-
-  <!-- Toggle button -->
-  <button onclick="document.getElementById('radar-panel').style.display=
-                   document.getElementById('radar-panel').style.display==='none'?'block':'none'"
-          style="width:100%;background:linear-gradient(135deg,#0f766e,#0d9488);
-                 color:white;border:none;border-radius:16px;padding:14px 18px;
-                 display:flex;align-items:center;gap:12px;cursor:pointer;
-                 font-size:14px;font-weight:800;text-align:left">
-    <span style="font-size:22px">📡</span>
-    <div style="flex:1">
-      <div>Seller Radar — {{ radar_leads|length }} Nearby</div>
-      <div style="font-size:11px;font-weight:500;opacity:.85">
-        Unassigned sellers in your area — tap to explore
-      </div>
-    </div>
-    <span style="font-size:18px;opacity:.7">▾</span>
-  </button>
-
-  <!-- Radar panel (hidden by default) -->
-  <div id="radar-panel" style="display:none;margin-top:10px">
-
-    <div style="background:#f0fdfa;border:1.5px solid #99f6e4;border-radius:14px;
-                padding:10px 14px;margin-bottom:10px;font-size:11px;color:#0f766e">
-      <i class="bi bi-info-circle me-1"></i>
-      These sellers are in your city but not yet assigned to anyone.
-      If you visit one, check in and your supervisor can officially assign them to you.
-    </div>
-
-    {% set tier_colors = {'P0':'#b91c1c','P1':'#d97706','P2':'#2563eb','P3':'#6b7280'} %}
-    {% set tier_bgs    = {'P0':'#fee2e2','P1':'#fef3c7','P2':'#dbeafe','P3':'#f3f4f6'} %}
-
-    {% for lead in radar_leads %}
-    <div style="background:white;border:1.5px solid #e2e8f0;border-radius:14px;
-                padding:13px 14px;margin-bottom:10px;
-                border-left:4px solid {{ tier_colors.get(lead.priority_tier or 'P3','#6b7280') }}">
-
-      <!-- Header row -->
-      <div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap;margin-bottom:6px">
-        <span style="font-weight:800;font-size:13px;color:#1F3864;flex:1">
-          {{ lead.seller_name }}
-        </span>
-        {% if lead.priority_tier %}
-        <span style="font-size:10px;font-weight:800;padding:2px 8px;border-radius:8px;
-                     background:{{ tier_bgs.get(lead.priority_tier,'#f3f4f6') }};
-                     color:{{ tier_colors.get(lead.priority_tier,'#6b7280') }}">
-          {{ lead.priority_tier }}
-        </span>
-        {% endif %}
-        {% if lead.project %}
-        <span style="font-size:10px;color:#9aabc5;font-weight:600">{{ lead.project }}</span>
-        {% endif %}
-      </div>
-
-      <!-- Address -->
-      {% if lead.address or lead.city %}
-      <div style="font-size:12px;color:#6b7280;margin-bottom:6px;line-height:1.4">
-        <i class="bi bi-geo-alt me-1" style="color:#0d9488"></i>
-        {% if lead.address %}{{ lead.address }}{% endif %}
-        {% if lead.barangay %}, {{ lead.barangay }}{% endif %}
-        {% if lead.city %}, {{ lead.city }}{% endif %}
-      </div>
-      {% endif %}
-
-      <!-- Category / cluster -->
-      {% if lead.category or lead.cluster %}
-      <div style="font-size:11px;color:#9aabc5;margin-bottom:8px">
-        <i class="bi bi-tag me-1"></i>
-        {{ lead.cluster or '' }}{% if lead.cluster and lead.category %} · {% endif %}{{ lead.category or '' }}
-      </div>
-      {% endif %}
-
-      <!-- Links / contact -->
-      {% if lead.link %}
-      <div style="font-size:11px;margin-bottom:8px">
-        <a href="{{ lead.link }}" target="_blank" style="color:#0d9488;text-decoration:none">
-          <i class="bi bi-shop me-1"></i>View Shop
-        </a>
-      </div>
-      {% endif %}
-
-      <!-- Action buttons -->
-      <div style="display:flex;gap:6px;flex-wrap:wrap">
-        {% if lead.address %}
-        <a href="https://www.google.com/maps/search/?api=1&query={{ lead.address|urlencode }}"
-           target="_blank"
-           style="background:#4285F418;border:1.5px solid #4285F4;color:#4285F4;
-                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                  text-decoration:none">
-          <i class="bi bi-map me-1"></i>Maps
-        </a>
-        <a href="https://waze.com/ul?q={{ lead.address|urlencode }}&navigate=yes"
-           target="_blank"
-           style="background:#00AAFF18;border:1.5px solid #00AAFF;color:#00AAFF;
-                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                  text-decoration:none">
-          <i class="bi bi-navigation-fill me-1"></i>Waze
-        </a>
-        {% endif %}
-        <a href="{{ url_for('gabay_lead_detail', lead_id=lead.id) }}"
-           style="background:#0f766e18;border:1.5px solid #0f766e;color:#0f766e;
-                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                  text-decoration:none">
-          <i class="bi bi-eye me-1"></i>View
-        </a>
-        <a href="{{ url_for('gabay_quick_checkin') }}?lead_id={{ lead.id }}"
-           style="background:#15803d18;border:1.5px solid #15803d;color:#15803d;
-                  border-radius:8px;padding:5px 10px;font-size:11px;font-weight:700;
-                  text-decoration:none">
-          <i class="bi bi-check2-circle me-1"></i>Check In
-        </a>
-      </div>
-
-    </div>
-    {% endfor %}
-
-    <div style="text-align:center;padding:6px 0 4px;font-size:11px;color:#9aabc5">
-      Showing top {{ radar_leads|length }} unassigned sellers in your city by priority
-    </div>
-  </div>
-</div>
-{% endif %}
-
+</script>
 {% endblock %}
