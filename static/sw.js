@@ -1,12 +1,19 @@
-const CACHE = 'lsams-v3';
-const OFFLINE_URL = '/gabay/app';
+const CACHE = 'lsams-v4';
+const OFFLINE_PAGE = '/gabay/offline';
 
+// All gabay pages pre-cached on install so offline works immediately after first visit
 const PRECACHE = [
   '/gabay/app',
   '/gabay/app/leads',
   '/gabay/app/leads-json',
   '/gabay/app/checkin',
+  '/gabay/app/visits',
+  '/gabay/app/profile',
+  '/gabay/app/route',
+  '/gabay/app/tutorial',
+  '/gabay/offline',
   '/static/icons/icon-192.png',
+  '/static/gabay/i18n.js',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css',
   'https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.css',
   'https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js',
@@ -14,7 +21,9 @@ const PRECACHE = [
 
 self.addEventListener('install', e => {
   e.waitUntil(
-    caches.open(CACHE).then(cache => cache.addAll(PRECACHE)).then(() => self.skipWaiting())
+    caches.open(CACHE)
+      .then(cache => cache.addAll(PRECACHE))
+      .then(() => self.skipWaiting())
   );
 });
 
@@ -41,7 +50,7 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // Leads JSON — cache first (for offline use), refresh in background
+  // Leads JSON — stale-while-revalidate (offline: serve cached, update in bg)
   if (e.request.url.includes('/gabay/app/leads-json')) {
     e.respondWith(
       caches.open(CACHE).then(cache =>
@@ -57,16 +66,22 @@ self.addEventListener('fetch', e => {
     return;
   }
 
-  // App pages — network first, fall back to cache
+  // App pages — network first, fall back to cache, then offline page
   if (e.request.url.includes(self.location.origin)) {
     e.respondWith(
       fetch(e.request)
         .then(res => {
-          const clone = res.clone();
-          caches.open(CACHE).then(c => c.put(e.request, clone));
+          // Only cache successful HTML responses
+          if (res.ok && res.type !== 'opaque') {
+            const clone = res.clone();
+            caches.open(CACHE).then(c => c.put(e.request, clone));
+          }
           return res;
         })
-        .catch(() => caches.match(e.request).then(cached => cached || caches.match(OFFLINE_URL)))
+        .catch(() =>
+          caches.match(e.request)
+            .then(cached => cached || caches.match(OFFLINE_PAGE))
+        )
     );
   }
 });

@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSAMS — Telegram Bot Quick Guide</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+
+/* Print bar */
+.print-bar { background: #F8FAFD; border-bottom: 1px solid #E2E8F0; padding: 12px 36px; display: flex; align-items: center; gap: 12px; }
+.print-btn { background: #0088cc; color: white; border: none; border-radius: 8px; padding: 9px 22px; font-size: 13px; font-weight: 700; cursor: pointer; display: flex; align-items: center; gap: 8px; }
+.print-btn:hover { background: #0070aa; }
+.print-hint { font-size: 12px; color: #9aabc5; }
+
+/* Page wrapper — A4 portrait */
+.page {
+  max-width: 794px;
+  margin: 0 auto;
+  min-height: 1123px;
+  display: flex;
+  flex-direction: column;
+}
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #0088cc, #005fa3);
+  color: white;
+  padding: 22px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+.header-left .logo { font-size: 20px; font-weight: 900; letter-spacing: 1px; }
+.header-left .logo span { color: #f59e0b; }
+.header-left .tagline { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+.header-right { text-align: right; }
+.header-right .guide-title { font-size: 18px; font-weight: 900; }
+.header-right .guide-sub { font-size: 10px; opacity: 0.65; margin-top: 3px; }
+
+/* Hero band */
+.hero {
+  background: #f0f9ff;
+  border-bottom: 3px solid #0088cc;
+  padding: 18px 32px;
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.hero-icon { font-size: 52px; flex-shrink: 0; }
+.hero-text .headline { font-size: 22px; font-weight: 900; color: #0088cc; line-height: 1.2; }
+.hero-text .subline { font-size: 13px; color: #374151; margin-top: 5px; line-height: 1.5; }
+.hero-badge {
+  margin-left: auto;
+  background: #0088cc;
+  color: white;
+  border-radius: 12px;
+  padding: 10px 18px;
+  text-align: center;
+  flex-shrink: 0;
+}
+.hero-badge .badge-num { font-size: 28px; font-weight: 900; }
+.hero-badge .badge-lbl { font-size: 10px; opacity: 0.8; margin-top: 2px; }
+
+/* Body */
+.body { flex: 1; padding: 20px 32px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+/* Section card */
+.card {
+  border-radius: 14px;
+  overflow: hidden;
+  border: 2px solid #e2e8f0;
+}
+.card-header {
+  padding: 12px 16px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+.card-num {
+  width: 28px; height: 28px;
+  border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 14px; font-weight: 900;
+  color: white;
+  flex-shrink: 0;
+}
+.card-title { font-size: 14px; font-weight: 900; }
+.card-body { padding: 14px 16px; background: white; }
+
+/* Step rows */
+.step { display: flex; align-items: flex-start; gap: 10px; margin-bottom: 11px; }
+.step:last-child { margin-bottom: 0; }
+.step-circle {
+  width: 26px; height: 26px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center;
+  font-size: 12px; font-weight: 900; color: white;
+  flex-shrink: 0; margin-top: 1px;
+}
+.step-content .step-label { font-size: 12px; font-weight: 800; color: #1a1a2e; }
+.step-content .step-detail { font-size: 11px; color: #6b7280; margin-top: 2px; line-height: 1.4; }
+.step-content .step-example {
+  background: #f0f9ff;
+  border-left: 3px solid #0088cc;
+  border-radius: 0 6px 6px 0;
+  padding: 5px 9px;
+  font-size: 11px;
+  color: #0055aa;
+  font-weight: 700;
+  margin-top: 5px;
+  font-family: monospace;
+}
+
+/* Command table */
+.cmd-table { width: 100%; border-collapse: collapse; margin-top: 4px; }
+.cmd-table td { padding: 6px 8px; font-size: 12px; border-bottom: 1px solid #f1f5f9; vertical-align: top; }
+.cmd-table tr:last-child td { border-bottom: none; }
+.cmd-key { font-family: monospace; font-weight: 800; color: #0088cc; white-space: nowrap; }
+.cmd-desc { color: #374151; }
+
+/* Chat mockup */
+.chat-mockup { background: #eef3f7; border-radius: 10px; padding: 10px; }
+.chat-out {
+  background: #d5eeff;
+  border-radius: 10px 10px 0 10px;
+  padding: 7px 10px;
+  margin-bottom: 6px;
+  margin-left: 20px;
+  font-size: 11px;
+  color: #111;
+  font-style: italic;
+}
+.chat-in {
+  background: white;
+  border-radius: 10px 10px 10px 0;
+  padding: 7px 10px;
+  margin-right: 20px;
+  font-size: 11px;
+  color: #111;
+}
+.chat-in strong { color: #15803d; }
+
+/* Warning / tip box */
+.note-box {
+  border-radius: 10px;
+  padding: 11px 14px;
+  font-size: 12px;
+  line-height: 1.55;
+}
+
+/* Bottom strip */
+.footer-strip {
+  background: linear-gradient(135deg, #0088cc, #005fa3);
+  color: white;
+  padding: 14px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  font-size: 11px;
+}
+.footer-strip .footer-note { opacity: 0.75; }
+.footer-strip .footer-brand { font-weight: 800; font-size: 12px; }
+
+/* Full-width bottom section */
+.bottom-row { padding: 0 32px 20px; display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+@media print {
+  .print-bar { display: none !important; }
+  .page { max-width: 100%; min-height: auto; }
+  body { font-size: 12px; }
+}
+</style>
+</head>
+<body>
+
+<!-- Print bar (hidden when printing) -->
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">Use your browser's Print function → Save as PDF for best results</span>
+  <a href="/gabay/app" style="margin-left:auto;font-size:12px;color:#9aabc5;text-decoration:none">← Back to App</a>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">LSAMS <span>●</span></div>
+      <div class="tagline">Lazada Seller Activation Management System · Altria Call Center</div>
+    </div>
+    <div class="header-right">
+      <div class="guide-title">✈️ Telegram Bot</div>
+      <div class="guide-sub">Quick Guide for Gabay Field Agents · 2026</div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">✈️</div>
+    <div class="hero-text">
+      <div class="headline">Log your visits from Telegram —<br>text or voice, in Tagalog or English</div>
+      <div class="subline">No need to open the app every time. Just send a message or voice note to the LSAMS Bot and your visit is automatically saved to the system.</div>
+    </div>
+    <div class="hero-badge">
+      <div class="badge-num">2</div>
+      <div class="badge-lbl">easy steps</div>
+    </div>
+  </div>
+
+  <!-- Two-column body -->
+  <div class="body">
+
+    <!-- LEFT: Setup -->
+    <div class="card" style="border-color:#0088cc">
+      <div class="card-header" style="background:#0088cc">
+        <div class="card-num" style="background:rgba(255,255,255,0.3)">1</div>
+        <div class="card-title" style="color:white">One-Time Setup</div>
+        <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,0.7)">Do this once only</span>
+      </div>
+      <div class="card-body">
+
+        <div class="step">
+          <div class="step-circle" style="background:#0088cc">1</div>
+          <div class="step-content">
+            <div class="step-label">Open Telegram on your phone</div>
+            <div class="step-detail">You need to have the Telegram app installed.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-circle" style="background:#0088cc">2</div>
+          <div class="step-content">
+            <div class="step-label">Search for the LSAMS Bot</div>
+            <div class="step-detail">In the Telegram search bar, type:</div>
+            <div class="step-example">lsams_notify_bot</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-circle" style="background:#0088cc">3</div>
+          <div class="step-content">
+            <div class="step-label">Tap START</div>
+            <div class="step-detail">Open the bot and tap the blue START button at the bottom.</div>
+          </div>
+        </div>
+
+        <div class="step">
+          <div class="step-circle" style="background:#0088cc">4</div>
+          <div class="step-content">
+            <div class="step-label">Send your LSAMS username</div>
+            <div class="step-detail">Type and send (replace with your actual username):</div>
+            <div class="step-example">/start your_lsams_username</div>
+            <div class="step-detail" style="margin-top:5px">Example: if your LSAMS login is <strong>juan123</strong>, type:</div>
+            <div class="step-example">/start juan123</div>
+          </div>
+        </div>
+
+        <div style="background:#f0fdf4;border:2px solid #15803d;border-radius:10px;padding:10px 12px;margin-top:12px;display:flex;align-items:flex-start;gap:8px">
+          <span style="font-size:18px">✅</span>
+          <div>
+            <div style="font-size:12px;font-weight:800;color:#15803d">Bot replies: "Linked! Welcome!"</div>
+            <div style="font-size:11px;color:#166534;margin-top:2px">Setup is complete! You will never need to do this again.</div>
+          </div>
+        </div>
+
+        <div style="background:#fef3c7;border-radius:8px;padding:8px 10px;margin-top:10px;font-size:11px;color:#92400e">
+          <strong>⚠️ Don't know your username?</strong><br>
+          Ask your supervisor — it's the same username you use to log in to LSAMS.
+        </div>
+
+      </div>
+    </div>
+
+    <!-- RIGHT: How to use -->
+    <div class="card" style="border-color:#15803d">
+      <div class="card-header" style="background:#15803d">
+        <div class="card-num" style="background:rgba(255,255,255,0.3)">2</div>
+        <div class="card-title" style="color:white">How to Use Every Day</div>
+        <span style="margin-left:auto;font-size:10px;color:rgba(255,255,255,0.7)">After setup</span>
+      </div>
+      <div class="card-body">
+
+        <div style="font-size:11px;font-weight:800;color:#0088cc;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">📝 Log a Visit by Text</div>
+        <div class="chat-mockup" style="margin-bottom:12px">
+          <div class="chat-out">"Visited Chokorean Online — interested, will call next week"</div>
+          <div class="chat-in">✅ <strong>Visit Logged!</strong><br>📍 Chokorean Online<br>🟢 Outcome: Interested<br>📅 Follow-up: Jun 24, 2026</div>
+        </div>
+
+        <div style="font-size:11px;font-weight:800;color:#0088cc;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">🎙️ Log a Visit by Voice Note</div>
+        <div style="font-size:11px;color:#374151;margin-bottom:6px">Hold the <strong>🎙 microphone</strong> button and speak — in Tagalog, Filipino, or English:</div>
+        <div class="chat-mockup" style="margin-bottom:12px">
+          <div class="chat-out">🎙 <em style="color:#0088cc">Voice note · 0:08</em></div>
+          <div class="chat-in">🎙 <em style="color:#9aabc5">"Pumunta sa Nano Shop — wala siya"</em><br>✅ <strong>Visit Logged!</strong><br>📍 Nano Shop PH · ⚪ Not Home</div>
+        </div>
+
+        <div style="font-size:11px;font-weight:800;color:#0088cc;margin-bottom:6px;text-transform:uppercase;letter-spacing:0.5px">⌨️ Quick Commands</div>
+        <table class="cmd-table">
+          <tr><td class="cmd-key">status</td><td class="cmd-desc">Your summary — leads, live sellers, visits today</td></tr>
+          <tr><td class="cmd-key">today</td><td class="cmd-desc">List all visits you logged today</td></tr>
+          <tr><td class="cmd-key">help</td><td class="cmd-desc">Show all available commands</td></tr>
+        </table>
+
+        <div style="background:#fef9c3;border-left:3px solid #ca8a04;border-radius:0 8px 8px 0;padding:8px 10px;margin-top:12px;font-size:11px;color:#713f12">
+          <strong>📵 No signal?</strong> No problem — type your message and it will send automatically the moment you get internet back. The visit will still be recorded in the system.
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Bottom row: format tip + what to say -->
+  <div class="bottom-row">
+
+    <div class="note-box" style="background:#EEF2FF;border:1.5px solid #c7d2fe">
+      <div style="font-size:12px;font-weight:900;color:#4338ca;margin-bottom:7px">📋 What to Type — Format Guide</div>
+      <div style="font-size:11px;color:#374151;line-height:1.7">
+        <strong>Visited [seller name] — [outcome]</strong><br><br>
+        ✅ <em>"Visited BVS Shop — interested"</em><br>
+        ✅ <em>"Pumunta sa Jollibee — ayaw niya"</em><br>
+        ✅ <em>"Visited Nano Shop — not home, try Thursday"</em><br>
+        ✅ <em>"Chokorean — registered!"</em><br><br>
+        <strong>Outcomes you can say:</strong><br>
+        interested · not interested · not home · callback · registered · follow up
+      </div>
+    </div>
+
+    <div class="note-box" style="background:#f0fdf4;border:1.5px solid #86efac">
+      <div style="font-size:12px;font-weight:900;color:#15803d;margin-bottom:7px">✅ What Happens When You Send</div>
+      <div style="font-size:11px;color:#374151;line-height:1.8">
+        <strong>1.</strong> Bot finds the seller in your lead list<br>
+        <strong>2.</strong> Visit is saved to LSAMS automatically<br>
+        <strong>3.</strong> Your supervisor is notified right away<br>
+        <strong>4.</strong> Lead status updates if needed<br>
+        <strong>5.</strong> Bot replies with a confirmation message<br><br>
+        <div style="background:white;border-radius:6px;padding:6px 8px;font-size:11px;color:#15803d;font-weight:700">
+          💡 Same result as using the Check-In form in the app — but faster!
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer strip -->
+  <div class="footer-strip">
+    <div class="footer-note">✈️ Telegram Bot · For questions, contact your supervisor</div>
+    <div class="footer-brand">LSAMS · Altria Call Center · 2026</div>
+  </div>
+
+</div>
+
+</body>
+</html>

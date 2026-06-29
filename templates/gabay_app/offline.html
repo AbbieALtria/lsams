@@ -1,0 +1,92 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="theme-color" content="#1F3864">
+<title>LSAMS — Offline</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: linear-gradient(135deg, #1F3864, #2E75B6);
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  color: white;
+}
+.card {
+  background: rgba(255,255,255,0.10);
+  border: 1.5px solid rgba(255,255,255,0.18);
+  border-radius: 24px;
+  padding: 32px 24px;
+  max-width: 360px;
+  width: 100%;
+  text-align: center;
+  backdrop-filter: blur(8px);
+}
+.icon { font-size: 56px; margin-bottom: 16px; }
+h1 { font-size: 22px; font-weight: 800; margin-bottom: 8px; }
+.sub { font-size: 14px; color: rgba(255,255,255,0.75); line-height: 1.6; margin-bottom: 24px; }
+.tip-box {
+  background: rgba(255,255,255,0.12);
+  border-radius: 14px;
+  padding: 16px;
+  text-align: left;
+  margin-bottom: 24px;
+}
+.tip-title { font-size: 11px; font-weight: 800; color: rgba(255,255,255,0.5);
+             text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+.tip { font-size: 13px; color: rgba(255,255,255,0.85); line-height: 2; }
+.btn {
+  display: block; width: 100%; padding: 14px;
+  background: #FF9900; color: #1F3864;
+  border: none; border-radius: 14px;
+  font-size: 16px; font-weight: 800; cursor: pointer;
+  text-decoration: none; margin-bottom: 10px;
+}
+.btn-secondary {
+  background: rgba(255,255,255,0.15);
+  color: white;
+}
+.footer { font-size: 11px; color: rgba(255,255,255,0.35); margin-top: 20px; }
+</style>
+</head>
+<body>
+
+<div class="card">
+  <div class="icon">📵</div>
+  <h1>You're Offline</h1>
+  <p class="sub">
+    LSAMS couldn't load because there's no internet connection right now.
+  </p>
+
+  <div class="tip-box">
+    <div class="tip-title">What you can still do</div>
+    <div class="tip">
+      ✅ Check-in forms work offline<br>
+      ✅ GPS capture works offline<br>
+      ✅ Notes &amp; photos saved locally<br>
+      📶 Everything syncs when back online
+    </div>
+  </div>
+
+  <a href="/gabay/app" class="btn">🔄 Try Again</a>
+  <a href="/gabay/app/checkin" class="btn btn-secondary">📍 Go to Check In</a>
+</div>
+
+<div class="footer">LSAMS · Altria Call Center</div>
+
+<script>
+// Auto-retry when online
+window.addEventListener('online', () => {
+  window.location.href = '/gabay/app';
+});
+</script>
+</body>
+</html>

@@ -38,6 +38,35 @@
             <input type="date" name="follow_up_date" class="form-control">
           </div>
 
+          <!-- Competitor Brand -->
+          <div class="mb-3">
+            <label class="form-label fw-bold" style="font-size:12px;color:#4a5568">COMPETITOR BRAND (optional)</label>
+            <input type="text" name="competitor_brand" class="form-control"
+                   value="{{ lead.competitor_brand or '' }}"
+                   placeholder="e.g. Shopee Mall, Shein, local brand...">
+            <div style="font-size:11px;color:#9aabc5;margin-top:3px">Which brand/platform does this seller currently carry?</div>
+          </div>
+
+          <!-- Mall flag -->
+          <div class="mb-3 p-3 rounded" style="background:#faf5ff;border:1px solid #e9d5ff">
+            <div class="form-check form-switch mb-2">
+              <input class="form-check-input" type="checkbox" name="is_in_mall" id="isMallCheck"
+                     onchange="document.getElementById('mallNameRow').style.display=this.checked?'block':'none'"
+                     {% if lead.is_in_mall %}checked{% endif %}>
+              <label class="form-check-label fw-bold" for="isMallCheck" style="font-size:12px;color:#7c3aed">
+                🏪 Seller is inside a Mall / LazMall
+              </label>
+            </div>
+            <div id="mallNameRow" style="display:{% if lead.is_in_mall %}block{% else %}none{% endif %}">
+              <input type="text" name="mall_name" class="form-control form-control-sm"
+                     value="{{ lead.mall_name or '' }}"
+                     placeholder="e.g. SM North, Ayala Malls, LazMall...">
+            </div>
+            <div style="font-size:10px;color:#9aabc5;margin-top:4px">
+              Mall sellers are flagged — another Lazada team may manage them.
+            </div>
+          </div>
+
           <!-- GPS -->
           <div class="mb-3 p-3 rounded" style="background:#F0F4FA">
             <div class="d-flex align-items-center justify-content-between mb-2">

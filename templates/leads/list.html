@@ -16,8 +16,20 @@
 <!-- FILTER BAR -->
 <div class="card mb-3">
   <div class="card-body py-2">
-    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center">
-      <input type="text" name="q" value="{{ search }}" class="form-control form-control-sm" placeholder="Search seller, business, city..." style="max-width:220px">
+    <form method="GET" class="d-flex gap-2 flex-wrap align-items-center" id="leadFilterForm">
+      <!-- Live search with autocomplete -->
+      <div style="position:relative;max-width:280px;flex:1 1 200px">
+        <input type="text" name="q" id="leadSearchInput" value="{{ search }}"
+               class="form-control form-control-sm"
+               placeholder="Search name, city, barangay, category..."
+               autocomplete="off"
+               oninput="onSearchInput(this.value)">
+        <div id="searchSuggestions"
+             style="display:none;position:absolute;top:100%;left:0;right:0;z-index:999;
+                    background:white;border-radius:10px;box-shadow:0 6px 24px rgba(0,0,0,.15);
+                    border:1px solid #EDE8F5;max-height:340px;overflow-y:auto;margin-top:2px">
+        </div>
+      </div>
       <select name="status" class="form-select form-select-sm" style="max-width:160px">
         <option value="">All Statuses</option>
         {% for s in ['pool','assigned','attempting','negotiation','registration','live','matched','closed'] %}
@@ -38,8 +50,29 @@
         {% endfor %}
       </select>
       {% endif %}
+      <select name="mall" class="form-select form-select-sm" style="max-width:140px">
+        <option value="">All Sellers</option>
+        <option value="outside" {% if request.args.get('mall')=='outside' %}selected{% endif %}>Outside Mall</option>
+        <option value="in_mall" {% if request.args.get('mall')=='in_mall' %}selected{% endif %}>🏪 In Mall</option>
+      </select>
       <button type="submit" class="btn btn-sm btn-primary">Filter</button>
       <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">Clear</a>
+      {% if current_user.is_supervisor %}
+      <div class="d-flex gap-2 ms-auto flex-wrap">
+        <a href="{{ url_for('leads_heat_map') }}" class="btn btn-sm fw-bold"
+           style="background:#0d9488;color:white;white-space:nowrap">
+          <i class="bi bi-map me-1"></i>Heat Map
+        </a>
+        <a href="{{ url_for('leads_funnel') }}" class="btn btn-sm fw-bold"
+           style="background:#d97706;color:white;white-space:nowrap">
+          <i class="bi bi-bar-chart-steps me-1"></i>Funnel
+        </a>
+        <a href="{{ url_for('prospect_scout') }}" class="btn btn-sm fw-bold"
+           style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;white-space:nowrap">
+          <i class="bi bi-radar me-1"></i>Scout
+        </a>
+      </div>
+      {% endif %}
     </form>
   </div>
 </div>
@@ -70,7 +103,7 @@
         <tr>
           {% if current_user.is_supervisor %}<th><input type="checkbox" id="checkAll" onchange="toggleAll(this)"></th>{% endif %}
           <th>Shop Name</th><th>Project / Cluster</th><th>City</th><th>Status</th>
-          <th>Priority</th><th>Gabay</th><th>Contact</th><th>Actions</th>
+          <th>Health</th><th>Visit Timing</th><th>Gabay</th><th>Contact</th><th>Actions</th>
         </tr>
       </thead>
       <tbody>
@@ -84,6 +117,19 @@
                data-hv-lead="{{ lead.id }}">
               {{ lead.seller_name }}
             </a>
+            {% if lead.is_in_mall %}
+            <span style="display:inline-block;background:#7c3aed18;border:1px solid #7c3aed44;
+                         color:#7c3aed;border-radius:6px;padding:1px 6px;font-size:10px;
+                         font-weight:700;margin-left:4px">🏪 Mall</span>
+            {% endif %}
+            {% if lead.tags_list %}
+            <div style="margin-top:3px;display:flex;gap:3px;flex-wrap:wrap">
+              {% for t in lead.tags_list[:3] %}
+              <span style="background:#EEF2FF;color:#4338ca;border-radius:5px;
+                           padding:1px 5px;font-size:10px;font-weight:600">{{ t }}</span>
+              {% endfor %}
+            </div>
+            {% endif %}
             {% if lead.lazada_id %}<br><small style="color:#9aabc5">{{ lead.lazada_id }}</small>{% endif %}
           </td>
           <td>
@@ -94,12 +140,36 @@
           <td>{% if lead.city %}<span data-hv-city='{"name":"{{ lead.city }}","cid":{{ campaign_id or 'null' }}}' style="cursor:pointer;text-decoration:underline dotted">{{ lead.city }}</span>{% else %}—{% endif %}</td>
           <td><span class="badge badge-{{ lead.status }} rounded-pill" data-hv-lead="{{ lead.id }}">{{ lead.status_label }}</span></td>
           <td>
-            {% if lead.status not in ('pool','live','matched','closed') %}
-            {% set pl = lead.priority_label %}
-            <span style="font-size:11px;font-weight:700;color:{{ pl[1] }};white-space:nowrap">
-              <i class="bi {{ pl[2] }}"></i> {{ pl[0] }}
+            {% set cs = lead.conversion_score %}
+            {% set hl = 'A' if cs >= 75 else ('B' if cs >= 50 else ('C' if cs >= 25 else 'D')) %}
+            {% set hc = '#15803d' if cs >= 75 else ('#0d9488' if cs >= 50 else ('#d97706' if cs >= 25 else '#dc2626')) %}
+            <span style="display:inline-flex;align-items:center;gap:3px;background:{{ hc }}18;
+                         border:1px solid {{ hc }}44;border-radius:8px;padding:2px 8px">
+              <span style="font-size:13px;font-weight:900;color:{{ hc }}">{{ hl }}</span>
+              <span style="font-size:10px;color:{{ hc }};opacity:.7;font-weight:600">{{ cs }}</span>
             </span>
-            {% else %}—{% endif %}
+          </td>
+          <td>
+            {% set lvd = lead.last_visit_days %}
+            {% if lvd is none %}
+              <span style="font-size:11px;color:#CBD5E1">Never</span>
+            {% elif lvd == 0 %}
+              <span style="font-size:11px;font-weight:700;color:#15803d">Today</span>
+            {% elif lvd < 7 %}
+              <span style="font-size:11px;font-weight:700;color:#15803d">{{ lvd }}d ago</span>
+            {% elif lvd < 14 %}
+              <span style="font-size:11px;font-weight:700;color:#d97706">{{ lvd }}d ago</span>
+            {% else %}
+              <span style="font-size:11px;font-weight:700;color:#dc2626">{{ lvd }}d ago</span>
+            {% endif %}
+            {% if lead.suggested_next_visit %}
+            {% set snv = lead.suggested_next_visit %}
+            {% set today_date = namespace(val=none) %}
+            <br>
+            <span style="font-size:10px;color:#7c3aed;font-weight:600">
+              📅 {{ snv.strftime('%b %d') }}
+            </span>
+            {% endif %}
           </td>
           <td style="font-size:12px">{% if lead.assigned_gabay %}<span data-hv-gabay="{{ lead.gabay_id }}">{{ lead.assigned_gabay.display_name }}</span>{% else %}<span class="text-muted">Unassigned</span>{% endif %}</td>
           <td style="font-size:12px">{{ lead.contact_number or '—' }}</td>
@@ -108,7 +178,7 @@
           </td>
         </tr>
         {% else %}
-        <tr><td colspan="8" class="text-center text-muted py-4">No leads found. {% if current_user.is_manager %}<a href="{{ url_for('import_leads') }}">Import leads</a> to get started.{% endif %}</td></tr>
+        <tr><td colspan="9" class="text-center text-muted py-4">No leads found. {% if current_user.is_manager %}<a href="{{ url_for('import_leads') }}">Import leads</a> to get started.{% endif %}</td></tr>
         {% endfor %}
       </tbody>
     </table>
@@ -156,6 +226,59 @@ function updateBulkBar() {
     if (cnt) cnt.textContent = checked + ' selected';
   }
 }
+
+/* ── Live Search Autocomplete ── */
+let _searchTimer = null;
+const STATUS_COLORS = {
+  pool:'#6b7280', assigned:'#1565C0', attempting:'#d97706',
+  negotiation:'#0d9488', registration:'#7c3aed', live:'#15803d',
+  matched:'#15803d', closed:'#dc2626'
+};
+
+function onSearchInput(val) {
+  clearTimeout(_searchTimer);
+  const box = document.getElementById('searchSuggestions');
+  if (val.length < 2) { box.style.display = 'none'; return; }
+  _searchTimer = setTimeout(() => {
+    fetch('/api/leads/search?q=' + encodeURIComponent(val))
+      .then(r => r.json())
+      .then(data => {
+        if (!data.length) { box.style.display = 'none'; return; }
+        box.innerHTML = data.map(l => {
+          const loc = [l.barangay, l.city, l.province].filter(Boolean).join(', ');
+          const color = STATUS_COLORS[l.status] || '#9aabc5';
+          return `<a href="${l.url}" style="display:block;padding:10px 14px;text-decoration:none;
+                    color:#1A1A2E;border-bottom:1px solid #F5F0FF;font-size:13px"
+                    onmouseover="this.style.background='#F8F7FF'" onmouseout="this.style.background='white'">
+            <div class="fw-bold" style="margin-bottom:2px">${escSuggest(l.name)}</div>
+            <div style="font-size:11px;color:#9aabc5">
+              ${loc ? `<i class="bi bi-geo-alt me-1"></i>${escSuggest(loc)}` : ''}
+              ${l.category ? ` · ${escSuggest(l.category)}` : ''}
+            </div>
+            <div style="margin-top:3px">
+              <span style="border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700;
+                           background:${color}22;color:${color}">${l.status_label}</span>
+              ${l.gabay ? `<span style="font-size:10px;color:#9aabc5;margin-left:6px">· ${escSuggest(l.gabay)}</span>` : ''}
+            </div>
+          </a>`;
+        }).join('') +
+        `<div style="padding:6px 14px;font-size:10px;color:#9aabc5;background:#F8FAFD;
+                     border-radius:0 0 10px 10px">
+           Press Enter to search all results
+         </div>`;
+        box.style.display = 'block';
+      });
+  }, 220);
+}
+
+function escSuggest(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
+
+document.addEventListener('click', e => {
+  if (!e.target.closest('#leadSearchInput') && !e.target.closest('#searchSuggestions'))
+    document.getElementById('searchSuggestions').style.display = 'none';
+});
 </script>
 {% endblock %}
 

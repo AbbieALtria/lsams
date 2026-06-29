@@ -1,0 +1,320 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSAMS — What's New</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+
+/* Print bar */
+.print-bar { background: #F8FAFD; border-bottom: 1px solid #E2E8F0; padding: 10px 32px; display: flex; align-items: center; gap: 12px; }
+.print-btn { background: #1F3864; color: white; border: none; border-radius: 8px; padding: 8px 20px; font-size: 13px; font-weight: 700; cursor: pointer; }
+.print-btn:hover { background: #162a4a; }
+.print-hint { font-size: 11px; color: #9aabc5; }
+
+@media print {
+  .print-bar { display: none !important; }
+  body { font-size: 12px; }
+  .page { max-width: 100%; margin: 0; padding: 0 24px; }
+}
+
+/* Page wrapper */
+.page { max-width: 794px; margin: 0 auto; min-height: 1123px; display: flex; flex-direction: column; }
+
+/* Header */
+.header {
+  background: linear-gradient(135deg, #1F3864, #2E75B6);
+  color: white; padding: 20px 28px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.header-left .logo { font-size: 18px; font-weight: 900; letter-spacing: 1px; }
+.header-left .logo span { color: #f59e0b; }
+.header-left .tagline { font-size: 10px; opacity: 0.6; margin-top: 2px; }
+.header-right { text-align: right; }
+.header-right .guide-title { font-size: 17px; font-weight: 900; }
+.header-right .guide-sub { font-size: 10px; opacity: 0.6; margin-top: 3px; }
+
+/* Hero band */
+.hero {
+  background: #f0f4ff; border-bottom: 3px solid #1F3864;
+  padding: 14px 28px; display: flex; align-items: center; gap: 18px;
+}
+.hero-icon { font-size: 40px; flex-shrink: 0; }
+.hero-text .headline { font-size: 18px; font-weight: 900; color: #1F3864; line-height: 1.2; }
+.hero-text .subline { font-size: 12px; color: #374151; margin-top: 4px; }
+.hero-badge {
+  margin-left: auto; background: #1F3864; color: white;
+  border-radius: 10px; padding: 8px 16px; text-align: center; flex-shrink: 0;
+}
+.hero-badge .num { font-size: 26px; font-weight: 900; line-height: 1; }
+.hero-badge .lbl { font-size: 9px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+
+/* Body */
+.body { padding: 16px 28px; flex: 1; }
+
+/* Section label */
+.section-label {
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 2px;
+  color: #9aabc5; margin: 14px 0 8px;
+}
+.section-label:first-child { margin-top: 0; }
+
+/* Feature cards grid */
+.feature-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+.feature-grid-3 { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px; margin-bottom: 10px; }
+
+/* Feature card */
+.feat {
+  border-radius: 12px; padding: 12px 14px;
+  border: 1.5px solid transparent;
+}
+.feat .feat-icon { font-size: 22px; margin-bottom: 5px; }
+.feat .feat-tag {
+  display: inline-block; border-radius: 20px; padding: 2px 8px;
+  font-size: 9px; font-weight: 800; text-transform: uppercase; letter-spacing: 0.5px;
+  margin-bottom: 5px;
+}
+.feat .feat-title { font-size: 13px; font-weight: 800; margin-bottom: 4px; }
+.feat .feat-desc { font-size: 11px; line-height: 1.5; }
+.feat ul { padding-left: 14px; margin: 4px 0 0; }
+.feat ul li { font-size: 11px; line-height: 1.6; }
+
+/* Colour themes */
+.feat-blue  { background: #eff6ff; border-color: #bfdbfe; }
+.feat-blue  .feat-tag { background: #1d4ed8; color: white; }
+.feat-blue  .feat-title { color: #1d4ed8; }
+
+.feat-teal  { background: #f0fdfa; border-color: #99f6e4; }
+.feat-teal  .feat-tag { background: #0d9488; color: white; }
+.feat-teal  .feat-title { color: #0d9488; }
+
+.feat-green { background: #f0fdf4; border-color: #bbf7d0; }
+.feat-green .feat-tag { background: #15803d; color: white; }
+.feat-green .feat-title { color: #15803d; }
+
+.feat-amber { background: #fffbeb; border-color: #fde68a; }
+.feat-amber .feat-tag { background: #d97706; color: white; }
+.feat-amber .feat-title { color: #d97706; }
+
+.feat-purple{ background: #faf5ff; border-color: #e9d5ff; }
+.feat-purple .feat-tag { background: #7c3aed; color: white; }
+.feat-purple .feat-title { color: #7c3aed; }
+
+.feat-tg    { background: #e0f7ff; border-color: #b3eaff; }
+.feat-tg    .feat-tag { background: #0088cc; color: white; }
+.feat-tg    .feat-title { color: #0088cc; }
+
+/* Mock UI pills */
+.pill { display: inline-flex; align-items: center; gap: 3px; border-radius: 6px; padding: 2px 7px; font-size: 10px; font-weight: 700; }
+.pill-green  { background: #dcfce7; color: #15803d; }
+.pill-teal   { background: #ccfbf1; color: #0d9488; }
+.pill-amber  { background: #fef3c7; color: #d97706; }
+.pill-red    { background: #fee2e2; color: #dc2626; }
+.pill-purple { background: #ede9fe; color: #7c3aed; }
+.pill-blue   { background: #dbeafe; color: #1d4ed8; }
+.pill-gray   { background: #f1f5f9; color: #64748b; }
+
+/* Who sees what legend */
+.who-row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin-top: 10px; font-size: 10px; }
+.who-chip { border-radius: 20px; padding: 3px 10px; font-weight: 700; }
+
+/* Footer */
+.footer {
+  background: #1F3864; color: white; padding: 10px 28px;
+  display: flex; align-items: center; justify-content: space-between; font-size: 10px;
+}
+.footer .left { opacity: 0.7; }
+.footer .right { font-weight: 700; opacity: 0.9; }
+</style>
+</head>
+<body>
+
+<!-- Print bar -->
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨 Print / Save as PDF</button>
+  <span class="print-hint">Tip: Choose "Save as PDF" in the print dialog · A4 Portrait recommended</span>
+</div>
+
+<div class="page">
+
+  <!-- Header -->
+  <div class="header">
+    <div class="header-left">
+      <div class="logo">LS<span>AMS</span></div>
+      <div class="tagline">Lazada Seller Activation Management System · Altria</div>
+    </div>
+    <div class="header-right">
+      <div class="guide-title">🚀 What's New</div>
+      <div class="guide-sub">Feature Updates — June 2026</div>
+    </div>
+  </div>
+
+  <!-- Hero -->
+  <div class="hero">
+    <div class="hero-icon">📦</div>
+    <div class="hero-text">
+      <div class="headline">New Features Shipped This Sprint</div>
+      <div class="subline">Telegram alerts · Seller health scoring · Mall detection · Heat map · Conversion funnel · Field intelligence</div>
+    </div>
+    <div class="hero-badge">
+      <div class="num">8</div>
+      <div class="lbl">New Features</div>
+    </div>
+  </div>
+
+  <div class="body">
+
+    <!-- SECTION 1: Telegram -->
+    <div class="section-label">✈️ Telegram Integration</div>
+    <div class="feature-grid">
+      <div class="feat feat-tg">
+        <div class="feat-tag">NEW — All Roles</div>
+        <div class="feat-title">✈️ Telegram Bot — Real-Time Alerts</div>
+        <div class="feat-desc">Connect your Telegram account once by sending <strong>/start username</strong> to the LSAMS bot. After linking:</div>
+        <ul>
+          <li>Gabay login alerts sent to managers</li>
+          <li>Visit logged → instant manager notification</li>
+          <li>Lead upload complete → alert sent</li>
+          <li>Log visits via text or voice note in Telegram</li>
+        </ul>
+        <div style="margin-top:8px;display:flex;gap:5px;flex-wrap:wrap">
+          <span class="pill pill-blue">✈️ Works via Telegram</span>
+          <span class="pill pill-gray">No approval needed</span>
+        </div>
+      </div>
+      <div class="feat feat-tg">
+        <div class="feat-tag">NEW — Superadmin</div>
+        <div class="feat-title">📊 Daily Reports (8 AM &amp; 8 PM)</div>
+        <div class="feat-desc">Automated Telegram reports sent twice daily to selected users only. Superadmin controls who receives reports via the ✈️ toggle in User Management.</div>
+        <ul>
+          <li>✅ Visited — Gabay active with visits today</li>
+          <li>🟡 Logged in, no visits yet</li>
+          <li>⚪ Not active today</li>
+        </ul>
+        <div style="margin-top:8px">
+          <span class="pill pill-blue">8:00 AM PHT</span>
+          <span class="pill pill-blue" style="margin-left:4px">8:00 PM PHT</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 2: Seller Health -->
+    <div class="section-label">📊 Seller Intelligence</div>
+    <div class="feature-grid">
+      <div class="feat feat-green">
+        <div class="feat-tag">ENHANCED — Leads Page</div>
+        <div class="feat-title">💚 Seller Health Grade (A–D)</div>
+        <div class="feat-desc">Every lead now has a Health Grade replacing the old Priority label.</div>
+        <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;align-items:center">
+          <span class="pill pill-green" style="font-size:12px;font-weight:900">A 82</span>
+          <span class="pill pill-teal" style="font-size:12px;font-weight:900">B 61</span>
+          <span class="pill pill-amber" style="font-size:12px;font-weight:900">C 34</span>
+          <span class="pill pill-red" style="font-size:12px;font-weight:900">D 12</span>
+        </div>
+        <div style="margin-top:6px;font-size:10px;color:#6b7280">
+          Grade A = 75–100 pts · B = 50–74 · C = 25–49 · D = 0–24
+        </div>
+        <div style="margin-top:6px;font-size:11px">Lead Detail shows grade, score/100, days since last visit, total visit count, and recent outcome trend.</div>
+      </div>
+      <div class="feat feat-purple">
+        <div class="feat-tag">NEW — Visit Form</div>
+        <div class="feat-title">🏪 Mall / LazMall Flag</div>
+        <div class="feat-desc">Gabay agents can now flag a seller as "inside a mall" when recording a visit. Provides a mall name (SM North, Ayala, LazMall, etc.).</div>
+        <ul>
+          <li>Managers can filter: <strong>All / Outside Mall / 🏪 In Mall</strong></li>
+          <li>Purple <span class="pill pill-purple">🏪 Mall</span> badge appears on lead list</li>
+          <li>Scout auto-detects mall keywords and pre-checks the flag</li>
+          <li>Another Lazada team manages mall sellers — flag helps coordination</li>
+        </ul>
+      </div>
+    </div>
+
+    <div class="feature-grid-3">
+      <div class="feat feat-amber">
+        <div class="feat-tag">NEW — Visit Form</div>
+        <div class="feat-title">🏷 Competitor Brand</div>
+        <div class="feat-desc">Log which competitor brand or platform the seller currently carries. Shows on Lead Detail (editable) and helps managers see market share patterns.</div>
+        <div style="margin-top:6px">
+          <span class="pill pill-amber">e.g. Shopee Mall</span>
+        </div>
+      </div>
+      <div class="feat feat-blue">
+        <div class="feat-tag">NEW — Lead Detail</div>
+        <div class="feat-title">🏷 Seller Tags</div>
+        <div class="feat-desc">Add custom labels to any lead. Click a preset tag or type your own. Visible in the lead list as blue pills.</div>
+        <div style="margin-top:6px;display:flex;gap:4px;flex-wrap:wrap">
+          <span class="pill pill-blue" style="font-size:9px">Hot Lead</span>
+          <span class="pill pill-blue" style="font-size:9px">Key Account</span>
+          <span class="pill pill-blue" style="font-size:9px">Declined</span>
+        </div>
+      </div>
+      <div class="feat feat-teal">
+        <div class="feat-tag">AUTO — Each Visit</div>
+        <div class="feat-title">📅 Next Visit Date</div>
+        <div class="feat-desc">Automatically calculated from last visit outcome. Shows in lead list under Last Visit.</div>
+        <ul>
+          <li>Interested → +3 days</li>
+          <li>Follow-up → +5 days</li>
+          <li>No Contact → +2 days</li>
+          <li>Not Interested → +14 days</li>
+        </ul>
+      </div>
+    </div>
+
+    <!-- SECTION 3: Manager Tools -->
+    <div class="section-label">📈 Manager &amp; Supervisor Tools</div>
+    <div class="feature-grid">
+      <div class="feat feat-teal">
+        <div class="feat-tag">NEW PAGE — Supervisors</div>
+        <div class="feat-title">🗺 Barangay Heat Map</div>
+        <div class="feat-desc">See seller activity broken down by barangay. Table shows Active / Warm / Cold distribution, visits in last 30 days, and mall count per area. Color-coded rows — green rows = hottest areas.</div>
+        <div style="margin-top:6px">
+          <span class="pill pill-gray">Leads → Heat Map button</span>
+        </div>
+      </div>
+      <div class="feat feat-amber">
+        <div class="feat-tag">NEW PAGE — Supervisors</div>
+        <div class="feat-title">📊 Conversion Funnel</div>
+        <div class="feat-desc">Per-Gabay agent stacked funnel bar showing pipeline progression. Summary totals at the top, then each agent's breakdown with conversion % at a glance.</div>
+        <ul>
+          <li><span style="color:#9aabc5;font-weight:700">■</span> Cold (Pool/Assigned)</li>
+          <li><span style="color:#d97706;font-weight:700">■</span> Attempting Contact</li>
+          <li><span style="color:#0d9488;font-weight:700">■</span> Negotiation</li>
+          <li><span style="color:#15803d;font-weight:700">■</span> Active (Reg / Live)</li>
+        </ul>
+        <div style="margin-top:6px">
+          <span class="pill pill-gray">Leads → Funnel button</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Who sees what -->
+    <div style="background:#f8fafc;border-radius:10px;padding:10px 14px;margin-top:4px">
+      <div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">Who sees what</div>
+      <div class="who-row">
+        <span class="who-chip" style="background:#fee2e2;color:#dc2626">Superadmin</span>
+        <span style="font-size:11px">All features + Telegram report toggle + protect superadmin from deactivation</span>
+      </div>
+      <div class="who-row">
+        <span class="who-chip" style="background:#dbeafe;color:#1d4ed8">Admin / Manager / Supervisor</span>
+        <span style="font-size:11px">Telegram alerts · Heat Map · Funnel · Health scores · Tags · Mall filter</span>
+      </div>
+      <div class="who-row">
+        <span class="who-chip" style="background:#dcfce7;color:#15803d">Gabay Agent</span>
+        <span style="font-size:11px">Telegram bot (log visits &amp; voice) · Record competitor brand · Flag mall seller · View tags &amp; next visit</span>
+      </div>
+    </div>
+
+  </div>
+
+  <!-- Footer -->
+  <div class="footer">
+    <div class="left">LSAMS · Altria Support Services · gabay.altriacallcenter.com</div>
+    <div class="right">June 2026 Release · 8 Features Shipped</div>
+  </div>
+
+</div>
+</body>
+</html>

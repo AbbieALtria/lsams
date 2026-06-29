@@ -236,7 +236,7 @@
              class="btn-action" style="background:var(--lz-purple-light);color:var(--lz-purple)">
             <i class="bi bi-pencil-fill me-1"></i>Edit
           </a>
-          {% if u.id != current_user.id %}
+          {% if u.id != current_user.id and u.role != 'superadmin' %}
           <button onclick="toggleUser({{ u.id }}, this)"
             class="btn-action" style="background:{% if u.is_active %}#FEF2F2;color:#b91c1c{% else %}#F0FDF4;color:#15803d{% endif %}">
             {{ 'Deactivate' if u.is_active else 'Activate' }}
@@ -248,6 +248,14 @@
             title="{% if u.whatsapp_alerts_enabled %}WhatsApp alerts ON — click to mute{% else %}WhatsApp alerts OFF — click to enable{% endif %}"
             style="background:{% if u.whatsapp_alerts_enabled %}#DCFCE7;color:#15803d{% else %}#F1F5F9;color:#94a3b8{% endif %}">
             {% if u.whatsapp_alerts_enabled %}🔔{% else %}🔕{% endif %}
+          </button>
+          {% endif %}
+          {% if current_user.is_superadmin %}
+          <button onclick="toggleTGReport({{ u.id }}, this)" id="tg-btn-{{ u.id }}"
+            class="btn-action"
+            title="{% if u.telegram_reports_enabled %}Telegram daily report ON — click to remove{% elif u.telegram_chat_id %}Telegram report OFF — click to enable{% else %}No Telegram linked yet{% endif %}"
+            style="background:{% if u.telegram_reports_enabled %}#EFF6FF;color:#1d4ed8{% elif u.telegram_chat_id %}#F1F5F9;color:#94a3b8{% else %}#F8FAFC;color:#cbd5e1{% endif %};{% if not u.telegram_chat_id %}opacity:0.45;cursor:not-allowed{% endif %}">
+            ✈️{% if u.telegram_reports_enabled %} Report ON{% elif u.telegram_chat_id %} Report OFF{% else %} No TG{% endif %}
           </button>
           {% endif %}
           {% if role == 'gabay' %}
@@ -370,6 +378,21 @@ function toggleWA(id, btn) {
       btn.style.background = d.enabled ? '#DCFCE7' : '#F1F5F9';
       btn.style.color = d.enabled ? '#15803d' : '#94a3b8';
       btn.title = d.enabled ? 'WhatsApp alerts ON — click to mute' : 'WhatsApp alerts OFF — click to enable';
+    });
+}
+function toggleTGReport(id, btn) {
+  if (btn.style.cursor === 'not-allowed') {
+    alert('This user has not linked their Telegram yet.\nAsk them to open the bot and send: /start their_username');
+    return;
+  }
+  fetch(`/admin/users/${id}/toggle-tg-reports`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.error) { alert(d.error); return; }
+      btn.textContent = d.enabled ? '✈️ Report ON' : '✈️ Report OFF';
+      btn.style.background = d.enabled ? '#EFF6FF' : '#F1F5F9';
+      btn.style.color = d.enabled ? '#1d4ed8' : '#94a3b8';
+      btn.title = d.enabled ? 'Telegram daily report ON — click to remove' : 'Telegram report OFF — click to enable';
     });
 }
 </script>

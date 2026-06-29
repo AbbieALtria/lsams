@@ -1,0 +1,795 @@
+{% extends "base.html" %}
+{% block title %}Prospect Scout{% endblock %}
+{% block extra_head %}
+<style>
+.platform-badge {
+  display:inline-flex;align-items:center;gap:4px;border-radius:20px;
+  padding:3px 10px;font-size:11px;font-weight:700;
+}
+.badge-coffee   { background:#EE4D2D22;color:#EE4D2D; }
+.badge-tiktok   { background:#00000015;color:#111; }
+.badge-facebook { background:#1877F222;color:#1877F2; }
+.badge-rrld     { background:#7c3aed22;color:#7c3aed; }
+.scout-card {
+  border-radius:14px;border:1.5px solid #E8E4EE;background:white;
+  padding:14px 16px;margin-bottom:10px;transition:box-shadow .15s;
+}
+.scout-card:hover { box-shadow:0 4px 18px rgba(139,43,226,.12); }
+.scout-card.is-rrld    { border-color:#7c3aed44;background:linear-gradient(135deg,#FAF7FF,white); }
+.scout-card.in-system  { border-color:#15803d44;background:linear-gradient(135deg,#F0FDF4,white); }
+.scout-card.laz-fresh  { border-color:#15803d88;border-left:4px solid #15803d; }
+.score-bar  { height:5px;border-radius:3px;background:#E8E4EE;overflow:hidden;margin-top:4px; }
+.score-fill { height:100%;border-radius:3px;background:linear-gradient(90deg,#8B2BE2,#F5225B); }
+.city-chip  {
+  display:inline-block;background:#1F386415;color:#1F3864;border-radius:20px;
+  padding:4px 12px;font-size:12px;font-weight:700;margin:2px;
+}
+.spin { animation:spin .8s linear infinite; }
+@keyframes spin { to { transform:rotate(360deg); } }
+</style>
+{% endblock %}
+
+{% block content %}
+
+{# Gabay users see a mobile-friendly back button instead of the supervisor breadcrumb #}
+{% if user_role == 'gabay' %}
+<div style="margin-bottom:12px">
+  <a href="{{ url_for('gabay_home') }}"
+     style="display:inline-flex;align-items:center;gap:6px;background:#1F3864;color:white;
+            border-radius:12px;padding:8px 16px;font-size:13px;font-weight:700;text-decoration:none">
+    <i class="bi bi-arrow-left"></i> Back to Home
+  </a>
+</div>
+{% endif %}
+
+<div class="page-header d-flex align-items-center justify-content-between flex-wrap gap-2">
+  <div>
+    <div class="page-title">
+      <i class="bi bi-radar me-2" style="color:#7c3aed"></i>Prospect Scout
+    </div>
+    <div style="font-size:12px;color:#9aabc5">
+      Discover potential Lazada sellers on Coffee, TikTok, Facebook &amp; local trade networks
+    </div>
+  </div>
+  {% if user_role != 'gabay' %}
+  <a href="{{ url_for('leads') }}" class="btn btn-sm btn-outline-secondary">
+    <i class="bi bi-arrow-left me-1"></i>Back to Leads
+  </a>
+  {% endif %}
+</div>
+
+{# ── SerpAPI status — admin/superadmin only ── #}
+{% if current_user.is_admin %}
+  {% if serp_status == 'ok' %}
+  <div class="alert mb-3" style="background:#DCFCE7;border:1.5px solid #86EFAC;border-radius:12px;color:#15803d">
+    <i class="bi bi-check-circle-fill me-2"></i>
+    <strong>SerpAPI connected.</strong> {{ serp_plan }}
+  </div>
+  {% elif serp_status == 'invalid' %}
+  <div class="alert mb-3" style="background:#FEE2E2;border:1.5px solid #FCA5A5;border-radius:12px;color:#b91c1c">
+    <i class="bi bi-x-circle-fill me-2"></i>
+    <strong>Invalid API key.</strong> Check SERPAPI_KEY in Railway Variables.
+  </div>
+  {% elif serp_status == 'error' %}
+  <div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>Could not reach SerpAPI.</strong> Connection timed out — try again.
+  </div>
+  {% else %}
+  <div class="alert mb-3" style="background:#FEF9C3;border:1.5px solid #FDE047;border-radius:12px;color:#854D0E">
+    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+    <strong>SERPAPI_KEY not set.</strong> Add it to Railway environment variables.
+  </div>
+  {% endif %}
+{% endif %}
+
+<!-- BRAND LIBRARY -->
+<div class="card mb-3" style="border-radius:16px;border:1.5px solid #EDE8F5" id="brandLibCard">
+  <div class="card-header d-flex align-items-center justify-content-between py-2"
+       style="border-radius:14px 14px 0 0;background:#F8F7FF;cursor:pointer"
+       onclick="toggleBrandLib()">
+    <span style="font-weight:800;color:#7c3aed;font-size:13px">
+      <i class="bi bi-tags-fill me-2"></i>Brand Library
+      <span id="brandLibCount" class="badge rounded-pill ms-2" style="background:#7c3aed22;color:#7c3aed;font-size:10px">—</span>
+    </span>
+    <div class="d-flex gap-2 align-items-center">
+      {% if current_user.role in ('superadmin','admin','lazada') %}
+      <button class="btn btn-sm fw-bold" onclick="event.stopPropagation();openAddBrand()"
+              style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;padding:3px 12px">
+        <i class="bi bi-plus-circle me-1"></i>Add Brand
+      </button>
+      {% endif %}
+      <i class="bi bi-chevron-down" id="brandLibChev" style="color:#9aabc5;transition:transform .2s"></i>
+    </div>
+  </div>
+  <div id="brandLibBody" style="display:none;padding:12px 16px">
+    <!-- Category tabs -->
+    <div class="d-flex gap-1 flex-wrap mb-2" id="brandCatTabs">
+      <button class="btn btn-sm active" data-cat="" onclick="filterBrandCat('',this)"
+              style="border-radius:20px;font-size:11px;padding:3px 12px;background:#7c3aed;color:white">All</button>
+    </div>
+    <!-- Brand chips -->
+    <div id="brandChips" class="d-flex gap-1 flex-wrap" style="min-height:32px">
+      <span style="font-size:12px;color:#9aabc5">Loading...</span>
+    </div>
+    <!-- Add brand inline form -->
+    <div id="addBrandForm" style="display:none;margin-top:12px;padding:12px;background:#F8F7FF;border-radius:10px;border:1px solid #EDE8F5">
+      <div class="row g-2 align-items-end">
+        <div class="col-md-5">
+          <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700">Brand Name *</label>
+          <input type="text" id="newBrandName" class="form-control form-control-sm" placeholder="e.g. Bench, Jollibee, SM">
+        </div>
+        <div class="col-md-4">
+          <label class="form-label" style="font-size:11px;color:#9aabc5;font-weight:700">Category</label>
+          <select id="newBrandCat" class="form-select form-select-sm">
+            <option>FMCG</option>
+            <option>Electronics</option>
+            <option>Fashions &amp; Accessories</option>
+            <option>General Merchandise</option>
+          </select>
+        </div>
+        <div class="col-md-3 d-flex gap-2">
+          <button class="btn btn-sm fw-bold w-100" onclick="saveBrand()"
+                  style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white">Save</button>
+          <button class="btn btn-sm btn-outline-secondary" onclick="closeAddBrand()">Cancel</button>
+        </div>
+      </div>
+      <div id="brandSaveMsg" style="font-size:11px;margin-top:6px"></div>
+    </div>
+  </div>
+</div>
+
+<!-- SEARCH FORM -->
+<div class="card mb-4" style="border-radius:16px;border:1.5px solid #EDE8F5">
+  <div class="card-body p-4">
+
+    <!-- Row 1: Category → Brand -->
+    <div class="row g-3 mb-3">
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-grid me-1"></i>Category
+        </label>
+        <select id="scoutCategory" class="form-select" onchange="onCategoryChange()">
+          <option value="">All Categories</option>
+          <option>FMCG</option>
+          <option>Electronics</option>
+          <option>Fashions &amp; Accessories</option>
+          <option>General Merchandise</option>
+        </select>
+      </div>
+
+      <div class="col-md-8">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-search me-1"></i>Brand / Keyword *
+        </label>
+        <select id="scoutBrandSelect" class="form-select" onchange="onBrandSelect()">
+          <option value="">— Choose a brand —</option>
+        </select>
+        <input type="text" id="scoutKeyword" class="form-control mt-2"
+               placeholder="Type brand name or keyword..." style="display:none">
+        <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+          🔥 Popular PH brands auto-loaded per category &middot; or choose <em>Type your own</em>
+        </div>
+      </div>
+    </div>
+
+    <!-- Row 2: City + Platform + Scout -->
+    <div class="row g-3">
+
+      <!-- City — role-based -->
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-geo-alt me-1"></i>City / Province
+          {% if user_role == 'gabay' %}<span style="color:#E07B00;font-size:10px">(your territory)</span>
+          {% elif see_all_cities %}<span style="color:#9aabc5;font-size:10px">(all cities)</span>{% endif %}
+        </label>
+
+        {% if user_role == 'gabay' and user_cities %}
+          <div style="background:#F8FAFD;border:1px solid #E0E6EF;border-radius:10px;padding:8px 10px">
+            {% for c in user_cities %}<span class="city-chip">{{ c.title() }}</span>{% endfor %}
+          </div>
+          <input type="hidden" id="scoutCity" value="{{ user_cities[0] }}">
+          <div style="font-size:11px;color:#9aabc5;margin-top:4px">
+            <i class="bi bi-lock-fill me-1"></i>Searching in your assigned territory
+          </div>
+        {% else %}
+          <select id="scoutCitySelect" class="form-select" onchange="onCitySelect()">
+            <option value="">🌏 All Philippines</option>
+          </select>
+          <input type="text" id="scoutCity" class="form-control mt-2"
+                 placeholder="Type city or province..." style="display:none">
+        {% endif %}
+      </div>
+
+      <!-- Platform -->
+      <div class="col-md-4">
+        <label class="form-label fw-bold" style="font-size:11px;color:#9aabc5;text-transform:uppercase">
+          <i class="bi bi-shop me-1"></i>Platform
+        </label>
+        <select id="scoutPlatform" class="form-select">
+          <option value="all">All Platforms</option>
+          <option value="coffee">☕ Coffee</option>
+          <option value="tiktok">🎵 TikTok Shop</option>
+          <option value="facebook">👥 Facebook</option>
+          <option value="rrld">🏪 Retailer / Reseller / Local Distributor</option>
+        </select>
+      </div>
+
+      <!-- Scout button -->
+      <div class="col-md-4 d-flex align-items-end">
+        <button id="scoutBtn" onclick="runScout()" class="btn w-100 fw-bold"
+                style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;padding:12px"
+                {% if not serp_configured %}disabled{% endif %}>
+          <i class="bi bi-radar me-1"></i>Scout Now
+        </button>
+      </div>
+    </div>
+
+    <!-- Filters row -->
+    <div class="d-flex gap-3 mt-3 flex-wrap align-items-center">
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="rrldOnly">
+        <label class="form-check-label fw-bold" for="rrldOnly" style="font-size:12px;color:#7c3aed">
+          <i class="bi bi-gem me-1"></i>RRLD Only — Brand / Multi-branch / High-follower
+        </label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="hideInSystem" checked>
+        <label class="form-check-label" for="hideInSystem" style="font-size:12px;color:#9aabc5">
+          Hide sellers already in LSAMS
+        </label>
+      </div>
+      <div class="form-check form-switch mb-0">
+        <input class="form-check-input" type="checkbox" id="hideOnLazada" checked>
+        <label class="form-check-label fw-bold" for="hideOnLazada" style="font-size:12px;color:#e8510a">
+          <i class="bi bi-eye-slash me-1"></i>Hide sellers already on Lazada
+        </label>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- RESULTS HEADER -->
+<div id="resultsHeader" style="display:none" class="d-flex align-items-center justify-content-between mb-3 flex-wrap gap-2">
+  <div>
+    <span id="resultCount" style="font-weight:800;color:#1A1A2E;font-size:15px">0 prospects</span>
+    <span style="font-size:12px;color:#9aabc5;margin-left:6px">found</span>
+  </div>
+  <div class="d-flex gap-2 align-items-center">
+    <span style="font-size:11px;color:#9aabc5">Add to campaign:</span>
+    <select id="targetCampaign" class="form-select form-select-sm" style="max-width:200px">
+      <option value="">No campaign</option>
+      {% for c in campaigns %}
+      <option value="{{ c.id }}">[P{{ c.priority }}] {{ c.name }}</option>
+      {% endfor %}
+    </select>
+  </div>
+</div>
+
+<!-- LOADING -->
+<div id="loadingState" style="display:none;text-align:center;padding:48px 0">
+  <i class="bi bi-radar spin" style="font-size:40px;color:#7c3aed;display:block;margin-bottom:12px"></i>
+  <div style="font-weight:700;color:#7c3aed">Scouting across platforms...</div>
+  <div style="font-size:12px;color:#9aabc5;margin-top:4px">Searching Coffee, TikTok, Facebook &amp; Trade networks</div>
+</div>
+
+<!-- RESULTS -->
+<div id="resultsArea"></div>
+
+<!-- EMPTY -->
+<div id="emptyState" style="display:none;text-align:center;padding:48px 0">
+  <i class="bi bi-binoculars" style="font-size:48px;display:block;margin-bottom:12px;color:#CBD5E1"></i>
+  <div style="font-weight:700;font-size:16px;color:#9aabc5">No prospects found</div>
+  <div style="font-size:13px;color:#CBD5E1;margin-top:6px">Try different keywords, city, or platform</div>
+</div>
+
+<!-- LEGEND -->
+<div class="mt-4 p-3" style="background:#F8F7FF;border-radius:12px;border:1px solid #EDE8F5">
+  <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">
+    <i class="bi bi-info-circle me-1"></i>Legend
+  </div>
+  <div class="d-flex gap-3 flex-wrap" style="font-size:12px">
+    <span><span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span> = Brand / multi-branch / 10K+ followers</span>
+    <span><span style="color:#15803d;font-weight:700">● In LSAMS</span> = already in your pipeline</span>
+    <span>
+      <span class="platform-badge badge-coffee">☕ Coffee</span>
+      <span class="platform-badge badge-tiktok ms-1">🎵 TikTok</span>
+      <span class="platform-badge badge-facebook ms-1">👥 Facebook</span>
+      <span class="platform-badge badge-rrld ms-1">🏪 RRLD</span>
+    </span>
+  </div>
+</div>
+
+{% endblock %}
+{% block scripts %}
+<script>
+const USER_CITIES = {{ user_cities | tojson }};
+const SEE_ALL     = {{ 'true' if see_all_cities else 'false' }};
+const USER_ROLE   = '{{ user_role }}';
+const CAN_MANAGE  = {{ 'true' if current_user.role in ('superadmin','admin','lazada') else 'false' }};
+
+let allResults   = [];
+let allBrands    = [];
+let brandLibOpen = false;
+let activeCat    = '';
+
+/* Built-in PH brand lists per category — sorted famous → niche */
+const PH_PRESET_BRANDS = {
+  'Electronics': [
+    'Samsung','Apple','OPPO','vivo','Xiaomi','realme','Huawei','TECNO','Infinix',
+    'Nokia','Motorola','OnePlus','Asus','Acer','Lenovo','HP','Dell','Sony','LG',
+    'Panasonic','Sharp','TCL','Hisense','Philips','Anker','JBL','Bose','Sony WH',
+    'Logitech','Canon','Nikon','Casio','Garmin','Fitbit','Amazfit',
+    'TP-Link','D-Link','Netgear','Seagate','Western Digital','SanDisk','Kingston',
+    'Cherry Mobile','MyPhone','Cloudfone','Starmobile','Razer','MSI','ROG',
+  ],
+  'Fashions & Accessories': [
+    'H&M','Zara','Uniqlo','Penshoppe','Bench','Giordano',
+    'Nike','Adidas','Converse','Vans','New Balance','Skechers','Puma','Reebok',
+    "Levi's",'Wrangler','Lee','Mango','Forever 21','Cotton On','Topshop',
+    'Lacoste','Tommy Hilfiger','Guess','Calvin Klein','Ralph Lauren',
+    'Plains & Prints','People Are People','Oxygen','Folded & Hung','Kashieca',
+    'Havaianas','Crocs','Birkenstock','Dr. Martens',
+    'Charles & Keith','Pedro','SM Accessories','SM Shoes',
+  ],
+  'General Merchandise': [
+    'Tupperware','Lock & Lock','Pyrex','Thermos','Tefal','Cuisinart',
+    'Hanabishi','Imarflex','Kyowa','Kolin','American Home','Condura','Fujidenzo',
+    'Whirlpool','Electrolux','Midea','Sharp','Carrier','Daikin','Mitsubishi Electric',
+    'Ariel','Tide','Surf','Downy','Joy','Domex','Mr. Muscle','Lysol','Scotch-Brite',
+    'Dewalt','Bosch','Stanley','Black & Decker','Makita',
+    'Royal Canin','Pedigree','Whiskas','Friskies','Purina',
+    'Ikea','True Value','Wilcon','AllHome','ACE Hardware',
+    '3M','Scotch','OSRAM','Philips Light',
+  ],
+};
+
+/* brands loaded dynamically from DB via /api/brands */
+
+/* ── Philippine cities by region ── */
+const PH_CITIES_GROUPED = [
+  { g: 'Metro Manila (NCR)', c: ['Manila','Quezon City','Makati','Pasig','Mandaluyong','Taguig','Parañaque','Las Piñas','Marikina','Caloocan','Valenzuela','Malabon','Navotas','Muntinlupa','San Juan','Pasay'] },
+  { g: 'Central Luzon',      c: ['Angeles City','San Fernando (Pampanga)','Olongapo','Malolos','Meycauayan','San Jose del Monte','Tarlac City','Cabanatuan'] },
+  { g: 'CALABARZON',         c: ['Cavite City','Imus','Dasmariñas','Bacoor','General Trias','Calamba','Santa Rosa','Biñan','San Pablo','Batangas City','Lipa','Antipolo','Lucena'] },
+  { g: 'Visayas',            c: ['Cebu City','Mandaue','Lapu-Lapu','Iloilo City','Bacolod','Tacloban','Dumaguete','Roxas City'] },
+  { g: 'Mindanao',           c: ['Davao City','Cagayan de Oro','General Santos','Zamboanga City','Cotabato City','Butuan','Iligan'] },
+  { g: 'Other Luzon',        c: ['Baguio','Dagupan','San Fernando (La Union)','Laoag','Vigan','Naga','Legazpi','Puerto Princesa'] },
+];
+
+/* ── City dropdown ── */
+function buildCityDropdown() {
+  const sel = document.getElementById('scoutCitySelect');
+  if (!sel) return;
+  let html = '<option value="">🌏 All Philippines</option>';
+  PH_CITIES_GROUPED.forEach(grp => {
+    html += `<optgroup label="${grp.g}">`;
+    grp.c.forEach(city => { html += `<option value="${city}">${city}</option>`; });
+    html += '</optgroup>';
+  });
+  html += '<option value="__other__">✏️ Other (type below)...</option>';
+  sel.innerHTML = html;
+}
+
+function onCitySelect() {
+  const val = document.getElementById('scoutCitySelect').value;
+  const inp = document.getElementById('scoutCity');
+  if (!inp) return;
+  if (val === '__other__') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+function getCity() {
+  if (USER_ROLE === 'gabay' && USER_CITIES.length) return USER_CITIES.join(',');
+  const sel = document.getElementById('scoutCitySelect');
+  if (sel) {
+    if (sel.value === '__other__') return document.getElementById('scoutCity').value.trim();
+    return sel.value;
+  }
+  const inp = document.getElementById('scoutCity');
+  return inp ? inp.value.trim() : '';
+}
+
+/* ── Brand dropdown — DB brands + built-in PH presets merged ── */
+function buildBrandDropdown(cat) {
+  const sel = document.getElementById('scoutBrandSelect');
+  if (!sel) return;
+
+  // DB brands for this category (admin-curated)
+  const filtered  = cat ? allBrands.filter(b => b.category === cat) : allBrands;
+  const priority  = filtered.filter(b => b.is_priority);
+  const normal    = filtered.filter(b => !b.is_priority);
+  const dbNames   = new Set(filtered.map(b => b.name.toLowerCase()));
+
+  // Built-in PH presets for this category (exclude names already in DB)
+  const presets = cat && PH_PRESET_BRANDS[cat]
+    ? PH_PRESET_BRANDS[cat].filter(n => !dbNames.has(n.toLowerCase()))
+    : [];
+
+  let html = '<option value="">— Choose a brand —</option>';
+
+  if (priority.length) {
+    html += '<optgroup label="⭐ Priority Brands">';
+    priority.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
+    html += '</optgroup>';
+  }
+  if (normal.length) {
+    html += `<optgroup label="📋 ${cat || 'All'} Brands (Admin Library)">`;
+    normal.forEach(b => { html += `<option value="${escH(b.name)}">${escH(b.name)}</option>`; });
+    html += '</optgroup>';
+  }
+  if (presets.length) {
+    html += `<optgroup label="🔥 Popular PH ${cat || ''} Brands">`;
+    presets.forEach(n => { html += `<option value="${escH(n)}">${escH(n)}</option>`; });
+    html += '</optgroup>';
+  }
+  if (!priority.length && !normal.length && !presets.length) {
+    html += '<option value="" disabled>No brands found — type your own below</option>';
+  }
+
+  html += '<option value="__other__">✏️ Type your own keyword...</option>';
+  sel.innerHTML = html;
+}
+
+function onCategoryChange() {
+  buildBrandDropdown(document.getElementById('scoutCategory').value);
+  const inp = document.getElementById('scoutKeyword');
+  inp.style.display = 'none';
+  inp.value = '';
+}
+
+function onBrandSelect() {
+  const val = document.getElementById('scoutBrandSelect').value;
+  const inp = document.getElementById('scoutKeyword');
+  if (val === '__other__') { inp.style.display = 'block'; inp.focus(); }
+  else { inp.style.display = 'none'; inp.value = ''; }
+}
+
+function getKeyword() {
+  const sel = document.getElementById('scoutBrandSelect');
+  if (sel && sel.value && sel.value !== '__other__') return sel.value;
+  const inp = document.getElementById('scoutKeyword');
+  return inp ? inp.value.trim() : '';
+}
+
+/* ── Scout ── */
+function runScout() {
+  const kw = getKeyword();
+  if (!kw) { alert('Please select a brand or type a keyword first'); return; }
+
+  const city     = getCity();
+  const platform = document.getElementById('scoutPlatform').value;
+
+  document.getElementById('loadingState').style.display = 'block';
+  document.getElementById('resultsArea').style.display = 'none';
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsHeader').style.display = 'none';
+  document.getElementById('scoutBtn').disabled = true;
+
+  const category = (document.getElementById('scoutCategory') || {}).value || '';
+  const url = `/api/prospect/scout?keyword=${encodeURIComponent(kw)}&city=${encodeURIComponent(city)}&platform=${platform}&category=${encodeURIComponent(category)}`;
+  fetch(url)
+    .then(r => r.json())
+    .then(data => {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('scoutBtn').disabled = false;
+      if (data.error) { alert('Scout error: ' + data.error); return; }
+      allResults = data.results || [];
+      renderResults();
+    })
+    .catch(() => {
+      document.getElementById('loadingState').style.display = 'none';
+      document.getElementById('scoutBtn').disabled = false;
+      alert('Network error. Please try again.');
+    });
+}
+
+function renderResults() {
+  const rrldOnly      = document.getElementById('rrldOnly').checked;
+  const hideSystem    = document.getElementById('hideInSystem').checked;
+  const hideOnLazada  = document.getElementById('hideOnLazada').checked;
+
+  let filtered = allResults.filter(r => {
+    if (rrldOnly && !r.is_rrld) return false;
+    if (hideSystem && r.in_system) return false;
+    if (hideOnLazada && r.lazada_status === 'on_lazada') return false;
+    return true;
+  });
+
+  // Sort: not_on_lazada first, then unknown, then on_lazada
+  const lazOrder = { not_on_lazada: 0, unknown: 1, on_lazada: 2 };
+  filtered.sort((a, b) => {
+    const lo = (lazOrder[a.lazada_status] ?? 1) - (lazOrder[b.lazada_status] ?? 1);
+    if (lo !== 0) return lo;
+    return b.rrld_score - a.rrld_score;
+  });
+
+  const notOnCount = allResults.filter(r => r.lazada_status === 'not_on_lazada').length;
+  document.getElementById('resultCount').textContent = filtered.length + ' prospects';
+  document.getElementById('resultsHeader').style.display = filtered.length ? 'flex' : 'none';
+
+  if (!filtered.length) {
+    document.getElementById('emptyState').style.display = 'block';
+    document.getElementById('resultsArea').style.display = 'none';
+    return;
+  }
+  document.getElementById('emptyState').style.display = 'none';
+  document.getElementById('resultsArea').style.display = 'block';
+
+  const PLAT_LABELS = { coffee:'☕ Coffee', tiktok:'🎵 TikTok', facebook:'👥 Facebook', rrld:'🏪 RRLD' };
+  const PLAT_CLASS  = { coffee:'badge-coffee', tiktok:'badge-tiktok', facebook:'badge-facebook', rrld:'badge-rrld' };
+
+  const html = filtered.map(r => {
+    const pLabel = PLAT_LABELS[r.platform] || r.platform;
+    const pClass = PLAT_CLASS[r.platform]  || 'badge-rrld';
+    const tags   = r.rrld_tags.map(t =>
+      `<span style="background:#7c3aed11;color:#7c3aed;border-radius:20px;padding:2px 8px;font-size:10px;font-weight:700">${t}</span>`
+    ).join(' ');
+    const systemTag = r.in_system
+      ? `<span style="color:#15803d;font-size:11px;font-weight:700">
+           <i class="bi bi-check-circle-fill me-1"></i>In LSAMS
+           ${r.existing_status ? `<a href="/leads/${r.existing_id}" target="_blank"
+             style="color:#15803d;margin-left:4px">(${r.existing_status})</a>` : ''}
+         </span>` : '';
+    const rrldBadge = r.is_rrld
+      ? `<span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span>` : '';
+
+    // Lazada status badge
+    let lazBadge = '';
+    if (r.lazada_status === 'not_on_lazada') {
+      lazBadge = `<span style="background:#dcfce7;color:#15803d;border-radius:20px;padding:2px 10px;
+                             font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:3px">
+                    <i class="bi bi-check-circle-fill"></i> Not on Lazada
+                  </span>`;
+    } else if (r.lazada_status === 'on_lazada') {
+      const llink = r.lazada_url
+        ? `<a href="${escH(r.lazada_url)}" target="_blank" style="color:#92400e;margin-left:4px;font-size:10px">View ↗</a>`
+        : '';
+      lazBadge = `<span style="background:#fef3c7;color:#92400e;border-radius:20px;padding:2px 10px;
+                             font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:3px">
+                    <i class="bi bi-exclamation-triangle-fill"></i> Already on Lazada${llink}
+                  </span>`;
+    }
+
+    const isMallHint = r.rrld_tags.some(t => /mall|lazmall/i.test(t))
+                    || /\b(sm |ayala|robinsons|megamall|lazmall|sm mall|inside mall|in the mall)\b/i.test(r.shop_name + ' ' + r.snippet);
+    const mallSection = r.in_system ? '' : `
+      <div class="mall-section mt-2 pt-2" style="border-top:1px solid #f1f5f9">
+        <label style="display:flex;align-items:center;gap:6px;cursor:pointer;font-size:11px;
+                      color:${isMallHint?'#7c3aed':'#9aabc5'};font-weight:${isMallHint?'700':'400'}">
+          <input type="checkbox" class="mall-check" ${isMallHint?'checked':''} onchange="toggleMallInput(this)" style="cursor:pointer">
+          🏪 This seller is inside a Mall / LazMall
+          ${isMallHint?'<span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;padding:1px 6px;font-size:10px">Auto-detected</span>':''}
+        </label>
+        <input type="text" class="mall-name-input form-control form-control-sm mt-1"
+               style="display:${isMallHint?'block':'none'};max-width:220px;font-size:11px"
+               placeholder="Mall name (e.g. SM North, Ayala, LazMall...)">
+      </div>`;
+
+    const addBtn = r.in_system ? '' :
+      `<button onclick="addToLeads(this,'${escH(r.shop_name)}','${r.platform}','${escH(r.url)}','${escH(r.snippet.substring(0,200))}')"
+         class="btn btn-sm fw-bold"
+         style="background:linear-gradient(135deg,#7c3aed,#F5225B);color:white;font-size:11px;white-space:nowrap">
+         <i class="bi bi-plus-circle me-1"></i>Add to Leads
+       </button>`;
+
+    return `
+    <div class="scout-card ${r.is_rrld?'is-rrld':''} ${r.in_system?'in-system':''}
+                           ${r.lazada_status==='not_on_lazada'?'laz-fresh':''}">
+      <div class="d-flex align-items-start justify-content-between gap-2 flex-wrap">
+        <div style="flex:1;min-width:0">
+          <div class="d-flex align-items-center gap-2 flex-wrap mb-1">
+            <span class="fw-bold" style="font-size:14px;color:#1A1A2E">${escH(r.shop_name)}</span>
+            <span class="platform-badge ${pClass}">${pLabel}</span>
+            ${rrldBadge}
+            ${lazBadge}
+            ${systemTag}
+          </div>
+          <div style="font-size:12px;color:#6B7280;line-height:1.5;margin-bottom:6px">${escH(r.snippet)}</div>
+          ${tags ? `<div class="d-flex gap-1 flex-wrap mb-2">${tags}</div>` : ''}
+          ${r.rrld_score > 0 ? `
+            <div style="font-size:10px;color:#9aabc5;margin-bottom:3px">RRLD Score: ${r.rrld_score}</div>
+            <div class="score-bar" style="max-width:140px">
+              <div class="score-fill" style="width:${Math.max(4,r.rrld_score)}%"></div>
+            </div>` : ''}
+          ${mallSection}
+        </div>
+        <div class="d-flex flex-column gap-1 align-items-end flex-shrink-0">
+          ${addBtn}
+          <a href="${escH(r.url)}" target="_blank"
+             class="btn btn-sm btn-outline-secondary" style="font-size:11px">
+            <i class="bi bi-box-arrow-up-right me-1"></i>View
+          </a>
+        </div>
+      </div>
+    </div>`;
+  }).join('');
+
+  document.getElementById('resultsArea').innerHTML = html;
+}
+
+function toggleMallInput(cb) {
+  const input = cb.closest('.mall-section').querySelector('.mall-name-input');
+  input.style.display = cb.checked ? 'block' : 'none';
+}
+
+function addToLeads(btn, name, platform, url, snippet) {
+  const card      = btn.closest('.scout-card');
+  const mallCheck = card && card.querySelector('.mall-check');
+  const mallInput = card && card.querySelector('.mall-name-input');
+  const is_in_mall = !!(mallCheck && mallCheck.checked);
+  const mall_name  = (mallInput && is_in_mall) ? mallInput.value.trim() : '';
+
+  const city       = getCity();
+  const campaignId = document.getElementById('targetCampaign').value;
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-hourglass-split me-1"></i>Adding...';
+  fetch('/api/prospect/add-lead', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ shop_name:name, platform, url, snippet, city, campaign_id:campaignId||null, is_in_mall, mall_name })
+  })
+  .then(r => r.json())
+  .then(d => {
+    if (d.ok) {
+      const mallBadge = is_in_mall
+        ? `<span style="background:#7c3aed18;color:#7c3aed;border-radius:5px;padding:1px 6px;font-size:10px;font-weight:700;margin-left:4px">🏪 ${mall_name||'Mall'}</span>`
+        : '';
+      btn.closest('.d-flex').innerHTML = `<a href="${d.url}" target="_blank" class="btn btn-sm fw-bold"
+        style="background:#dcfce7;color:#15803d;font-size:11px">
+        <i class="bi bi-check-circle-fill me-1"></i>Added${mallBadge}</a>`;
+    } else {
+      btn.disabled = false;
+      btn.innerHTML = '<i class="bi bi-plus-circle me-1"></i>Add to Leads';
+      alert(d.error || 'Failed');
+    }
+  });
+}
+
+function escH(s) {
+  return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+                      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+}
+
+document.getElementById('rrldOnly').addEventListener('change', renderResults);
+document.getElementById('hideInSystem').addEventListener('change', renderResults);
+document.getElementById('hideOnLazada').addEventListener('change', renderResults);
+document.getElementById('scoutKeyword').addEventListener('keydown', e => {
+  if (e.key === 'Enter') runScout();
+});
+
+/* ── Brand Library ── */
+function toggleBrandLib() {
+  brandLibOpen = !brandLibOpen;
+  document.getElementById('brandLibBody').style.display = brandLibOpen ? 'block' : 'none';
+  document.getElementById('brandLibChev').style.transform = brandLibOpen ? 'rotate(180deg)' : '';
+  if (brandLibOpen && allBrands.length === 0) loadBrands();
+}
+
+function loadBrands(cat) {
+  cat = cat || '';
+  const url = '/api/brands' + (cat ? '?category=' + encodeURIComponent(cat) : '');
+  fetch(url).then(r => r.json()).then(data => {
+    allBrands = data.brands || [];
+    renderBrandChips(cat ? allBrands.filter(b => b.category === cat) : allBrands);
+    buildCatTabs(allBrands);
+    document.getElementById('brandLibCount').textContent = allBrands.length;
+    buildBrandDropdown(document.getElementById('scoutCategory').value || '');
+  });
+}
+
+function buildCatTabs(brands) {
+  const cats = [...new Set(brands.map(b => b.category))].sort();
+  const tabs = document.getElementById('brandCatTabs');
+  tabs.innerHTML = `<button class="btn btn-sm ${activeCat===''?'active':''}" data-cat=""
+      onclick="filterBrandCat('',this)"
+      style="border-radius:20px;font-size:11px;padding:3px 12px;${activeCat===''?'background:#7c3aed;color:white':'background:#EDE8F5;color:#6B7280'}">All</button>`;
+  cats.forEach(c => {
+    const active = activeCat === c;
+    tabs.innerHTML += `<button class="btn btn-sm" data-cat="${escH(c)}"
+      onclick="filterBrandCat('${escH(c)}',this)"
+      style="border-radius:20px;font-size:11px;padding:3px 12px;${active?'background:#7c3aed;color:white':'background:#EDE8F5;color:#6B7280'}">${escH(c)}</button>`;
+  });
+}
+
+function filterBrandCat(cat, btn) {
+  activeCat = cat;
+  document.querySelectorAll('#brandCatTabs button').forEach(b => {
+    b.style.background = '#EDE8F5';
+    b.style.color = '#6B7280';
+  });
+  btn.style.background = '#7c3aed';
+  btn.style.color = 'white';
+  const filtered = cat ? allBrands.filter(b => b.category === cat) : allBrands;
+  renderBrandChips(filtered);
+}
+
+function renderBrandChips(brands) {
+  const el = document.getElementById('brandChips');
+  if (!brands.length) {
+    el.innerHTML = '<span style="font-size:12px;color:#9aabc5">No brands yet. Click "Add Brand" to get started.</span>';
+    return;
+  }
+  el.innerHTML = brands.map(b => `
+    <span class="brand-chip" data-id="${b.id}" title="Click to use · ${escH(b.category)}"
+          onclick="useBrand('${escH(b.name)}')"
+          style="display:inline-flex;align-items:center;gap:5px;background:#7c3aed11;color:#7c3aed;
+                 border-radius:20px;padding:4px 12px;font-size:12px;font-weight:700;cursor:pointer;
+                 border:1.5px solid #7c3aed22;transition:background .12s"
+          onmouseover="this.style.background='#7c3aed22'" onmouseout="this.style.background='#7c3aed11'">
+      ${escH(b.name)}
+      ${CAN_MANAGE ? `<i class="bi bi-x" onclick="event.stopPropagation();deleteBrand(${b.id},this)"
+        style="font-size:11px;color:#9aabc5;line-height:1"></i>` : ''}
+    </span>`).join('');
+}
+
+function useBrand(name) {
+  const sel = document.getElementById('scoutBrandSelect');
+  const found = sel && [...sel.options].find(o => o.value === name);
+  if (found) {
+    sel.value = name;
+    onBrandSelect();
+  } else {
+    if (sel) { sel.value = '__other__'; onBrandSelect(); }
+    document.getElementById('scoutKeyword').value = name;
+  }
+  document.getElementById('scoutBrandSelect').scrollIntoView({ behavior: 'smooth', block: 'center' });
+}
+
+function openAddBrand() {
+  document.getElementById('addBrandForm').style.display = 'block';
+  document.getElementById('newBrandName').focus();
+}
+
+function closeAddBrand() {
+  document.getElementById('addBrandForm').style.display = 'none';
+  document.getElementById('newBrandName').value = '';
+  document.getElementById('brandSaveMsg').textContent = '';
+}
+
+function saveBrand() {
+  const name = document.getElementById('newBrandName').value.trim();
+  const cat  = document.getElementById('newBrandCat').value;
+  const msg  = document.getElementById('brandSaveMsg');
+  if (!name) { msg.style.color='#b91c1c'; msg.textContent='Brand name required.'; return; }
+  fetch('/api/brands', {
+    method: 'POST',
+    headers: {'Content-Type':'application/json'},
+    body: JSON.stringify({name, category: cat})
+  }).then(r => r.json()).then(d => {
+    if (d.ok) {
+      msg.style.color = '#15803d';
+      msg.textContent = `"${d.name}" added!`;
+      document.getElementById('newBrandName').value = '';
+      loadBrands();
+      setTimeout(closeAddBrand, 1200);
+    } else {
+      msg.style.color = '#b91c1c';
+      msg.textContent = d.error || 'Failed to save.';
+    }
+  });
+}
+
+function deleteBrand(id, el) {
+  if (!confirm('Remove this brand?')) return;
+  fetch('/api/brands/' + id, {method:'DELETE'}).then(r => r.json()).then(d => {
+    if (d.ok) {
+      el.closest('.brand-chip').remove();
+      allBrands = allBrands.filter(b => b.id !== id);
+      document.getElementById('brandLibCount').textContent = allBrands.length;
+      buildBrandDropdown(document.getElementById('scoutCategory').value || '');
+    }
+  });
+}
+
+/* ── Init ── */
+document.addEventListener('DOMContentLoaded', () => {
+  buildCityDropdown();
+  buildBrandDropdown('');
+  fetch('/api/brands').then(r => r.json()).then(data => {
+    allBrands = data.brands || [];
+    document.getElementById('brandLibCount').textContent = allBrands.length;
+    buildBrandDropdown(document.getElementById('scoutCategory').value || '');
+  });
+});
+</script>
+{% endblock %}

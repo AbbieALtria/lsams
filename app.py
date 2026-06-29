@@ -9,7 +9,7 @@ from sqlalchemy import func, and_, or_, extract, text
 import io
 
 from config import Config
-from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation
+from models import db, User, Lead, Visit, Registration, LeadAssignmentHistory, Notification, GabayTarget, StrictBuilding, Campaign, CampaignPriorityLog, LeadIntelligence, Presentation, Brand, ScoutLog
 
 app = Flask(__name__)
 app.config.from_object(Config)
@@ -65,6 +65,8 @@ with app.app_context():
     # Add new User columns if they don't exist (safe for existing Railway DB)
     _new_user_cols = [
         ("whatsapp_alerts_enabled", "BOOLEAN DEFAULT TRUE"),
+        ("telegram_chat_id",        "VARCHAR(30)"),
+        ("telegram_reports_enabled", "BOOLEAN DEFAULT FALSE"),
         ("mobile",         "VARCHAR(20)"),
         ("mobile2",        "VARCHAR(20)"),
         ("viber",          "VARCHAR(20)"),
@@ -119,6 +121,7 @@ with app.app_context():
         ("is_duplicate_addr", "BOOLEAN DEFAULT FALSE"),
         ("campaign_id",       "INTEGER"),
         ("ai_score",          "INTEGER"),
+        ("is_archived",       "BOOLEAN DEFAULT FALSE"),
     ]
     with db.engine.connect() as _conn:
         for _col, _type in _new_lead_cols:
@@ -129,6 +132,57 @@ with app.app_context():
                 _conn.commit()
             except Exception:
                 _conn.rollback()
+
+    # Add field-intelligence columns to leads
+    _new_lead_intel_cols = [
+        ("competitor_brand",     "VARCHAR(150)"),
+        ("seller_tags",          "TEXT"),
+        ("is_in_mall",           "BOOLEAN DEFAULT FALSE"),
+        ("mall_name",            "VARCHAR(100)"),
+        ("suggested_next_visit", "DATE"),
+    ]
+    with db.engine.connect() as _conn:
+        for _col, _type in _new_lead_intel_cols:
+            try:
+                _conn.execute(text(f"ALTER TABLE leads ADD COLUMN {_col} {_type}"))
+                _conn.commit()
+            except Exception:
+                _conn.rollback()
+
+    # Add is_priority to brands table
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE brands ADD COLUMN is_priority BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
+    # Add can_scout to users table
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE users ADD COLUMN can_scout BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
+    # Create scout_logs table for Prospect Scout audit trail
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                CREATE TABLE IF NOT EXISTS scout_logs (
+                    id SERIAL PRIMARY KEY,
+                    user_id INTEGER REFERENCES users(id),
+                    keyword VARCHAR(200) NOT NULL,
+                    category VARCHAR(80),
+                    city VARCHAR(120),
+                    platform VARCHAR(40),
+                    result_count INTEGER DEFAULT 0,
+                    searched_at TIMESTAMP DEFAULT NOW()
+                )
+            """))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
 
     # Create campaigns and campaign_priority_log tables if not exist, then seed Legacy campaign
     with db.engine.connect() as _conn:
@@ -501,6 +555,146 @@ def _notify_managers_whatsapp(message: str):
     threading.Thread(target=_send, daemon=True).start()
 
 
+def _notify_managers_telegram(message: str):
+    """Send a Telegram message to all managers/admins who have linked their Telegram."""
+    import threading
+    from telegram_bot import send_message as tg_send
+    managers = User.query.filter(
+        User.is_active == True,
+        User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
+        User.telegram_chat_id.isnot(None),
+        User.telegram_chat_id != '',
+    ).all()
+    def _send():
+        with app.app_context():
+            for m in managers:
+                try:
+                    tg_send(m.telegram_chat_id, message)
+                except Exception as e:
+                    app.logger.error(f'[TG Notify] Failed to notify {m.username}: {e}')
+    threading.Thread(target=_send, daemon=True).start()
+
+
+# ─── TELEGRAM DAILY REPORT ───────────────────────────────────────────────────
+
+def _build_daily_report(period: str) -> str:
+    """Build the 8 AM / 8 PM Telegram report for all linked managers."""
+    from datetime import timezone, timedelta as _td
+    _PHT = timezone(_td(hours=8))
+    now_pht = datetime.now(_PHT)
+    today_pht = now_pht.date()
+
+    # UTC window for "today PHT"
+    day_start_utc = datetime(today_pht.year, today_pht.month, today_pht.day, 0, 0, 0) - timedelta(hours=8)
+    day_end_utc   = day_start_utc + timedelta(days=1)
+
+    gabays = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+
+    emoji = '🌅' if period == 'morning' else '🌙'
+    label = 'Morning' if period == 'morning' else 'Evening'
+    lines = [
+        f"{emoji} *LSAMS {label} Report*",
+        f"📅 {now_pht.strftime('%b %d, %Y — %I:%M %p')} PHT",
+        f"",
+        f"👥 *Gabay Activity ({len(gabays)} agents)*",
+    ]
+
+    total_visits = 0
+    for g in gabays:
+        # Check if logged in today (PHT)
+        logged_in = (
+            g.last_seen and
+            day_start_utc <= g.last_seen.replace(tzinfo=None) < day_end_utc
+        )
+        # Visits today
+        visits_today = Visit.query.filter(
+            Visit.gabay_id == g.id,
+            Visit.visited_at >= day_start_utc,
+            Visit.visited_at < day_end_utc,
+        ).all()
+
+        total_visits += len(visits_today)
+        name = g.display_name or g.full_name
+
+        if visits_today:
+            outcome_counts = {}
+            for v in visits_today:
+                o = (v.outcome or 'unknown').replace('_', ' ')
+                outcome_counts[o] = outcome_counts.get(o, 0) + 1
+            outcome_str = ', '.join(f"{cnt} {o}" for o, cnt in outcome_counts.items())
+            status_icon = '✅'
+            activity = f"{len(visits_today)} visit{'s' if len(visits_today)>1 else ''} ({outcome_str})"
+        elif logged_in:
+            status_icon = '🟡'
+            activity = 'Logged in — no visits yet'
+        else:
+            status_icon = '⚪'
+            activity = 'Not active today'
+
+        lines.append(f"{status_icon} {name} — {activity}")
+
+    lines += [
+        f"",
+        f"📊 Total visits today: *{total_visits}*",
+    ]
+
+    # Live sellers count
+    live_count = Lead.query.filter_by(status='live').count()
+    lines.append(f"✅ Live sellers (all time): *{live_count}*")
+
+    return '\n'.join(lines)
+
+
+def _send_daily_report(period: str):
+    with app.app_context():
+        try:
+            from telegram_bot import send_message as tg_send
+            message = _build_daily_report(period)
+            recipients = User.query.filter(
+                User.is_active == True,
+                User.telegram_chat_id.isnot(None),
+                User.telegram_chat_id != '',
+                User.telegram_reports_enabled == True,
+            ).all()
+            for r in recipients:
+                try:
+                    tg_send(r.telegram_chat_id, message)
+                except Exception as e:
+                    app.logger.error(f'[TG Report] Failed for {r.username}: {e}')
+            app.logger.info(f'[TG] Daily {period} report sent to {len(recipients)} user(s).')
+        except Exception as e:
+            app.logger.error(f'[TG] Daily report error: {e}', exc_info=True)
+
+
+# Start APScheduler — 8 AM and 8 PM Philippine Time daily
+def _start_scheduler():
+    try:
+        from apscheduler.schedulers.background import BackgroundScheduler
+        from apscheduler.triggers.cron import CronTrigger
+        import pytz
+        _tz = pytz.timezone('Asia/Manila')
+        scheduler = BackgroundScheduler(timezone=_tz)
+        scheduler.add_job(
+            lambda: _send_daily_report('morning'),
+            CronTrigger(hour=8, minute=0, timezone=_tz),
+            id='daily_morning_report', replace_existing=True,
+        )
+        scheduler.add_job(
+            lambda: _send_daily_report('evening'),
+            CronTrigger(hour=20, minute=0, timezone=_tz),
+            id='daily_evening_report', replace_existing=True,
+        )
+        scheduler.start()
+        app.logger.info('[TG] Daily report scheduler started (8 AM & 8 PM PHT)')
+    except Exception as e:
+        app.logger.warning(f'[TG] Scheduler not started: {e}')
+
+
+# Only start once (not on every gunicorn worker fork)
+if os.environ.get('WERKZEUG_RUN_MAIN') != 'false':
+    _start_scheduler()
+
+
 # ─── AUTH ────────────────────────────────────────────────────────────────────
 
 @app.route('/', methods=['GET', 'POST'])
@@ -519,11 +713,13 @@ def login():
             # Notify managers when a Gabay agent logs in
             if user.role == 'gabay':
                 from datetime import datetime as _dt
-                _notify_managers_whatsapp(
+                _login_msg = (
                     f"📱 *Gabay Login*\n"
                     f"👤 {user.full_name} just logged in to LSAMS\n"
                     f"🕐 {_dt.now().strftime('%b %d, %Y at %I:%M %p')}"
                 )
+                _notify_managers_whatsapp(_login_msg)
+                _notify_managers_telegram(_login_msg)
             dest = request.args.get('next')
             if not dest:
                 if user.role == 'gabay':
@@ -660,6 +856,7 @@ def leads():
     page = request.args.get('page', 1, type=int)
     status_filter = request.args.get('status', '')
     gabay_filter = request.args.get('gabay', '', type=str)
+    mall_filter = request.args.get('mall', '')
     search = request.args.get('q', '')
     campaign_id = request.args.get('campaign_id', type=int)
     per_page = 20
@@ -673,12 +870,25 @@ def leads():
         query = query.filter_by(status=status_filter)
     if gabay_filter:
         query = query.filter_by(gabay_id=gabay_filter)
+    if mall_filter == 'in_mall':
+        query = query.filter(Lead.is_in_mall == True)
+    elif mall_filter == 'outside':
+        query = query.filter((Lead.is_in_mall == False) | (Lead.is_in_mall == None))
     if search:
         query = query.filter(or_(
             Lead.seller_name.ilike(f'%{search}%'),
             Lead.sender_name.ilike(f'%{search}%'),
             Lead.contact_number.ilike(f'%{search}%'),
-            Lead.city.ilike(f'%{search}%')
+            Lead.city.ilike(f'%{search}%'),
+            Lead.barangay.ilike(f'%{search}%'),
+            Lead.province.ilike(f'%{search}%'),
+            Lead.address.ilike(f'%{search}%'),
+            Lead.category.ilike(f'%{search}%'),
+            Lead.cluster.ilike(f'%{search}%'),
+            Lead.project.ilike(f'%{search}%'),
+            Lead.lazada_id.ilike(f'%{search}%'),
+            Lead.email.ilike(f'%{search}%'),
+            Lead.notes.ilike(f'%{search}%'),
         ))
 
     pagination = query.order_by(Lead.imported_at.desc()).paginate(page=page, per_page=per_page, error_out=False)
@@ -690,6 +900,495 @@ def leads():
                            search=search, gabay_users=gabay_users,
                            campaigns=campaigns, campaign_id=campaign_id,
                            selected_campaign=selected_campaign)
+
+
+# ─── AJAX LIVE SEARCH ────────────────────────────────────────────────────────
+
+@app.route('/api/leads/search')
+@login_required
+def api_leads_search():
+    q = request.args.get('q', '').strip()
+    if len(q) < 2:
+        return jsonify([])
+    query = Lead.query
+    if current_user.role == 'gabay':
+        query = query.filter_by(gabay_id=current_user.id)
+    results = query.filter(or_(
+        Lead.seller_name.ilike(f'%{q}%'),
+        Lead.contact_number.ilike(f'%{q}%'),
+        Lead.city.ilike(f'%{q}%'),
+        Lead.barangay.ilike(f'%{q}%'),
+        Lead.province.ilike(f'%{q}%'),
+        Lead.category.ilike(f'%{q}%'),
+        Lead.cluster.ilike(f'%{q}%'),
+        Lead.project.ilike(f'%{q}%'),
+        Lead.address.ilike(f'%{q}%'),
+    )).order_by(Lead.seller_name).limit(12).all()
+    return jsonify([{
+        'id': l.id,
+        'name': l.seller_name,
+        'city': l.city or '',
+        'barangay': l.barangay or '',
+        'province': l.province or '',
+        'status': l.status,
+        'status_label': l.status_label,
+        'category': l.category or '',
+        'gabay': l.assigned_gabay.display_name if l.assigned_gabay else None,
+        'url': url_for('lead_detail', lead_id=l.id)
+    } for l in results])
+
+
+# ─── PROSPECT SCOUT ──────────────────────────────────────────────────────────
+
+@app.route('/prospect-scout')
+@login_required
+def prospect_scout():
+    # Lazada team + supervisors + admins + gabay users with scout permission
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    campaigns = Campaign.query.filter_by(status='active').order_by(Campaign.priority).all()
+
+    # City access rules
+    see_all_cities = current_user.role in ('superadmin', 'admin', 'manager', 'lazada')
+    user_cities = current_user.city_list if hasattr(current_user, 'city_list') else []
+
+    # SerpAPI check — only show status to admins
+    serp_status = 'not_set'
+    serp_plan = ''
+    if current_user.is_admin:
+        serp_key = os.environ.get('SERPAPI_KEY', '').strip()
+        if serp_key:
+            try:
+                import requests as _req
+                r = _req.get('https://serpapi.com/account', params={'api_key': serp_key}, timeout=8)
+                if r.ok:
+                    info = r.json()
+                    serp_status = 'ok'
+                    serp_plan = f"{info.get('plan_name','')} · {info.get('plan_searches_left','?')} searches left"
+                else:
+                    serp_status = 'invalid'
+            except Exception:
+                serp_status = 'error'
+        serp_configured = serp_status == 'ok'
+    else:
+        serp_key = os.environ.get('SERPAPI_KEY', '').strip()
+        serp_configured = bool(serp_key)
+
+    return render_template('leads/prospect_scout.html',
+                           gabay_users=gabay_users,
+                           campaigns=campaigns,
+                           serp_configured=serp_configured,
+                           serp_status=serp_status,
+                           serp_plan=serp_plan,
+                           see_all_cities=see_all_cities,
+                           user_cities=user_cities,
+                           user_role=current_user.role)
+
+
+@app.route('/api/prospect/scout')
+@login_required
+def api_prospect_scout():
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
+        return jsonify({'error': 'Access denied'}), 403
+
+    import requests as _req, re as _re
+
+    keyword  = request.args.get('keyword', '').strip()
+    city     = request.args.get('city', '').strip()
+    platform = request.args.get('platform', 'all').strip()
+    category = request.args.get('category', '').strip()
+    serp_key = os.environ.get('SERPAPI_KEY', '')
+
+    if not keyword:
+        return jsonify({'error': 'Keyword required'}), 400
+    if not serp_key:
+        return jsonify({'error': 'SERPAPI_KEY not configured.'}), 503
+
+    # Enforce city restrictions for gabay
+    if current_user.role == 'gabay':
+        allowed = current_user.city_list
+        if allowed and city.lower() not in [c.lower() for c in allowed]:
+            city = allowed[0] if allowed else city
+
+    location_str = f'{city} Philippines' if city else 'Philippines'
+
+    # Platform query map — Coffee = Shopee PH (internal alias)
+    platform_queries = {
+        'coffee':   [f'site:shopee.ph {keyword} {city}', f'shopee seller {keyword} {location_str}'],
+        'tiktok':   [f'site:tiktok.com {keyword} {city} shop', f'tiktok shop {keyword} {location_str}'],
+        'facebook': [f'site:facebook.com {keyword} {city} seller', f'facebook {keyword} seller {location_str}'],
+        'rrld':     [f'{keyword} {city} Philippines retailer reseller',
+                     f'{keyword} {location_str} local distributor authorized dealer'],
+    }
+
+    if platform == 'all':
+        queries = [(p, qs[0]) for p, qs in platform_queries.items()]
+    else:
+        queries = [(platform, q) for q in platform_queries.get(platform, [])[:2]]
+
+    results  = []
+    seen_urls = set()
+
+    for plat, q in queries:
+        try:
+            resp = _req.get('https://serpapi.com/search', params={
+                'q': q, 'api_key': serp_key, 'num': 10,
+                'engine': 'google', 'gl': 'ph', 'hl': 'en',
+            }, timeout=15)
+            if not resp.ok:
+                continue
+            organic = resp.json().get('organic_results', [])
+            for r in organic:
+                url  = r.get('link', '')
+                if url in seen_urls:
+                    continue
+                seen_urls.add(url)
+                title   = r.get('title', '')
+                snippet = r.get('snippet', '')
+
+                # Detect display platform from URL
+                detected = plat
+                if 'shopee.ph' in url:
+                    detected = 'coffee'
+                elif 'tiktok.com' in url:
+                    detected = 'tiktok'
+                elif 'facebook.com' in url:
+                    detected = 'facebook'
+
+                # Skip Shopee homepage
+                if detected == 'coffee' and '/shop/' not in url and '/product/' not in url:
+                    if url.rstrip('/') == 'https://shopee.ph':
+                        continue
+
+                # RRLD scoring
+                combined = (title + ' ' + snippet).lower()
+                rrld_score = 0
+                rrld_tags  = []
+                for sig in ['official', 'brand', 'authorized', 'verified', 'top seller', 'mall', 'premium']:
+                    if sig in combined:
+                        rrld_score += 15
+                        rrld_tags.append(sig.title())
+                for sig in ['branches', 'nationwide', 'all over ph', 'multiple locations', 'store locator']:
+                    if sig in combined:
+                        rrld_score += 20
+                        rrld_tags.append('Multi-Branch')
+                        break
+                for num, label in _re.findall(r'(\d[\d.,]+)\s*[kK]\s*(followers|sold|sales|reviews)', snippet):
+                    if float(num.replace(',', '')) >= 10:
+                        rrld_score += 25
+                        rrld_tags.append(f'{num}K {label.title()}')
+
+                rrld_score = min(100, rrld_score)
+
+                # Clean shop name
+                shop_name = title
+                for suffix in [' | Shopee Philippines', ' - Shopee', ' | TikTok', ' | Facebook', ' (@', ' - Facebook']:
+                    if suffix in shop_name:
+                        shop_name = shop_name[:shop_name.index(suffix)]
+                shop_name = shop_name.strip()
+
+                existing = Lead.query.filter(
+                    Lead.seller_name.ilike(f'%{shop_name[:30]}%')
+                ).first() if len(shop_name) > 5 else None
+
+                results.append({
+                    'shop_name':      shop_name,
+                    'platform':       detected,
+                    'url':            url,
+                    'snippet':        snippet,
+                    'rrld_score':     rrld_score,
+                    'rrld_tags':      list(set(rrld_tags))[:4],
+                    'is_rrld':        rrld_score >= 30,
+                    'in_system':      existing is not None,
+                    'existing_id':    existing.id if existing else None,
+                    'existing_status':existing.status if existing else None,
+                })
+        except Exception:
+            continue
+
+    results.sort(key=lambda x: (-x['rrld_score'], x['shop_name']))
+
+    # ── Lazada presence check — 1 extra SerpAPI call ──────────────────────────
+    try:
+        laz_query = f'site:lazada.com.ph {keyword}'
+        laz_resp  = _req.get('https://serpapi.com/search', params={
+            'q': laz_query, 'api_key': serp_key, 'num': 10,
+            'engine': 'google', 'gl': 'ph', 'hl': 'en',
+        }, timeout=10)
+        laz_names = []   # store names found on Lazada
+        laz_urls  = {}   # shop_name_token → lazada URL
+        if laz_resp.ok:
+            for lr in laz_resp.json().get('organic_results', []):
+                lt = lr.get('title', '')
+                lu = lr.get('link', '')
+                # Extract store slug from lazada URL
+                import re as _rez
+                slug_m = _rez.search(r'lazada\.com\.ph/shop/([^/?#]+)', lu)
+                store_name = slug_m.group(1).replace('-', ' ') if slug_m else lt
+                laz_names.append(store_name.lower())
+                laz_urls[store_name.lower()] = lu
+
+        _STOP = {'store','shop','official','ph','philippines','online','the','and','ng','de','seller'}
+
+        def _laz_match(shop):
+            """Returns (matched, lazada_url) — fuzzy name-token overlap check."""
+            words = {w for w in shop.lower().split() if w not in _STOP and len(w) > 2}
+            if not words:
+                return False, None
+            for lname, lurl in laz_urls.items():
+                lwords = {w for w in lname.split() if w not in _STOP and len(w) > 2}
+                if not lwords:
+                    continue
+                overlap = words & lwords
+                threshold = max(1, min(len(words), len(lwords)) // 2)
+                if len(overlap) >= threshold:
+                    return True, lurl
+            return False, None
+
+        for r in results:
+            matched, lurl = _laz_match(r['shop_name'])
+            if laz_names:   # we got Lazada results — can make a call
+                r['lazada_status'] = 'on_lazada' if matched else 'not_on_lazada'
+                r['lazada_url']    = lurl
+            else:
+                r['lazada_status'] = 'unknown'
+                r['lazada_url']    = None
+    except Exception:
+        for r in results:
+            r.setdefault('lazada_status', 'unknown')
+            r.setdefault('lazada_url', None)
+
+    # ── Log search & notify supervisors ──────────────────────────────────────
+    try:
+        log = ScoutLog(
+            user_id=current_user.id,
+            keyword=keyword,
+            category=category or None,
+            city=city or None,
+            platform=platform,
+            result_count=len(results),
+        )
+        db.session.add(log)
+
+        # In-app notification to all admins/supervisors
+        pht_now = datetime.utcnow() + timedelta(hours=8)
+        city_label = city or 'All PH'
+        cat_label  = f' · {category}' if category else ''
+        platform_labels = {'coffee': 'Shopee', 'tiktok': 'TikTok',
+                           'facebook': 'Facebook', 'rrld': 'RRLD', 'all': 'All'}
+        plat_label = platform_labels.get(platform, platform.title())
+        notif_msg = (
+            f"{current_user.display_name} searched for \"{keyword}\"{cat_label} "
+            f"in {city_label} on {plat_label} — {len(results)} result(s) found "
+            f"at {pht_now.strftime('%I:%M %p')}."
+        )
+        supervisors = User.query.filter(
+            User.role.in_(['superadmin', 'admin', 'manager', 'supervisor']),
+            User.is_active == True,
+        ).all()
+        for sup in supervisors:
+            db.session.add(Notification(
+                user_id=sup.id,
+                type='scout_search',
+                title=f'🔭 Scout: {current_user.display_name} searched "{keyword}"',
+                message=notif_msg,
+                link='/admin/scout-activity',
+            ))
+        db.session.commit()
+    except Exception:
+        db.session.rollback()
+
+    return jsonify({'results': results, 'count': len(results)})
+
+
+@app.route('/api/prospect/add-lead', methods=['POST'])
+@login_required
+def api_prospect_add_lead():
+    if not (current_user.is_supervisor or current_user.role == 'lazada'
+            or (current_user.role == 'gabay' and current_user.can_scout)):
+        return jsonify({'error': 'Access denied'}), 403
+
+    data = request.get_json()
+    if not data or not data.get('shop_name'):
+        return jsonify({'error': 'shop_name required'}), 400
+
+    platform = data.get('platform', '')
+    platform_map = {'coffee': 'COFFEE', 'tiktok': 'TIKTOK', 'facebook': 'FACEBOOK', 'rrld': 'RRLD'}
+
+    lead = Lead(
+        seller_name=data['shop_name'],
+        link=data.get('url', ''),
+        city=data.get('city', ''),
+        notes=f"[Prospect Scout] Found on {platform.upper()}. {data.get('snippet', '')[:300]}",
+        project=platform_map.get(platform, 'EXTERNAL'),
+        status='pool',
+        campaign_id=data.get('campaign_id') or None,
+        imported_at=datetime.utcnow(),
+        batch_ref=f'scout-{datetime.utcnow().strftime("%Y%m%d")}',
+        is_in_mall=bool(data.get('is_in_mall', False)),
+        mall_name=data.get('mall_name', '').strip() or None,
+    )
+    db.session.add(lead)
+    db.session.commit()
+    return jsonify({'ok': True, 'lead_id': lead.id, 'url': url_for('lead_detail', lead_id=lead.id)})
+
+
+# ── Brand Management ─────────────────────────────────────────────────────────
+
+_FMCG_DEFAULTS = [
+    'NIVEA','Bench','Garnier',"Kiehl's",'Jo Malone London','Glad2Glow',
+    '17 MILE','7D','Absidy Beauty','Aesop','Aficionado','AGRILIFE','Aiwibi','Akeeva',
+    'All About Baking','All Covered','Anastasia Beverly Hills','Anchor','Andrea Secret',
+    'Aozi','Apruva','Ashley','Ashley Beauty Lines','Ashley Hair Fashion','Athlene Nutrition',
+    'AUGEAS','Auro Chocolate','AVEDA','AXIS-Y','B Coffee Co','Baby First','Babyflo',
+    'BabyPal','Baltra','BAONEO','barenbliss','Be Organic','Bean','Beauty & Co',
+    "Belle's Pantry Essentials",'Belo Essentials','Benefit','Benzac','Berber',
+    'Beybiko Diapers','Bioré','Bioten','Birch Tree','Bluenotes','Bobbi Brown',
+    'Bremod','BritePH','BYS','Camou Men','Careline','Caress','CASSIEL-PET',
+    'CheezUp','Chicco','Child Care','ChuChu Beauty','Cimory','Clarins','Clinique',
+    'CloudBeauty','COCO FALL IN LOVE WITH','COCOBB','Coffee Grounds PH',
+    'Coffee N Tea Essentials','Colourette','Cotton Central','Cuddly','Curve',
+    'DAZZLE ME','Deoproce','Dermorepubliq.','Dewha','Dr Alvin Products',
+    'Dr. Sensitive','Dr.Isla','Dr.Leo','DW (Danie Wang)','eelhoe','Einmilk',
+    'Elizabeth Arden','Enchen','Enfagrow','Enfant','EQ','Eqqualberry',
+    'Estée Lauder','Euro Chef','Euromed','Ever Bilena','face republic',
+    'FITGUM','Focallure','FOCANO','GAIFEEL','Glutamax','GMEELAN','Gold Leaf',
+    'Golden Grains','GOODEST','Goodies Nutrition','GRAFEN','Greenika','Greenola',
+    'GRWM Cosmetics','Happy','Happy Life Organics',"Harvester's",'Hegen',
+    'HeroKiddy','Human Nature','ICIC','inJoy','Inspi Babies','IPI',
+    'iWhite Korea','Japan Home Centre','Jergens','JMCY','Just Love','Kalbe',
+    'Kapok','Kérastase','KINETIQQ','Kirkland Signature','KISS','Kleenfant','KMY',
+    'La Mer','Lactezin','Laura Mercier','Lactum',"L'Occitane",'Love k-derma',
+    'Love k-glow','Lucky Beauty Inc.','Lucky Me!','Luxe Organix','LUXU',
+    "M·A·C","Mama's Choice",'Masko.','Master Chef','MCY','Maximo Trading',
+    'Maybelline','Medela','MELEDE','Mentholatum',
+]
+
+_BRAND_CATEGORIES = ['FMCG', 'Electronics', 'Fashions & Accessories', 'General Merchandise']
+
+def _can_manage_brands():
+    return current_user.role in ('superadmin', 'admin', 'lazada')
+
+@app.route('/admin/brands')
+@login_required
+def admin_brands():
+    if not _can_manage_brands():
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    return render_template('admin/brands.html', categories=_BRAND_CATEGORIES)
+
+@app.route('/api/brands', methods=['GET'])
+@login_required
+def api_brands_list():
+    if not (current_user.is_supervisor or current_user.role == 'lazada'):
+        return jsonify({'error': 'Access denied'}), 403
+    cat = request.args.get('category', '').strip()
+    q = Brand.query.filter_by(is_active=True)
+    if cat:
+        q = q.filter_by(category=cat)
+    brands = q.order_by(Brand.is_priority.desc(), Brand.name).all()
+    return jsonify({
+        'brands': [{
+            'id': b.id, 'name': b.name, 'category': b.category,
+            'is_priority': bool(b.is_priority),
+            'added_by_name': b.adder.display_name if b.adder else '—',
+        } for b in brands],
+        'can_manage': _can_manage_brands(),
+    })
+
+@app.route('/api/brands', methods=['POST'])
+@login_required
+def api_brands_add():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    name = (data.get('name') or '').strip()
+    cat  = (data.get('category') or 'FMCG').strip()
+    is_priority = bool(data.get('is_priority', False))
+    if not name:
+        return jsonify({'error': 'Brand name required'}), 400
+    if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+        return jsonify({'error': 'Brand already exists'}), 409
+    b = Brand(name=name, category=cat, is_priority=is_priority, added_by=current_user.id)
+    db.session.add(b)
+    db.session.commit()
+    return jsonify({'ok': True, 'id': b.id, 'name': b.name, 'category': b.category, 'is_priority': b.is_priority})
+
+@app.route('/api/brands/<int:brand_id>', methods=['PUT'])
+@login_required
+def api_brands_update(brand_id):
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    b = Brand.query.get_or_404(brand_id)
+    data = request.get_json()
+    if 'name' in data and data['name'].strip():
+        b.name = data['name'].strip()
+    if 'category' in data:
+        b.category = data['category'].strip()
+    if 'is_priority' in data:
+        b.is_priority = bool(data['is_priority'])
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/brands/<int:brand_id>', methods=['DELETE'])
+@login_required
+def api_brands_delete(brand_id):
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    b = Brand.query.get_or_404(brand_id)
+    b.is_active = False
+    db.session.commit()
+    return jsonify({'ok': True})
+
+@app.route('/api/brands/bulk', methods=['POST'])
+@login_required
+def api_brands_bulk():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.get_json()
+    names = [n.strip() for n in (data.get('names') or []) if str(n).strip()]
+    cat  = (data.get('category') or 'FMCG').strip()
+    is_priority = bool(data.get('is_priority', False))
+    added = skipped = 0
+    for name in names:
+        if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+            skipped += 1
+        else:
+            db.session.add(Brand(name=name, category=cat, is_priority=is_priority, added_by=current_user.id))
+            added += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'added': added, 'skipped': skipped})
+
+@app.route('/api/brands/load-defaults', methods=['POST'])
+@login_required
+def api_brands_load_defaults():
+    if not _can_manage_brands():
+        return jsonify({'error': 'Access denied'}), 403
+    added = skipped = 0
+    for name in _FMCG_DEFAULTS:
+        if Brand.query.filter(Brand.name.ilike(name), Brand.is_active == True).first():
+            skipped += 1
+        else:
+            db.session.add(Brand(name=name, category='FMCG', is_priority=True, added_by=current_user.id))
+            added += 1
+    db.session.commit()
+    return jsonify({'ok': True, 'added': added, 'skipped': skipped})
+
+
+# Auto-seed FMCG defaults on first deploy if brands table is empty
+with app.app_context():
+    try:
+        if Brand.query.filter_by(is_active=True).count() == 0:
+            for _name in _FMCG_DEFAULTS:
+                db.session.add(Brand(name=_name, category='FMCG', is_priority=True))
+            db.session.commit()
+    except Exception:
+        db.session.rollback()
 
 
 @app.route('/leads/radar')
@@ -1106,6 +1805,15 @@ def import_update_confirm():
         for _l in new_db_leads:
             _enrich_lead_background(_l.id, trigger='auto')
 
+        # Telegram alert for power users
+        camp_label = campaign.name if campaign else 'No Campaign'
+        _notify_managers_telegram(
+            f"📥 *Lead Upload Complete*\n"
+            f"👤 By: {current_user.full_name}\n"
+            f"📋 Campaign: {camp_label}\n"
+            f"✅ Added: {created} · 🔄 Updated: {updated} · ⏭ Skipped: {skipped}"
+        )
+
         return jsonify({
             'created': created,
             'updated': updated,
@@ -1410,8 +2118,13 @@ def voice_transcribe():
 
     # ── Step 1: Transcribe with Whisper (auto-detects language) ──────────────
     try:
-        import openai as _openai
-        client = _openai.OpenAI(api_key=openai_key)
+        import openai as _openai, httpx as _httpx
+        # Use a plain httpx client so Railway's HTTPS_PROXY env var doesn't get
+        # injected as a 'proxies' kwarg — removed in openai-python >= 1.x
+        client = _openai.OpenAI(
+            api_key=openai_key,
+            http_client=_httpx.Client(),
+        )
         audio_bytes = audio_file.read()
         import io as _io
         audio_io = _io.BytesIO(audio_bytes)
@@ -1431,7 +2144,12 @@ def voice_transcribe():
         )
         text = transcript.text.strip()
     except Exception as e:
-        return jsonify({'error': f'Transcription failed: {str(e)}'}), 500
+        err_str = str(e)
+        if '429' in err_str or 'quota' in err_str.lower() or 'billing' in err_str.lower():
+            return jsonify({'error': 'Voice check-in is temporarily unavailable (API quota reached). Please fill the form manually and inform your supervisor.'}), 503
+        if '401' in err_str or 'invalid' in err_str.lower() and 'key' in err_str.lower():
+            return jsonify({'error': 'Voice feature not configured correctly. Please inform your supervisor.'}), 503
+        return jsonify({'error': f'Transcription failed: {err_str}'}), 500
 
     # ── Step 2: Parse with Claude — extract all structured fields ─────────────
     gid = current_user.id
@@ -1671,10 +2389,134 @@ def new_visit(lead_id):
             lead.status = 'negotiation'
         elif lead.status == 'assigned':
             lead.status = 'attempting'
+        # Save field intelligence from visit form
+        competitor = request.form.get('competitor_brand', '').strip()
+        if competitor:
+            lead.competitor_brand = competitor
+        if request.form.get('is_in_mall'):
+            lead.is_in_mall = True
+            lead.mall_name = request.form.get('mall_name', '').strip() or lead.mall_name
+        # Compute suggested next visit based on outcome
+        from datetime import date as _date, timedelta as _td
+        _today = _date.today()
+        _fup = visit.follow_up_date
+        _next_map = {
+            'interested':     _fup or (_today + _td(days=3)),
+            'follow_up':      _fup or (_today + _td(days=5)),
+            'callback':       _fup or (_today + _td(days=3)),
+            'not_interested': _today + _td(days=14),
+            'no_contact':     _today + _td(days=2),
+            'not_home':       _today + _td(days=2),
+            'rejected':       _today + _td(days=30),
+            'registered':     _today + _td(days=7),
+        }
+        lead.suggested_next_visit = _next_map.get(outcome, _today + _td(days=7))
         db.session.commit()
         flash('Visit recorded successfully.', 'success')
         return redirect(url_for('lead_detail', lead_id=lead_id))
     return render_template('visits/new.html', lead=lead)
+
+
+# ─── LEAD FIELD INTELLIGENCE (tags, competitor, mall) ────────────────────────
+
+@app.route('/api/leads/<int:lead_id>/tags', methods=['POST'])
+@login_required
+def lead_toggle_tag(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role not in ('gabay', 'supervisor', 'manager', 'admin', 'superadmin'):
+        return jsonify({'error': 'Access denied'}), 403
+    tag = (request.json or {}).get('tag', '').strip()
+    if not tag:
+        return jsonify({'error': 'No tag provided'}), 400
+    tags = lead.tags_list
+    if tag in tags:
+        tags.remove(tag)
+        action = 'removed'
+    else:
+        tags.append(tag)
+        action = 'added'
+    lead.seller_tags = json.dumps(tags)
+    db.session.commit()
+    return jsonify({'tags': tags, 'action': action})
+
+
+@app.route('/api/leads/<int:lead_id>/field-intel', methods=['POST'])
+@login_required
+def lead_update_field_intel(lead_id):
+    lead = Lead.query.get_or_404(lead_id)
+    if current_user.role not in ('gabay', 'supervisor', 'manager', 'admin', 'superadmin'):
+        return jsonify({'error': 'Access denied'}), 403
+    data = request.json or {}
+    if 'competitor_brand' in data:
+        lead.competitor_brand = data['competitor_brand'].strip() or None
+    if 'is_in_mall' in data:
+        lead.is_in_mall = bool(data['is_in_mall'])
+        lead.mall_name = data.get('mall_name', '').strip() or lead.mall_name
+    db.session.commit()
+    return jsonify({'ok': True})
+
+
+@app.route('/leads/heat-map')
+@login_required
+def leads_heat_map():
+    if not current_user.is_supervisor:
+        return redirect(url_for('leads'))
+    from sqlalchemy import func
+    from datetime import timedelta
+    cutoff = datetime.utcnow() - timedelta(days=30)
+    rows_q = db.session.query(
+        Lead.barangay, Lead.city,
+        func.count(Lead.id).label('total'),
+        func.sum(db.case((Lead.status.in_(['live', 'matched']), 1), else_=0)).label('active'),
+        func.sum(db.case((Lead.status.in_(['negotiation', 'registration']), 1), else_=0)).label('warm'),
+        func.sum(db.case((Lead.status.in_(['pool', 'assigned', 'attempting']), 1), else_=0)).label('cold'),
+        func.sum(db.case((Lead.is_in_mall == True, 1), else_=0)).label('in_mall'),
+    ).filter(Lead.is_archived == False).group_by(Lead.barangay, Lead.city)\
+     .order_by(func.count(Lead.id).desc()).limit(60).all()
+
+    visit_q = db.session.query(
+        Lead.barangay, Lead.city, func.count(Visit.id).label('visits')
+    ).join(Visit, Visit.lead_id == Lead.id).filter(
+        Visit.visited_at >= cutoff
+    ).group_by(Lead.barangay, Lead.city).all()
+    visit_map = {(r.barangay, r.city): r.visits for r in visit_q}
+
+    rows = []
+    for r in rows_q:
+        rows.append({
+            'barangay': r.barangay or '—',
+            'city': r.city or '—',
+            'total': r.total,
+            'active': int(r.active or 0),
+            'warm': int(r.warm or 0),
+            'cold': int(r.cold or 0),
+            'in_mall': int(r.in_mall or 0),
+            'visits_30d': visit_map.get((r.barangay, r.city), 0),
+        })
+    return render_template('leads/heat_map.html', rows=rows)
+
+
+@app.route('/leads/funnel')
+@login_required
+def leads_funnel():
+    if not current_user.is_supervisor:
+        return redirect(url_for('leads'))
+    gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
+    funnel_data = []
+    for g in gabay_users:
+        leads = Lead.query.filter_by(gabay_id=g.id, is_archived=False).all()
+        cold = sum(1 for l in leads if l.status in ('pool', 'assigned'))
+        attempting = sum(1 for l in leads if l.status == 'attempting')
+        negotiation = sum(1 for l in leads if l.status == 'negotiation')
+        active = sum(1 for l in leads if l.status in ('registration', 'live', 'matched'))
+        total = len(leads)
+        funnel_data.append({
+            'gabay': g, 'total': total,
+            'cold': cold, 'attempting': attempting,
+            'negotiation': negotiation, 'active': active,
+        })
+    funnel_data.sort(key=lambda x: x['active'], reverse=True)
+    return render_template('leads/funnel.html', funnel_data=funnel_data)
 
 
 # ─── REGISTRATIONS ───────────────────────────────────────────────────────────
@@ -2048,7 +2890,7 @@ def auto_distribute():
     if not current_user.is_supervisor:
         flash('Access denied.', 'danger')
         return redirect(url_for('assign_center'))
-    pool_leads = Lead.query.filter_by(status='pool').order_by(Lead.imported_at.asc()).all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).order_by(Lead.imported_at.asc()).all()
     gabay_users = User.query.filter_by(role='gabay', is_active=True).order_by(User.full_name).all()
     if not gabay_users:
         flash('No active Gabay agents found. Add agents first.', 'warning')
@@ -2144,7 +2986,7 @@ def smart_assign():
         flash('Access restricted.', 'error')
         return redirect(url_for('dashboard'))
 
-    pool_leads = Lead.query.filter_by(status='pool').all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).all()
 
     # ── Split: leads WITH city vs leads with NO city (excluded from auto-assign)
     no_city_leads = [l for l in pool_leads if not (l.city or '').strip()]
@@ -2847,7 +3689,7 @@ def admin_health():
 
     import re, json as _json
 
-    pool_leads = Lead.query.filter_by(status='pool').all()
+    pool_leads = Lead.query.filter_by(status='pool').filter(Lead.is_archived.isnot(True)).all()
 
     # ── 1. DUPLICATE ADDRESS DETECTION ──────────────────────────────────
     def norm_addr(l):
@@ -3062,6 +3904,19 @@ def admin_health_flag_warehouse(lead_id):
     l.is_warehouse = not l.is_warehouse
     db.session.commit()
     return jsonify({'is_warehouse': l.is_warehouse})
+
+
+@app.route('/admin/health/archive-lead/<int:lead_id>', methods=['POST'])
+@login_required
+def admin_health_archive_lead(lead_id):
+    if not current_user.is_supervisor:
+        abort(403)
+    l = Lead.query.get_or_404(lead_id)
+    if l.status != 'pool':
+        return jsonify({'error': 'Only unassigned pool leads can be archived.'}), 400
+    l.is_archived = not l.is_archived
+    db.session.commit()
+    return jsonify({'is_archived': l.is_archived})
 
 
 @app.route('/reports/competitor')
@@ -4060,6 +4915,104 @@ def whatsapp_test():
         return f'<pre>Exception: {e}\nToken set: {"YES" if token else "NO"}</pre>'
 
 
+# ── Telegram Webhook ──────────────────────────────────────────────────────────
+
+@app.route('/webhook/telegram', methods=['POST'])
+def telegram_incoming():
+    """Telegram POSTs incoming updates here."""
+    import threading
+    data = request.get_json(silent=True) or {}
+    app.logger.info(f'[TG] Incoming update: {str(data)[:200]}')
+    def _process():
+        with app.app_context():
+            try:
+                from telegram_bot import handle_update
+                handle_update(data)
+            except Exception as e:
+                app.logger.error(f'[TG] handle_update error: {e}', exc_info=True)
+    threading.Thread(target=_process, daemon=True).start()
+    return 'OK', 200
+
+
+@app.route('/admin/telegram-setup')
+@login_required
+def telegram_setup():
+    """Register the Telegram webhook with Telegram's servers (run once after deploy)."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    import requests as _req
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
+    base_url = f'https://{request.host}'
+    webhook_url = f'{base_url}/webhook/telegram'
+    try:
+        r = _req.post(
+            f'https://api.telegram.org/bot{token}/setWebhook',
+            json={'url': webhook_url, 'allowed_updates': ['message', 'edited_message']},
+            timeout=10,
+        )
+        result = r.json()
+        status = '✅ Webhook registered!' if result.get('ok') else '❌ Failed'
+        return (
+            f'<pre>{status}\n\n'
+            f'Webhook URL: {webhook_url}\n\n'
+            f'Telegram response:\n{json.dumps(result, indent=2)}\n\n'
+            f'Next step: Have Gabay agents open the bot and send:\n'
+            f'  /start their_lsams_username\n\n'
+            f'Managers can also link their Telegram to receive visit alerts.</pre>'
+        )
+    except Exception as e:
+        return f'<pre>Exception: {e}</pre>'
+
+
+@app.route('/admin/telegram-test')
+@login_required
+def telegram_test():
+    """Send a test message to the current user's linked Telegram."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    from telegram_bot import send_message as tg_send
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    if not token:
+        return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
+    chat_id = current_user.telegram_chat_id
+    if not chat_id:
+        return (
+            '<pre>⚠️ Your account has no Telegram linked.\n\n'
+            'Open the bot on your phone and send: /start your_lsams_username\n'
+            'Then come back here and refresh.</pre>'
+        )
+    result = tg_send(chat_id, '✅ LSAMS Telegram bot test — working!')
+    return f'<pre>Sent to chat_id {chat_id}\nResult: {json.dumps(result, indent=2)}</pre>'
+
+
+@app.route('/admin/telegram-report-now')
+@login_required
+def telegram_report_now():
+    """Send the daily report immediately (for testing or manual trigger)."""
+    if not current_user.is_supervisor:
+        return 'Access denied', 403
+    from datetime import timezone, timedelta as _td
+    _PHT = timezone(_td(hours=8))
+    hour = datetime.now(_PHT).hour
+    period = 'morning' if hour < 12 else 'evening'
+    _send_daily_report(period)
+    return f'<pre>✅ Report sent to all linked managers!\n\nPeriod: {period}\n\nRefresh and check Telegram.</pre>'
+
+
+@app.route('/admin/telegram-unlink/<int:user_id>', methods=['POST'])
+@login_required
+def telegram_unlink(user_id):
+    """Unlink a user's Telegram account (superadmin only)."""
+    if not current_user.is_supervisor:
+        abort(403)
+    u = User.query.get_or_404(user_id)
+    u.telegram_chat_id = None
+    db.session.commit()
+    return jsonify({'ok': True, 'name': u.full_name})
+
+
 @app.route('/admin/send-gabay-briefings', methods=['POST'])
 @login_required
 def admin_send_gabay_briefings():
@@ -4725,6 +5678,19 @@ def admin_delete_excel_imports():
     </body></html>'''
 
 
+@app.route('/admin/scout-activity')
+@login_required
+def admin_scout_activity():
+    if not current_user.is_supervisor:
+        flash('Access denied.', 'danger')
+        return redirect(url_for('dashboard'))
+    page = request.args.get('page', 1, type=int)
+    logs = (ScoutLog.query
+            .order_by(ScoutLog.searched_at.desc())
+            .paginate(page=page, per_page=50, error_out=False))
+    return render_template('admin/scout_activity.html', logs=logs)
+
+
 @app.route('/admin/users')
 @login_required
 def admin_users():
@@ -4772,6 +5738,7 @@ def admin_new_user():
             u.set_password(password)
             if role == 'gabay':
                 u.assigned_city = request.form.get('assigned_city', '').strip() or None
+                u.can_scout = 'can_scout' in request.form
             db.session.add(u)
             db.session.commit()
             flash(f'User {full_name} ({role}) created.', 'success')
@@ -4794,8 +5761,10 @@ def admin_edit_user(user_id):
         if u.role == 'gabay':
             u.assigned_city = request.form.get('assigned_city', '').strip() or None
             u.mobile = request.form.get('mobile', '').strip() or None
+            u.can_scout = 'can_scout' in request.form
         else:
             u.assigned_city = None
+            u.can_scout = False
         new_pw = request.form.get('password', '').strip()
         if new_pw:
             u.set_password(new_pw)
@@ -4812,7 +5781,9 @@ def admin_toggle_user(user_id):
         return jsonify({'error': 'forbidden'}), 403
     u = User.query.get_or_404(user_id)
     if u.id == current_user.id:
-        return jsonify({'error': 'Cannot deactivate yourself'}), 400
+        return jsonify({'error': 'Cannot deactivate yourself.'}), 400
+    if u.role == 'superadmin':
+        return jsonify({'error': 'Superadmin accounts cannot be deactivated.'}), 400
     u.is_active = not u.is_active
     db.session.commit()
     return jsonify({'active': u.is_active, 'name': u.full_name})
@@ -4827,6 +5798,19 @@ def admin_toggle_wa_alerts(user_id):
     u.whatsapp_alerts_enabled = not u.whatsapp_alerts_enabled
     db.session.commit()
     return jsonify({'enabled': u.whatsapp_alerts_enabled, 'name': u.full_name})
+
+
+@app.route('/admin/users/<int:user_id>/toggle-tg-reports', methods=['POST'])
+@login_required
+def admin_toggle_tg_reports(user_id):
+    if not current_user.is_superadmin:
+        return jsonify({'error': 'forbidden'}), 403
+    u = User.query.get_or_404(user_id)
+    if not u.telegram_chat_id:
+        return jsonify({'error': 'User has not linked their Telegram yet.'}), 400
+    u.telegram_reports_enabled = not u.telegram_reports_enabled
+    db.session.commit()
+    return jsonify({'enabled': u.telegram_reports_enabled, 'name': u.full_name})
 
 
 # ─── LAZADA READ-ONLY PORTAL ──────────────────────────────────────────────────
@@ -5915,7 +6899,7 @@ def gabay_quick_checkin():
                 'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅',
             }.get(outcome,'📋')
             status_line = f"\n📊 Lead status → *{lead.status_label}*" if new_status else ''
-            _notify_managers_whatsapp(
+            _visit_msg = (
                 f"{outcome_emoji} *Visit Logged*\n"
                 f"👤 Agent: {current_user.full_name}\n"
                 f"🏪 Seller: {lead.seller_name}\n"
@@ -5923,6 +6907,8 @@ def gabay_quick_checkin():
                 f"{status_line}\n"
                 f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
             )
+            _notify_managers_whatsapp(_visit_msg)
+            _notify_managers_telegram(_visit_msg)
 
         if visit.photo_pending:
             flash('Visit logged! 📷 Don\'t forget to upload your selfie proof photo when you\'re back online.', 'warning')
@@ -6077,12 +7063,32 @@ def supervisor_tutorial_print():
     return render_template('tutorial_supervisor_print.html')
 
 
+@app.route('/gabay/offline')
+def gabay_offline():
+    """Offline fallback page — served by SW when network is unavailable."""
+    return render_template('gabay_app/offline.html')
+
+
 @app.route('/gabay/app/tutorial/print')
 @login_required
 def gabay_tutorial_print():
     if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
         return redirect(url_for('dashboard'))
     return render_template('gabay_tutorial_print.html')
+
+
+@app.route('/whats-new')
+@login_required
+def whats_new():
+    return render_template('whats_new_print.html')
+
+
+@app.route('/gabay/telegram-guide')
+@login_required
+def gabay_telegram_guide():
+    if current_user.role not in ('gabay', 'superadmin', 'admin', 'manager', 'supervisor'):
+        return redirect(url_for('dashboard'))
+    return render_template('telegram_guide_print.html')
 
 
 @app.route('/campaigns/slide')
@@ -6415,6 +7421,42 @@ def presentations_view(pid):
         flash('Access denied.', 'danger')
         return redirect(url_for('presentations_list'))
     return render_template('presentations/view.html', pres=pres)
+
+
+@app.route('/presentations/download/<int:pid>')
+@login_required
+def presentations_download(pid):
+    pres = Presentation.query.get_or_404(pid)
+    role = current_user.role
+    if pres.visible_to == 'supervisor' and role not in ('supervisor','manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    if pres.visible_to == 'manager' and role not in ('manager','admin','superadmin'):
+        flash('Access denied.', 'danger')
+        return redirect(url_for('presentations_list'))
+    import urllib.request
+    import re
+    safe_title = re.sub(r'[^\w\s-]', '', pres.title).strip()
+    safe_title = re.sub(r'[\s]+', '-', safe_title).lower()[:60] or 'presentation'
+    filename = f'{safe_title}.{pres.file_type}'
+    content_type = 'application/pdf' if pres.file_type == 'pdf' else \
+                   'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    try:
+        with urllib.request.urlopen(pres.cloudinary_url) as resp:
+            data = resp.read()
+        from flask import Response
+        return Response(
+            data,
+            status=200,
+            headers={
+                'Content-Type': content_type,
+                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Length': str(len(data)),
+            }
+        )
+    except Exception as ex:
+        flash(f'Download failed: {str(ex)}', 'danger')
+        return redirect(url_for('presentations_list'))
 
 
 @app.route('/presentations/delete/<int:pid>', methods=['POST'])

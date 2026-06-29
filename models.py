@@ -25,6 +25,11 @@ class User(UserMixin, db.Model):
     # WhatsApp alert preference (manager/admin only — superadmin can toggle per user)
     whatsapp_alerts_enabled = db.Column(db.Boolean, default=True)
 
+    # Telegram chat_id set when gabay sends /start <username> to the bot
+    telegram_chat_id = db.Column(db.String(30))
+    # Superadmin controls who receives the scheduled daily Telegram reports
+    telegram_reports_enabled = db.Column(db.Boolean, default=False)
+
     # Contact info
     mobile = db.Column(db.String(20))
     mobile2 = db.Column(db.String(20))
@@ -39,6 +44,9 @@ class User(UserMixin, db.Model):
 
     # Gabay display name (nickname used in leads, reports, Lazada — different from full_name)
     gabay_name = db.Column(db.String(100))
+
+    # Permission: allow this Gabay to use Prospect Scout (superadmin/admin toggle)
+    can_scout = db.Column(db.Boolean, default=False)
 
     # Profile
     profile_photo = db.Column(db.String(200))
@@ -185,8 +193,15 @@ class Lead(db.Model):
     ai_inspected_at = db.Column(db.DateTime)
     is_warehouse = db.Column(db.Boolean, default=False)   # fulfillment center flag
     is_duplicate_addr = db.Column(db.Boolean, default=False)
+    is_archived = db.Column(db.Boolean, default=False)     # soft-removed from pool by supervisor
     # AI Lead Intelligence — Phase 3: used for queue ordering
     ai_score = db.Column(db.Integer)          # 0-100 from LeadIntelligence engine
+    # Field intelligence — filled by Gabay agents during visits
+    competitor_brand = db.Column(db.String(150))        # competitor brand currently carried by seller
+    seller_tags = db.Column(db.Text)                    # JSON array of tag strings
+    is_in_mall = db.Column(db.Boolean, default=False)   # seller operates inside a mall / LazMall
+    mall_name = db.Column(db.String(100))               # SM North, Ayala Mall, LazMall, etc.
+    suggested_next_visit = db.Column(db.Date)           # auto-set when a visit is saved
 
     visits = db.relationship('Visit', backref='lead', lazy='dynamic', cascade='all, delete-orphan')
     registration = db.relationship('Registration', backref='lead', uselist=False, cascade='all, delete-orphan')
@@ -194,6 +209,15 @@ class Lead(db.Model):
     @property
     def latest_visit(self):
         return self.visits.order_by(Visit.visited_at.desc()).first()
+
+    @property
+    def tags_list(self):
+        if not self.seller_tags:
+            return []
+        try:
+            return json.loads(self.seller_tags)
+        except Exception:
+            return []
 
     @property
     def status_label(self):
@@ -463,6 +487,7 @@ class Notification(db.Model):
         'reg_pending': ('bi-file-earmark-check-fill', '#7c3aed'),
         'live_achieved': ('bi-star-fill', '#15803d'),
         'competitor_visit': ('bi-flag-fill', '#d97706'),
+        'scout_search':     ('bi-binoculars-fill', '#7c3aed'),
     }
 
     @property
@@ -574,6 +599,19 @@ class LeadIntelligence(db.Model):
         return [p for p in self.platforms if p.get('status') == 'active']
 
 
+class Brand(db.Model):
+    """Brand library for Prospect Scout — managed by superadmin / lazada team."""
+    __tablename__ = 'brands'
+    id          = db.Column(db.Integer, primary_key=True)
+    name        = db.Column(db.String(120), nullable=False)
+    category    = db.Column(db.String(80), nullable=False, default='FMCG')
+    is_priority = db.Column(db.Boolean, default=False)
+    added_by    = db.Column(db.Integer, db.ForeignKey('users.id'))
+    created_at  = db.Column(db.DateTime, default=datetime.utcnow)
+    is_active   = db.Column(db.Boolean, default=True)
+    adder       = db.relationship('User', foreign_keys=[added_by])
+
+
 class Presentation(db.Model):
     __tablename__ = 'presentations'
     id            = db.Column(db.Integer, primary_key=True)
@@ -587,3 +625,18 @@ class Presentation(db.Model):
     uploaded_by   = db.Column(db.Integer, db.ForeignKey('users.id'))
     uploaded_at   = db.Column(db.DateTime, default=datetime.utcnow)
     uploader      = db.relationship('User', foreign_keys=[uploaded_by])
+
+
+class ScoutLog(db.Model):
+    """Audit log for every Prospect Scout search — notifies supervisors."""
+    __tablename__ = 'scout_logs'
+    id           = db.Column(db.Integer, primary_key=True)
+    user_id      = db.Column(db.Integer, db.ForeignKey('users.id'), nullable=False)
+    keyword      = db.Column(db.String(200), nullable=False)
+    category     = db.Column(db.String(80))
+    city         = db.Column(db.String(120))
+    platform     = db.Column(db.String(40))
+    result_count = db.Column(db.Integer, default=0)
+    searched_at  = db.Column(db.DateTime, default=datetime.utcnow)
+
+    searcher = db.relationship('User', foreign_keys=[user_id])

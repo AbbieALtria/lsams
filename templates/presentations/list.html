@@ -75,7 +75,7 @@
                   text-align:center;font-size:13px;font-weight:700;text-decoration:none">
           <i class="bi bi-eye me-1"></i>View
         </a>
-        <a href="{{ p.cloudinary_url }}" target="_blank" download
+        <a href="{{ url_for('presentations_download', pid=p.id) }}"
            style="flex:1;background:#F0F4FA;color:#1F3864;border-radius:10px;padding:9px;
                   text-align:center;font-size:13px;font-weight:700;text-decoration:none">
           <i class="bi bi-download"></i>

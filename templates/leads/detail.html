@@ -57,7 +57,57 @@
           </td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">Batch</th><td><small>{{ lead.batch_ref or '—' }}</small></td></tr>
           <tr><th style="color:#9aabc5;font-size:11px">Imported</th><td><small>{{ lead.imported_at.strftime('%b %d, %Y') if lead.imported_at else '—' }}</small></td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">Competitor</th><td>
+            <span id="compDisplay" style="font-size:12px">
+              {% if lead.competitor_brand %}
+              <span style="background:#fef3c7;color:#d97706;border-radius:6px;padding:2px 8px;font-weight:700">{{ lead.competitor_brand }}</span>
+              {% else %}<span style="color:#CBD5E1">None logged</span>{% endif %}
+            </span>
+            <input id="compInput" type="text" class="form-control form-control-sm mt-1"
+                   style="display:none;max-width:200px" value="{{ lead.competitor_brand or '' }}"
+                   placeholder="e.g. Shopee Mall, Shein...">
+            <a href="#" onclick="toggleCompEdit(event)" style="font-size:10px;color:#4338ca;margin-left:6px" id="compEditBtn">edit</a>
+          </td></tr>
+          <tr><th style="color:#9aabc5;font-size:11px">In Mall</th><td>
+            {% if lead.is_in_mall %}
+            <span style="background:#7c3aed18;border:1px solid #7c3aed44;color:#7c3aed;
+                         border-radius:8px;padding:2px 10px;font-size:11px;font-weight:700">
+              🏪 {{ lead.mall_name or 'Mall Seller' }}
+            </span>
+            <span style="font-size:11px;color:#9aabc5;margin-left:6px">— managed by mall team</span>
+            {% else %}<span style="color:#15803d;font-size:12px;font-weight:700">✓ Outside Mall</span>{% endif %}
+          </td></tr>
+          {% if lead.suggested_next_visit %}
+          <tr><th style="color:#9aabc5;font-size:11px">Next Visit</th><td>
+            {% set snv = lead.suggested_next_visit %}
+            <span style="font-size:12px;font-weight:700;color:#7c3aed">
+              📅 {{ snv.strftime('%b %d, %Y') }}
+            </span>
+          </td></tr>
+          {% endif %}
         </table>
+
+        <!-- Tags -->
+        <div style="border-top:1px solid #f1f5f9;padding:10px 0 2px">
+          <div style="font-size:10px;color:#9aabc5;font-weight:700;margin-bottom:6px;padding-left:4px">SELLER TAGS</div>
+          <div id="tagsContainer" style="display:flex;gap:6px;flex-wrap:wrap;padding-left:4px;min-height:28px">
+            {% for t in lead.tags_list %}
+            <span onclick="toggleTag('{{ t }}', this)" data-tag="{{ t }}"
+                  style="background:#EEF2FF;color:#4338ca;border-radius:8px;padding:3px 10px;
+                         font-size:11px;font-weight:700;cursor:pointer;border:1px solid #c7d2fe">{{ t }} ×</span>
+            {% endfor %}
+          </div>
+          <div style="margin-top:8px;display:flex;gap:6px;flex-wrap:wrap;padding-left:4px">
+            {% set preset_tags = ['Hot Lead','Needs Follow-up','Declined','Ready to Register','Key Account','Revisit','Competition: Strong','New Discovery'] %}
+            {% for t in preset_tags %}
+            {% if t not in lead.tags_list %}
+            <span onclick="toggleTag('{{ t }}', this)" data-tag="{{ t }}"
+                  style="background:#f8fafc;color:#9aabc5;border-radius:8px;padding:3px 10px;
+                         font-size:11px;font-weight:600;cursor:pointer;border:1px dashed #e2e8f0">+ {{ t }}</span>
+            {% endif %}
+            {% endfor %}
+          </div>
+        </div>
       </div>
     </div>
 
@@ -175,18 +225,229 @@
     </div>
     {% endif %}
 
-    <!-- PRIORITY INDICATOR -->
-    <div class="card mt-3">
-      <div class="card-body py-2 px-3 d-flex align-items-center justify-content-between">
-        <span style="font-size:12px;color:#9aabc5;font-weight:700">PRIORITY SCORE</span>
-        {% set pl = lead.priority_label %}
-        <span style="font-weight:800;font-size:14px;color:{{ pl[1] }}">
-          <i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }} ({{ lead.priority_score }} pts)
+    <!-- SELLER HEALTH -->
+    {% set cs = lead.conversion_score %}
+    {% set hl = 'A' if cs >= 75 else ('B' if cs >= 50 else ('C' if cs >= 25 else 'D')) %}
+    {% set hc = '#15803d' if cs >= 75 else ('#0d9488' if cs >= 50 else ('#d97706' if cs >= 25 else '#dc2626')) %}
+    {% set lvd = lead.last_visit_days %}
+    <div class="card mt-3" style="border-left:4px solid {{ hc }}">
+      <div class="card-header d-flex align-items-center justify-content-between py-2"
+           style="background:{{ hc }}10">
+        <span style="font-size:12px;font-weight:800;color:{{ hc }}">
+          <i class="bi bi-heart-pulse-fill me-1"></i>Seller Health
         </span>
-        <span style="font-size:11px;color:#9aabc5">{{ lead.age_days }} days in pipeline</span>
+        <span style="background:{{ hc }};color:white;border-radius:20px;
+                     padding:2px 12px;font-size:11px;font-weight:900">
+          Grade {{ hl }}
+        </span>
+      </div>
+      <div class="card-body py-2 px-3">
+        <!-- 4-stat row -->
+        <div class="row g-0 text-center" style="margin-bottom:10px">
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            <div style="font-size:28px;font-weight:900;color:{{ hc }};line-height:1">{{ hl }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Grade</div>
+          </div>
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            <div style="font-size:20px;font-weight:800;color:#1F3864;line-height:1.2">{{ cs }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Score/100</div>
+          </div>
+          <div class="col-3" style="border-right:1px solid #f1f5f9;padding:4px 0">
+            {% if lvd is none %}
+              <div style="font-size:16px;font-weight:800;color:#CBD5E1;line-height:1.3">—</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Last Visit</div>
+            {% elif lvd == 0 %}
+              <div style="font-size:14px;font-weight:800;color:#15803d;line-height:1.5">Today</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Last Visit</div>
+            {% else %}
+              {% set lvc = '#15803d' if lvd < 7 else ('#d97706' if lvd < 14 else '#dc2626') %}
+              <div style="font-size:20px;font-weight:800;color:{{ lvc }};line-height:1.2">{{ lvd }}d</div>
+              <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Since Visit</div>
+            {% endif %}
+          </div>
+          <div class="col-3" style="padding:4px 0">
+            <div style="font-size:20px;font-weight:800;color:#1F3864;line-height:1.2">{{ visits|length }}</div>
+            <div style="font-size:9px;color:#9aabc5;font-weight:700;text-transform:uppercase">Total Visits</div>
+          </div>
+        </div>
+        <!-- Recent outcome trend -->
+        {% if visits %}
+        <div style="border-top:1px solid #f1f5f9;padding-top:8px">
+          <div style="font-size:10px;color:#9aabc5;font-weight:700;margin-bottom:5px">RECENT OUTCOMES</div>
+          <div class="d-flex gap-2 flex-wrap">
+            {% for v in visits[:4] %}
+            <span class="badge bg-{{ v.outcome_color }}" style="font-size:10px">{{ v.outcome_label }}</span>
+            {% endfor %}
+            {% if visits|length > 4 %}<span style="font-size:11px;color:#9aabc5">+{{ visits|length - 4 }} more</span>{% endif %}
+          </div>
+        </div>
+        {% endif %}
+        <!-- Footer line -->
+        <div style="font-size:11px;color:#9aabc5;margin-top:8px">
+          <i class="bi bi-calendar-range me-1"></i>{{ lead.age_days }} days in pipeline
+          &nbsp;·&nbsp;
+          {% set pl = lead.priority_label %}
+          <span style="color:{{ pl[1] }};font-weight:700"><i class="bi {{ pl[2] }} me-1"></i>{{ pl[0] }}</span>
+        </div>
       </div>
     </div>
+
+    <!-- PLATFORM INTEL (Phase 4) -->
+    {% set intel = lead.intelligence %}
+    {% if intel and intel.scan_status == 'done' %}
+    <div class="card mt-3" style="border-left:4px solid #7c3aed">
+      <div class="card-header d-flex align-items-center justify-content-between" style="background:#F8F7FF">
+        <span style="font-weight:800;color:#7c3aed;font-size:13px">
+          <i class="bi bi-cpu me-2"></i>Platform Intel · Pre-Visit Brief
+        </span>
+        {% if intel.ai_score %}
+        <span style="background:#7c3aed;color:white;border-radius:20px;padding:2px 10px;font-size:11px;font-weight:800">
+          Score {{ intel.ai_score }}/100
+        </span>
+        {% endif %}
+      </div>
+      <div class="card-body">
+        {% if intel.ai_brief %}
+        <div style="font-size:13px;color:#1A1A2E;line-height:1.6;background:#F5F0FF;
+                    border-radius:10px;padding:10px 14px;margin-bottom:12px;font-weight:500">
+          {{ intel.ai_brief }}
+        </div>
+        {% endif %}
+
+        {% if intel.pitch_script %}
+        <div style="margin-bottom:12px">
+          <div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">
+            <i class="bi bi-mic-fill me-1" style="color:#7c3aed"></i>Pitch Script for Gabay
+          </div>
+          <div style="font-size:12px;color:#4a5568;line-height:1.7;white-space:pre-line;
+                      border-left:3px solid #7c3aed;padding-left:10px">{{ intel.pitch_script }}</div>
+        </div>
+        {% endif %}
+
+        <!-- Platform badges -->
+        {% if intel.platforms %}
+        <div style="font-size:10px;font-weight:800;color:#9aabc5;text-transform:uppercase;letter-spacing:1px;margin-bottom:6px">
+          Platforms Found
+        </div>
+        <div class="d-flex gap-2 flex-wrap mb-2">
+          {% for p in intel.platforms %}
+          {% if p.status == 'active' %}
+          {% set pc = {'Shopee':'#EE4D2D','TikTok':'#111','Facebook':'#1877F2','Instagram':'#E1306C'} %}
+          {% set bg = pc.get(p.name, '#9aabc5') %}
+          <div style="background:{{ bg }}11;border:1px solid {{ bg }}33;border-radius:10px;padding:8px 12px;min-width:100px">
+            <div style="font-weight:800;color:{{ bg }};font-size:12px">{{ p.name }}</div>
+            <div style="font-size:11px;color:#6b7280;margin-top:2px">{{ p.detail or '' }}</div>
+            {% if p.followers %}<div style="font-size:10px;color:#9aabc5">{{ '{:,}'.format(p.followers) }} followers</div>{% endif %}
+            {% if p.rating %}<div style="font-size:10px;color:#F57224">★ {{ p.rating }}</div>{% endif %}
+          </div>
+          {% endif %}
+          {% endfor %}
+        </div>
+        {% endif %}
+
+        <!-- Key stats row -->
+        <div class="d-flex gap-3 flex-wrap" style="font-size:12px;color:#9aabc5;margin-top:6px">
+          {% if intel.max_followers %}<span><i class="bi bi-people me-1"></i>{{ '{:,}'.format(intel.max_followers) }} followers</span>{% endif %}
+          {% if intel.product_count %}<span><i class="bi bi-box me-1"></i>{{ intel.product_count }} products</span>{% endif %}
+          {% if intel.avg_rating %}<span><i class="bi bi-star-fill me-1" style="color:#F57224"></i>{{ intel.avg_rating }}</span>{% endif %}
+          {% if intel.top_platform %}<span><i class="bi bi-award me-1"></i>Top: {{ intel.top_platform }}</span>{% endif %}
+          {% if intel.last_active %}<span><i class="bi bi-clock me-1"></i>{{ intel.last_active }}</span>{% endif %}
+          {% if intel.is_on_lazada is not none %}
+          <span style="color:{{ '#dc2626' if intel.is_on_lazada else '#15803d' }};font-weight:700">
+            {{ '⚠ Already on Lazada' if intel.is_on_lazada else '✓ Not on Lazada yet' }}
+          </span>
+          {% endif %}
+        </div>
+
+        <div style="font-size:10px;color:#CBD5E1;margin-top:8px">
+          Scanned {{ intel.scanned_at.strftime('%b %d, %Y %I:%M %p') if intel.scanned_at else '' }}
+        </div>
+      </div>
+    </div>
+    {% elif intel and intel.scan_status == 'running' %}
+    <div class="card mt-3" style="border-left:4px solid #7c3aed">
+      <div class="card-body text-center py-3" style="color:#7c3aed">
+        <i class="bi bi-cpu" style="font-size:24px;animation:spin 1s linear infinite;display:block;margin-bottom:6px"></i>
+        <div style="font-size:13px;font-weight:700">Scanning platforms...</div>
+        <div style="font-size:11px;color:#9aabc5">Refresh in a few seconds</div>
+      </div>
+    </div>
+    {% elif current_user.is_supervisor %}
+    <div class="card mt-3" style="border-left:4px solid #E8E4EE">
+      <div class="card-body py-3 d-flex align-items-center justify-content-between">
+        <div>
+          <div style="font-size:13px;font-weight:700;color:#9aabc5">
+            <i class="bi bi-cpu me-2"></i>Platform Intel not scanned
+          </div>
+          <div style="font-size:11px;color:#CBD5E1">Get AI brief + platform presence before visiting</div>
+        </div>
+        <button onclick="triggerScan({{ lead.id }}, this)" class="btn btn-sm fw-bold"
+                style="background:#F5F0FF;color:#7c3aed;border:1px solid #7c3aed33">
+          <i class="bi bi-cpu me-1"></i>Scan Now
+        </button>
+      </div>
+    </div>
+    {% endif %}
+
   </div>
 </div>
+<style>
+@keyframes spin { to { transform: rotate(360deg); } }
+</style>
+<script>
+function triggerScan(leadId, btn) {
+  btn.disabled = true;
+  btn.innerHTML = '<i class="bi bi-cpu me-1" style="animation:spin 1s linear infinite"></i>Scanning...';
+  fetch(`/leads/${leadId}/scan`, { method: 'POST' })
+    .then(r => r.json())
+    .then(d => {
+      if (d.ok) location.reload();
+      else { btn.disabled = false; btn.innerHTML = '<i class="bi bi-cpu me-1"></i>Scan Now'; alert(d.error || 'Scan failed'); }
+    });
+}
+
+// Tags
+function toggleTag(tag, el) {
+  fetch('/api/leads/{{ lead.id }}/tags', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({tag})
+  }).then(r => r.json()).then(d => {
+    if (d.error) return;
+    // Reload tags container
+    const container = document.getElementById('tagsContainer');
+    if (d.action === 'added') {
+      el.style.background = '#EEF2FF';
+      el.style.color = '#4338ca';
+      el.style.border = '1px solid #c7d2fe';
+      el.textContent = tag + ' ×';
+      el.onclick = function(){ toggleTag(tag, el); };
+      container.appendChild(el);
+    } else {
+      el.remove();
+    }
+    location.reload();
+  });
+}
+
+// Competitor inline edit
+function toggleCompEdit(e) {
+  e.preventDefault();
+  const display = document.getElementById('compDisplay');
+  const input = document.getElementById('compInput');
+  const btn = document.getElementById('compEditBtn');
+  if (input.style.display === 'none') {
+    display.style.display = 'none';
+    input.style.display = 'block';
+    btn.textContent = 'save';
+  } else {
+    fetch('/api/leads/{{ lead.id }}/field-intel', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({competitor_brand: input.value})
+    }).then(() => location.reload());
+  }
+}
+</script>
 {% endblock %}
 

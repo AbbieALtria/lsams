@@ -136,19 +136,27 @@
         <thead style="background:#f8fafc"><tr><th>Seller</th><th>Category</th><th>Contact</th><th>Priority</th><th>Action</th></tr></thead>
         <tbody>
           {% for lead in group %}
-          <tr>
+          <tr id="dup-row-{{ lead.id }}" {% if lead.is_archived %}style="opacity:0.4;background:#f1f5f9"{% endif %}>
             <td class="fw-bold">
               <a href="{{ url_for('lead_detail', lead_id=lead.id) }}" style="color:#1F3864">{{ lead.seller_name }}</a>
               {% if lead.is_warehouse %}<span class="badge ms-1" style="background:#b91c1c;color:white;font-size:10px">🏭 WH</span>{% endif %}
+              {% if lead.is_archived %}<span class="badge ms-1" style="background:#6b7280;color:white;font-size:10px">📦 Archived</span>{% endif %}
             </td>
             <td style="color:#6b7280">{{ lead.category or '—' }}</td>
             <td style="color:#6b7280">{{ lead.contact_number or '—' }}</td>
             <td><span class="badge" style="background:#1F3864;color:white">{{ lead.priority_tier or '—' }}</span></td>
-            <td>
+            <td style="white-space:nowrap">
               <button onclick="toggleWarehouse({{ lead.id }}, this)"
-                      class="btn btn-outline-danger btn-sm py-0 px-2"
+                      class="btn btn-outline-danger btn-sm py-0 px-2 me-1"
                       style="font-size:10px">
                 {% if lead.is_warehouse %}✓ Flagged WH{% else %}Flag as WH{% endif %}
+              </button>
+              <button onclick="archiveDupLead({{ lead.id }}, this)"
+                      id="arch-btn-{{ lead.id }}"
+                      class="btn btn-sm py-0 px-2"
+                      style="font-size:10px;{% if lead.is_archived %}background:#374151;color:white{% else %}background:#f1f5f9;color:#374151;border:1px solid #d1d5db{% endif %}"
+                      title="{% if lead.is_archived %}Restore this lead to the pool{% else %}Archive duplicate — removes from pool, not deleted{% endif %}">
+                {% if lead.is_archived %}↩ Restore{% else %}📦 Archive{% endif %}
               </button>
             </td>
           </tr>
@@ -474,6 +482,49 @@ function toggleWarehouse(leadId, btn) {
       btn.textContent = 'Flag WH';
       btn.style.background = '#f1f5f9';
       btn.style.color = '#374151';
+    }
+  });
+}
+
+function archiveDupLead(leadId, btn) {
+  const row = document.getElementById('dup-row-' + leadId);
+  const isArchived = btn.textContent.trim().startsWith('↩');
+  const action = isArchived ? 'restore' : 'archive';
+  if (!confirm(isArchived
+    ? 'Restore this lead back to the pool?'
+    : 'Archive this duplicate lead?\n\nIt will be removed from the pool and assignment queue.\nNo data is deleted — you can restore it any time.'))
+    return;
+  fetch(`/admin/health/archive-lead/${leadId}`, {method:'POST',
+    headers:{'X-CSRFToken': document.querySelector('meta[name=csrf-token]')?.content || '',
+              'Content-Type':'application/json'}})
+  .then(r => r.json())
+  .then(d => {
+    if (d.error) { alert(d.error); return; }
+    if (d.is_archived) {
+      row.style.opacity = '0.4';
+      row.style.background = '#f1f5f9';
+      btn.textContent = '↩ Restore';
+      btn.style.background = '#374151';
+      btn.style.color = 'white';
+      btn.title = 'Restore this lead to the pool';
+      const badge = row.querySelector('.archived-badge');
+      if (!badge) {
+        const nameCell = row.querySelector('td:first-child');
+        const sp = document.createElement('span');
+        sp.className = 'badge ms-1 archived-badge';
+        sp.style.cssText = 'background:#6b7280;color:white;font-size:10px';
+        sp.textContent = '📦 Archived';
+        nameCell.appendChild(sp);
+      }
+    } else {
+      row.style.opacity = '';
+      row.style.background = '';
+      btn.textContent = '📦 Archive';
+      btn.style.background = '#f1f5f9';
+      btn.style.color = '#374151';
+      btn.title = 'Archive duplicate — removes from pool, not deleted';
+      const badge = row.querySelector('.archived-badge');
+      if (badge) badge.remove();
     }
   });
 }
