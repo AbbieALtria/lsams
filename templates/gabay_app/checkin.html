@@ -61,6 +61,10 @@
     0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
     50% { box-shadow: 0 0 0 14px rgba(220,38,38,0); }
   }
+  @keyframes pop-in {
+    0% { transform: scale(0.93); opacity: 0; }
+    100% { transform: scale(1); opacity: 1; }
+  }
   .voice-result-box {
     background: white; border-radius: 12px; border: 1.5px solid #c7d2fe;
     padding: 12px 14px; margin-top: 10px; text-align: left;
@@ -155,53 +159,18 @@
     <div class="step-num" id="step3num">3</div>
     <div>
       <div data-i18n="checkin_step3">What happened?</div>
-      <div style="font-size:12px;font-weight:400;color:#9aabc5" data-i18n="checkin_step3_sub">Select the visit outcome</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5">🎙 Use Voice below — or tap an outcome</div>
     </div>
   </div>
 
-  <div class="outcome-grid">
-    <div class="outcome-opt" data-val="interested" onclick="selectOutcome(this)" style="--oc:#15803d">
-      <span class="oc-icon">👍</span>
-      <span class="oc-label" data-i18n="outcome_interested">Interested</span>
-    </div>
-    <div class="outcome-opt" data-val="callback" onclick="selectOutcome(this)" style="--oc:#2E75B6">
-      <span class="oc-icon">📞</span>
-      <span class="oc-label" data-i18n="outcome_callback">Call Back</span>
-    </div>
-    <div class="outcome-opt" data-val="not_home" onclick="selectOutcome(this)" style="--oc:#E07B00">
-      <span class="oc-icon">🚪</span>
-      <span class="oc-label" data-i18n="outcome_not_home">Not Home</span>
-    </div>
-    <div class="outcome-opt" data-val="rejected" onclick="selectOutcome(this)" style="--oc:#b91c1c">
-      <span class="oc-icon">❌</span>
-      <span class="oc-label" data-i18n="outcome_rejected">Rejected</span>
-    </div>
-    <div class="outcome-opt" data-val="registered" onclick="selectOutcome(this)" style="--oc:#7c3aed">
-      <span class="oc-icon">📝</span>
-      <span class="oc-label" data-i18n="outcome_registered">Registered!</span>
-    </div>
-    <div class="outcome-opt" data-val="follow_up" onclick="selectOutcome(this)" style="--oc:#be185d">
-      <span class="oc-icon">📅</span>
-      <span class="oc-label" data-i18n="outcome_follow_up">Follow Up</span>
-    </div>
-  </div>
-  <input type="hidden" name="outcome" id="outcomeInput" required>
-
-  <!-- FOLLOW-UP DATE -->
-  <div id="followupRow" style="display:none;margin-top:10px;background:#fce7f3;
-       border-radius:14px;padding:14px 16px;border-left:4px solid #be185d">
-    <div style="font-size:13px;font-weight:800;color:#be185d;margin-bottom:8px"
-         data-i18n="checkin_followup_q">📅 When to follow up?</div>
-    <input type="date" name="follow_up_date" class="m-form-control" id="followupDate"
-           style="font-size:15px;padding:12px 14px;background:white">
-  </div>
-
-  <!-- VOICE CHECK-IN -->
+  <!-- VOICE CHECK-IN (moved before outcome grid) -->
   <div class="voice-bar" id="voiceBar">
-    <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:8px;letter-spacing:.03em">
-      🎙 VOICE CHECK-IN
+    <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:4px;letter-spacing:.03em">
+      🎙 VOICE CHECK-IN <span style="font-size:10px;font-weight:700;color:#15803d;background:#f0fdf4;
+        border:1px solid #86efac;border-radius:20px;padding:1px 7px;margin-left:4px">Recommended</span>
     </div>
     <div style="font-size:10px;color:#a5b4fc;margin-bottom:10px;line-height:1.5">
+      Tap mic → speak → see written transcript → apply<br>
       Speak in <strong style="color:#6366f1">Tagalog · English · Bisaya · Chinese</strong> or mixed
     </div>
     <button type="button" class="voice-mic-btn" id="voiceMicBtn" onclick="toggleRecording()">
@@ -222,8 +191,9 @@
       <div style="display:flex;gap:8px;margin-top:10px">
         <button type="button" onclick="sendAudioFromPreview()"
                 style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
-                       padding:10px;font-size:13px;font-weight:800;cursor:pointer">
-          🤖 Send to Maria
+                       padding:10px;font-size:13px;font-weight:800;cursor:pointer;
+                       box-shadow:0 4px 14px rgba(67,56,202,0.35)">
+          🤖 Send to Maria → See Transcript
         </button>
         <button type="button" onclick="redoRecording()"
                 style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
@@ -235,7 +205,8 @@
 
     <!-- TYPEWRITER PANEL — shown right after transcription, before user confirms -->
     <div id="voiceTypewriterBox" style="display:none;margin-top:12px;background:#f5f3ff;
-         border:1.5px solid #a5b4fc;border-radius:14px;padding:14px;text-align:left">
+         border:2.5px solid #4338ca;border-radius:14px;padding:14px;text-align:left;
+         animation:pop-in 0.3s ease">
       <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:8px;
                   display:flex;align-items:center;gap:6px">
         <span style="font-size:16px">🧠</span> Maria heard this:
@@ -245,9 +216,9 @@
       </div>
       <div id="voiceTypewriterText"
            onclick="skipTypewriter()"
-           style="font-size:13px;color:#1e1b4b;font-style:italic;line-height:1.6;
+           style="font-size:15px;color:#1e1b4b;font-style:italic;line-height:1.6;
                   background:white;border-radius:10px;padding:10px 12px;
-                  min-height:48px;border:1px solid #c7d2fe;word-break:break-word;
+                  min-height:60px;border:1px solid #c7d2fe;word-break:break-word;
                   cursor:pointer;-webkit-tap-highlight-color:rgba(99,102,241,0.1)">
       </div>
       <div style="font-size:11px;color:#6366f1;margin:10px 0 8px;font-weight:700"
@@ -356,6 +327,52 @@
       </div>
     </div>
   </div>
+
+  <!-- OR TAP AN OUTCOME divider -->
+  <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px">
+    <div style="flex:1;height:1px;background:#e0e7ff"></div>
+    <div style="font-size:10px;font-weight:800;color:#9aabc5;letter-spacing:.07em;
+                white-space:nowrap">OR TAP AN OUTCOME</div>
+    <div style="flex:1;height:1px;background:#e0e7ff"></div>
+  </div>
+
+  <div class="outcome-grid">
+    <div class="outcome-opt" data-val="interested" onclick="selectOutcome(this)" style="--oc:#15803d">
+      <span class="oc-icon">👍</span>
+      <span class="oc-label" data-i18n="outcome_interested">Interested</span>
+    </div>
+    <div class="outcome-opt" data-val="callback" onclick="selectOutcome(this)" style="--oc:#2E75B6">
+      <span class="oc-icon">📞</span>
+      <span class="oc-label" data-i18n="outcome_callback">Call Back</span>
+    </div>
+    <div class="outcome-opt" data-val="not_home" onclick="selectOutcome(this)" style="--oc:#E07B00">
+      <span class="oc-icon">🚪</span>
+      <span class="oc-label" data-i18n="outcome_not_home">Not Home</span>
+    </div>
+    <div class="outcome-opt" data-val="rejected" onclick="selectOutcome(this)" style="--oc:#b91c1c">
+      <span class="oc-icon">❌</span>
+      <span class="oc-label" data-i18n="outcome_rejected">Rejected</span>
+    </div>
+    <div class="outcome-opt" data-val="registered" onclick="selectOutcome(this)" style="--oc:#7c3aed">
+      <span class="oc-icon">📝</span>
+      <span class="oc-label" data-i18n="outcome_registered">Registered!</span>
+    </div>
+    <div class="outcome-opt" data-val="follow_up" onclick="selectOutcome(this)" style="--oc:#be185d">
+      <span class="oc-icon">📅</span>
+      <span class="oc-label" data-i18n="outcome_follow_up">Follow Up</span>
+    </div>
+  </div>
+  <input type="hidden" name="outcome" id="outcomeInput">
+
+  <!-- FOLLOW-UP DATE -->
+  <div id="followupRow" style="display:none;margin-top:10px;background:#fce7f3;
+       border-radius:14px;padding:14px 16px;border-left:4px solid #be185d">
+    <div style="font-size:13px;font-weight:800;color:#be185d;margin-bottom:8px"
+         data-i18n="checkin_followup_q">📅 When to follow up?</div>
+    <input type="date" name="follow_up_date" class="m-form-control" id="followupDate"
+           style="font-size:15px;padding:12px 14px;background:white">
+  </div>
+
 
   <!-- STEP 4: PHOTOS -->
   <div class="step-label" style="margin-top:20px">
@@ -627,9 +644,12 @@ function selectOutcome(el) {
   validateForm();
 }
 
+let _voiceApplied = false;
+
 function validateForm() {
-  const ok = document.getElementById('outcomeInput').value &&
-             document.getElementById('leadSelect').value;
+  const hasLead = !!document.getElementById('leadSelect').value;
+  const hasOutcome = !!document.getElementById('outcomeInput').value;
+  const ok = hasLead && hasOutcome;
   const btn = document.getElementById('submitBtn');
   const hint = document.getElementById('hintText');
   btn.disabled = !ok;
@@ -638,6 +658,10 @@ function validateForm() {
   if (ok) {
     hint.textContent = t('checkin_ready');
     hint.style.color = '#15803d';
+    hint.style.fontWeight = '700';
+  } else if (_voiceApplied && hasLead && !hasOutcome) {
+    hint.textContent = "⚠️ Maria wasn't sure of the outcome — please tap one above";
+    hint.style.color = '#d97706';
     hint.style.fontWeight = '700';
   } else {
     hint.textContent = t('checkin_hint');
@@ -885,6 +909,8 @@ function showPlayback(mimeType, stream) {
   document.getElementById('voiceMicBtn').textContent = '🎙';
   document.getElementById('voiceStatus').textContent = '✅ Recording ready — listen or send';
   document.getElementById('voiceHint').textContent = 'Play it back to confirm, then tap Send to Maria';
+  const pbBox = document.getElementById('voicePlaybackBox');
+  setTimeout(() => pbBox.scrollIntoView({behavior:'smooth',block:'center'}), 100);
 }
 
 function sendAudioFromPreview() {
@@ -895,7 +921,7 @@ function sendAudioFromPreview() {
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
   document.getElementById('voiceMicBtn').textContent = '⏳';
   document.getElementById('voiceMicBtn').disabled = true;
-  document.getElementById('voiceStatus').textContent = 'Transcribing…';
+  document.getElementById('voiceStatus').textContent = 'Transcribing… written text coming soon';
   document.getElementById('voiceHint').textContent = 'Maria is listening…';
   sendAudio(pendingMime, pendingStream).catch(err => {
     document.getElementById('voiceStatus').textContent = '❌ ' + (err.message || 'Failed to send — please try again');
@@ -1034,7 +1060,11 @@ async function sendAudio(mimeType, stream) {
     cb.style.opacity = '0.6';
     cb.style.cursor = 'not-allowed';
     document.getElementById('voiceTypingIndicator').textContent = 'tap text to skip →';
-    document.getElementById('voiceTypewriterBox').style.display = 'block';
+    document.getElementById('voiceStatus').textContent = '🧠 Written transcript ready — read below!';
+    document.getElementById('voiceHint').textContent = '';
+    const twBox = document.getElementById('voiceTypewriterBox');
+    twBox.style.display = 'block';
+    setTimeout(() => twBox.scrollIntoView({behavior:'smooth',block:'center'}), 80);
     typewriterEffect('voiceTypewriterText', data.text, null);
     return; // wait for confirmTranscript() to call showVoiceResult()
   } catch (err) {
@@ -1221,6 +1251,7 @@ function applyVoice() {
   document.getElementById('voiceStatus').textContent = '✅ Applied to form!';
   document.getElementById('voiceHint').textContent = 'All fields filled — review and submit';
   document.getElementById('step5num') && (document.getElementById('step5num').className = 'step-num done');
+  _voiceApplied = true;
   validateForm();
 }
 
@@ -1241,6 +1272,7 @@ function clearVoice() {
   document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
   document.getElementById('voiceApplyBtn').textContent = '✅ Apply to Form';
   document.getElementById('voiceApplyBtn').style.background = '#4338ca';
+  _voiceApplied = false;
 }
 </script>
 {% endblock %}
