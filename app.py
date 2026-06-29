@@ -158,10 +158,16 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
-    # Add can_scout to users table
+    # Add can_scout and scout_view to users table
     with db.engine.connect() as _conn:
         try:
             _conn.execute(text("ALTER TABLE users ADD COLUMN can_scout BOOLEAN DEFAULT FALSE"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE users ADD COLUMN scout_view VARCHAR(20) DEFAULT 'both'"))
             _conn.commit()
         except Exception:
             _conn.rollback()
@@ -1133,6 +1139,44 @@ def api_prospect_scout():
                 })
         except Exception:
             continue
+
+    # Classify each result as 'official' or 'reseller' based on signals
+    _OFFICIAL_SIGS = {'official', 'corp', 'inc', 'incorporated', 'importer', 'importing',
+                      'warehouse', 'distribution center', 'distributor', 'authorized dealer',
+                      'authorized distributor', 'brand', 'manufacturer', 'factory', 'head office',
+                      'main office', 'principal'}
+    _RESELLER_SIGS = {'reseller', 'resell', 'trading', 'sari-sari', 'sari sari', 'mini store',
+                      'tiangge', 'ukay', 'ref', 'online shop', 'online seller', 'online store',
+                      'local distributor', 'sub-dealer', 'sub dealer', 'sideline', 'palengke'}
+
+    def _classify(r):
+        text = (r['shop_name'] + ' ' + r['snippet']).lower()
+        tags_text = ' '.join(r.get('rrld_tags', [])).lower()
+        combined = text + ' ' + tags_text
+        off_score = sum(1 for s in _OFFICIAL_SIGS if s in combined)
+        res_score = sum(1 for s in _RESELLER_SIGS if s in combined)
+        # RRLD platform with high score → official
+        if r['platform'] == 'rrld' and r['rrld_score'] >= 30:
+            off_score += 2
+        # Store type hints
+        st = r.get('store_type', '')
+        if st in ('distributor', 'manufacturer'):
+            off_score += 2
+        if st in ('sari_sari', 'reseller', 'retailer'):
+            res_score += 2
+        if off_score > res_score:
+            return 'official'
+        if res_score > off_score:
+            return 'reseller'
+        return 'both'  # ambiguous — show to everyone
+
+    for r in results:
+        r['seller_tier'] = _classify(r)
+
+    # Filter results by user's scout_view permission
+    scout_view = getattr(current_user, 'scout_view', 'both') or 'both'
+    if not current_user.is_supervisor and scout_view != 'both':
+        results = [r for r in results if r['seller_tier'] == scout_view or r['seller_tier'] == 'both']
 
     results.sort(key=lambda x: (-x['rrld_score'], x['shop_name']))
 
@@ -5767,6 +5811,7 @@ def admin_new_user():
                 u.assigned_city = request.form.get('assigned_city', '').strip() or None
             if role in ('gabay', 'lazada'):
                 u.can_scout = 'can_scout' in request.form
+                u.scout_view = request.form.get('scout_view', 'both')
             db.session.add(u)
             db.session.commit()
             flash(f'User {full_name} ({role}) created.', 'success')
@@ -5793,8 +5838,10 @@ def admin_edit_user(user_id):
             u.assigned_city = None
         if u.role in ('gabay', 'lazada'):
             u.can_scout = 'can_scout' in request.form
+            u.scout_view = request.form.get('scout_view', 'both')
         else:
             u.can_scout = False
+            u.scout_view = 'both'
         new_pw = request.form.get('password', '').strip()
         if new_pw:
             u.set_password(new_pw)

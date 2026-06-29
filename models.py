@@ -46,7 +46,8 @@ class User(UserMixin, db.Model):
     gabay_name = db.Column(db.String(100))
 
     # Permission: allow this Gabay to use Prospect Scout (superadmin/admin toggle)
-    can_scout = db.Column(db.Boolean, default=False)
+    can_scout  = db.Column(db.Boolean, default=False)
+    scout_view = db.Column(db.String(20), default='both')  # both | official | resellers
 
     # Profile
     profile_photo = db.Column(db.String(200))

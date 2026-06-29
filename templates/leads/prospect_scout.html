@@ -533,6 +533,19 @@ function renderResults() {
     const rrldBadge = r.is_rrld
       ? `<span class="platform-badge badge-rrld"><i class="bi bi-gem me-1"></i>RRLD</span>` : '';
 
+    // Seller tier badge
+    const tierBadge = r.seller_tier === 'official'
+      ? `<span style="background:#dbeafe;color:#1d4ed8;border-radius:20px;padding:2px 8px;
+                      font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:3px">
+           <i class="bi bi-building"></i> Official
+         </span>`
+      : r.seller_tier === 'reseller'
+      ? `<span style="background:#fce7f3;color:#be185d;border-radius:20px;padding:2px 8px;
+                      font-size:10px;font-weight:800;display:inline-flex;align-items:center;gap:3px">
+           <i class="bi bi-shop"></i> Reseller
+         </span>`
+      : '';
+
     // Lazada status badge
     let lazBadge = '';
     if (r.lazada_status === 'not_on_lazada') {
@@ -616,6 +629,7 @@ function renderResults() {
             <span class="fw-bold" style="font-size:14px;color:#1A1A2E">${escH(r.shop_name)}</span>
             <span class="platform-badge ${pClass}">${pLabel}</span>
             ${rrldBadge}
+            ${tierBadge}
             ${lazBadge}
             ${systemTag}
           </div>
