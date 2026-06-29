@@ -507,7 +507,7 @@
     <i class="bi bi-broadcast" style="color:var(--lz-orange)"></i> Radar
   </a>
   {% endif %}
-  {% if current_user.is_supervisor or current_user.can_scout %}
+  {% if current_user.is_supervisor or current_user.is_lazada or current_user.can_scout %}
   <a href="{{ url_for('prospect_scout') }}" class="nav-link {% if request.endpoint == 'prospect_scout' %}active-purple{% endif %}"
      style="background:{% if request.endpoint == 'prospect_scout' %}var(--lz-purple-light){% else %}transparent{% endif %}">
     <i class="bi bi-radar" style="color:#7c3aed"></i>
