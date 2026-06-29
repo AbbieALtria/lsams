@@ -5870,6 +5870,20 @@ def gabay_quick_checkin():
         if lead:
             if new_status:
                 lead.status = new_status
+            # ── Compute suggested next visit from outcome ─────────────────
+            _today = (datetime.utcnow() + timedelta(hours=8)).date()
+            _fup = follow_up_date
+            _next_map = {
+                'interested':    _fup or (_today + timedelta(days=3)),
+                'callback':      _fup or (_today + timedelta(days=2)),
+                'follow_up':     _fup or (_today + timedelta(days=5)),
+                'not_interested': _today + timedelta(days=14),
+                'not_home':      _today + timedelta(days=2),
+                'rejected':      _today + timedelta(days=30),
+                'registered':    _today + timedelta(days=7),
+            }
+            if outcome and outcome in _next_map:
+                lead.suggested_next_visit = _next_map[outcome]
             # ── Competitor visit alert ────────────────────────────────────
             if lead.project:
                 supervisors = User.query.filter(
@@ -5979,8 +5993,22 @@ def gabay_offline_sync():
         )
         db.session.add(visit)
         lead = Lead.query.get(lead_id)
-        if lead and new_status:
-            lead.status = new_status
+        if lead:
+            if new_status:
+                lead.status = new_status
+            _today = (datetime.utcnow() + timedelta(hours=8)).date()
+            _fup = follow_up_date
+            _next_map = {
+                'interested':    _fup or (_today + timedelta(days=3)),
+                'callback':      _fup or (_today + timedelta(days=2)),
+                'follow_up':     _fup or (_today + timedelta(days=5)),
+                'not_interested': _today + timedelta(days=14),
+                'not_home':      _today + timedelta(days=2),
+                'rejected':      _today + timedelta(days=30),
+                'registered':    _today + timedelta(days=7),
+            }
+            if outcome and outcome in _next_map:
+                lead.suggested_next_visit = _next_map[outcome]
         db.session.commit()
         return jsonify({'ok': True, 'visit_id': visit.id})
     except Exception as ex:
