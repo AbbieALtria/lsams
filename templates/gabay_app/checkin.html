@@ -61,6 +61,10 @@
     0%,100% { box-shadow: 0 0 0 0 rgba(220,38,38,0.5); }
     50% { box-shadow: 0 0 0 14px rgba(220,38,38,0); }
   }
+  @keyframes pop-in {
+    0%   { opacity:0; transform:scale(0.95) translateY(6px); }
+    100% { opacity:1; transform:scale(1) translateY(0); }
+  }
   .voice-result-box {
     background: white; border-radius: 12px; border: 1.5px solid #c7d2fe;
     padding: 12px 14px; margin-top: 10px; text-align: left;
@@ -155,51 +159,19 @@
     <div class="step-num" id="step3num">3</div>
     <div>
       <div data-i18n="checkin_step3">What happened?</div>
-      <div style="font-size:12px;font-weight:400;color:#9aabc5" data-i18n="checkin_step3_sub">Select the visit outcome</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5">
+        🎙 Use <strong style="color:#4338ca">Voice</strong> below — or tap an outcome
+      </div>
     </div>
   </div>
 
-  <div class="outcome-grid">
-    <div class="outcome-opt" data-val="interested" onclick="selectOutcome(this)" style="--oc:#15803d">
-      <span class="oc-icon">👍</span>
-      <span class="oc-label" data-i18n="outcome_interested">Interested</span>
-    </div>
-    <div class="outcome-opt" data-val="callback" onclick="selectOutcome(this)" style="--oc:#2E75B6">
-      <span class="oc-icon">📞</span>
-      <span class="oc-label" data-i18n="outcome_callback">Call Back</span>
-    </div>
-    <div class="outcome-opt" data-val="not_home" onclick="selectOutcome(this)" style="--oc:#E07B00">
-      <span class="oc-icon">🚪</span>
-      <span class="oc-label" data-i18n="outcome_not_home">Not Home</span>
-    </div>
-    <div class="outcome-opt" data-val="rejected" onclick="selectOutcome(this)" style="--oc:#b91c1c">
-      <span class="oc-icon">❌</span>
-      <span class="oc-label" data-i18n="outcome_rejected">Rejected</span>
-    </div>
-    <div class="outcome-opt" data-val="registered" onclick="selectOutcome(this)" style="--oc:#7c3aed">
-      <span class="oc-icon">📝</span>
-      <span class="oc-label" data-i18n="outcome_registered">Registered!</span>
-    </div>
-    <div class="outcome-opt" data-val="follow_up" onclick="selectOutcome(this)" style="--oc:#be185d">
-      <span class="oc-icon">📅</span>
-      <span class="oc-label" data-i18n="outcome_follow_up">Follow Up</span>
-    </div>
-  </div>
-  <input type="hidden" name="outcome" id="outcomeInput" required>
-
-  <!-- FOLLOW-UP DATE -->
-  <div id="followupRow" style="display:none;margin-top:10px;background:#fce7f3;
-       border-radius:14px;padding:14px 16px;border-left:4px solid #be185d">
-    <div style="font-size:13px;font-weight:800;color:#be185d;margin-bottom:8px"
-         data-i18n="checkin_followup_q">📅 When to follow up?</div>
-    <input type="date" name="follow_up_date" class="m-form-control" id="followupDate"
-           style="font-size:15px;padding:12px 14px;background:white">
-  </div>
-
-  <!-- VOICE CHECK-IN -->
+  <!-- VOICE CHECK-IN — primary method, shown first -->
   <div class="voice-bar" id="voiceBar">
-    <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:8px;letter-spacing:.03em">
-      🎙 VOICE CHECK-IN
+    <div style="font-size:13px;font-weight:800;color:#4338ca;margin-bottom:4px;letter-spacing:.03em">
+      🎙 VOICE CHECK-IN <span style="font-size:10px;font-weight:600;color:#6366f1">(Recommended)</span>
+    </div>
+    <div style="font-size:11px;color:#6366f1;margin-bottom:6px;font-weight:600">
+      Tap mic → speak → see written transcript → apply
     </div>
     <div style="font-size:10px;color:#a5b4fc;margin-bottom:10px;line-height:1.5">
       Speak in <strong style="color:#6366f1">Tagalog · English · Bisaya · Chinese</strong> or mixed
@@ -212,13 +184,74 @@
       Say seller name, what happened, and any follow-up
     </div>
 
+    <!-- PLAYBACK PREVIEW — shown after recording stops, before sending to AI -->
+    <div id="voicePlaybackBox" style="display:none;margin-top:12px;background:#f0f4ff;
+         border:1.5px solid #c7d2fe;border-radius:12px;padding:12px">
+      <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:6px">
+        ✅ Recording captured — <span id="voiceDuration"></span>
+      </div>
+      <audio id="voiceAudioPlayer" controls style="width:100%;height:36px;border-radius:8px;outline:none"></audio>
+      <div style="display:flex;gap:8px;margin-top:10px">
+        <button type="button" onclick="sendAudioFromPreview()"
+                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                       padding:12px;font-size:14px;font-weight:800;cursor:pointer;
+                       box-shadow:0 3px 12px rgba(67,56,202,0.4)">
+          🤖 Send to Maria → See Transcript
+        </button>
+        <button type="button" onclick="redoRecording()"
+                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                       border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
+          🔄 Redo
+        </button>
+      </div>
+    </div>
+
+    <!-- TYPEWRITER PANEL — shown right after transcription, before user confirms -->
+    <div id="voiceTypewriterBox" style="display:none;margin-top:12px;background:#f5f3ff;
+         border:2.5px solid #6366f1;border-radius:14px;padding:16px;text-align:left;
+         animation:pop-in 0.3s ease">
+      <div style="font-size:13px;font-weight:800;color:#4338ca;margin-bottom:8px;
+                  display:flex;align-items:center;gap:6px">
+        <span style="font-size:20px">🧠</span>
+        <span>Maria heard this — check it's correct:</span>
+        <span id="voiceTypingIndicator" style="font-size:10px;color:#a5b4fc;font-weight:400;margin-left:auto">
+          tap text to skip →
+        </span>
+      </div>
+      <div id="voiceTypewriterText"
+           onclick="skipTypewriter()"
+           style="font-size:15px;color:#1e1b4b;font-style:italic;line-height:1.7;
+                  background:white;border-radius:10px;padding:12px 14px;
+                  min-height:60px;border:2px solid #c7d2fe;word-break:break-word;
+                  cursor:pointer;-webkit-tap-highlight-color:rgba(99,102,241,0.1)">
+      </div>
+      <div style="font-size:12px;color:#6366f1;margin:10px 0 8px;font-weight:700"
+           id="voiceConfirmQuestion">Is this what you said?</div>
+      <div style="display:flex;gap:8px">
+        <button type="button" onclick="confirmTranscript()" id="voiceConfirmBtn"
+                style="flex:2;background:#9ca3af;color:white;border:none;border-radius:10px;
+                       padding:13px;font-size:14px;font-weight:800;cursor:not-allowed;
+                       opacity:0.6;transition:all 0.3s"
+                disabled>
+          ⏳ Reading…
+        </button>
+        <button type="button" onclick="redoFromTypewriter()"
+                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                       border-radius:10px;padding:11px;font-size:12px;font-weight:700;cursor:pointer">
+          🔄 Redo
+        </button>
+      </div>
+    </div>
+
     <!-- AI RESULT CARD -->
     <div class="voice-result-box" id="voiceResultBox" style="display:none">
-      <!-- Transcript -->
-      <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:4px;
-                  text-transform:uppercase;letter-spacing:.05em">🎙 What I heard:</div>
-      <div id="voiceTranscript" style="font-size:12px;color:#374151;font-style:italic;
-           margin-bottom:10px;line-height:1.5;padding:8px;background:#f8fafd;border-radius:8px"></div>
+      <!-- Transcript (compact, already confirmed) -->
+      <div style="background:#f5f3ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;
+                  display:flex;gap:8px;align-items:flex-start">
+        <span style="font-size:13px;flex-shrink:0">🧠</span>
+        <div id="voiceTranscript" style="font-size:11px;color:#4338ca;font-style:italic;
+             line-height:1.5;flex:1"></div>
+      </div>
 
       <!-- Seller match -->
       <div id="voiceSellerSection" style="display:none;margin-bottom:10px">
@@ -259,7 +292,7 @@
       </div>
 
       <!-- Action buttons -->
-      <div style="display:flex;gap:8px">
+      <div style="display:flex;gap:8px" id="voiceActionBtns">
         <button type="button" onclick="applyVoice()" id="voiceApplyBtn"
                 style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
                        padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer">
@@ -271,7 +304,76 @@
           🔄 Redo
         </button>
       </div>
+
+      <!-- COMPLETION BANNER — shown after Apply is tapped -->
+      <div id="voiceAppliedBanner" style="display:none;margin-top:12px;
+           background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+           border:2px solid #15803d;border-radius:12px;padding:14px;text-align:center">
+        <div style="font-size:26px;margin-bottom:6px">✅</div>
+        <div style="font-size:14px;font-weight:800;color:#14532d;margin-bottom:4px">
+          Form Updated!
+        </div>
+        <div style="font-size:12px;color:#166534;line-height:1.5;margin-bottom:10px">
+          Seller information has been filled in below.<br>
+          Review and tap <strong>Submit Check-In</strong> when ready.
+        </div>
+        <div id="voiceAppliedOfflineNote" style="display:none;background:#fef3c7;
+             border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;
+             border-left:3px solid #d97706;text-align:left">
+          📵 <strong>You're offline</strong> — no problem. Your check-in will be saved on your phone
+          and seller info will sync to LSAMS automatically when you have internet.
+        </div>
+        <div id="voiceAppliedOnlineNote" style="display:none;background:#e0f2fe;
+             border-radius:8px;padding:8px 10px;font-size:11px;color:#0369a1;
+             border-left:3px solid #0284c7;text-align:left;margin-top:6px">
+          🌐 <strong>Connected</strong> — seller info will update immediately when you submit.
+        </div>
+      </div>
     </div>
+  </div>
+
+  <!-- Outcome grid — alternative to voice -->
+  <div style="display:flex;align-items:center;gap:10px;margin:12px 0 10px">
+    <div style="flex:1;height:1px;background:#E0E6EF"></div>
+    <div style="font-size:11px;font-weight:800;color:#9aabc5;letter-spacing:.04em;white-space:nowrap">OR TAP AN OUTCOME</div>
+    <div style="flex:1;height:1px;background:#E0E6EF"></div>
+  </div>
+
+  <div class="outcome-grid">
+    <div class="outcome-opt" data-val="interested" onclick="selectOutcome(this)" style="--oc:#15803d">
+      <span class="oc-icon">👍</span>
+      <span class="oc-label" data-i18n="outcome_interested">Interested</span>
+    </div>
+    <div class="outcome-opt" data-val="callback" onclick="selectOutcome(this)" style="--oc:#2E75B6">
+      <span class="oc-icon">📞</span>
+      <span class="oc-label" data-i18n="outcome_callback">Call Back</span>
+    </div>
+    <div class="outcome-opt" data-val="not_home" onclick="selectOutcome(this)" style="--oc:#E07B00">
+      <span class="oc-icon">🚪</span>
+      <span class="oc-label" data-i18n="outcome_not_home">Not Home</span>
+    </div>
+    <div class="outcome-opt" data-val="rejected" onclick="selectOutcome(this)" style="--oc:#b91c1c">
+      <span class="oc-icon">❌</span>
+      <span class="oc-label" data-i18n="outcome_rejected">Rejected</span>
+    </div>
+    <div class="outcome-opt" data-val="registered" onclick="selectOutcome(this)" style="--oc:#7c3aed">
+      <span class="oc-icon">📝</span>
+      <span class="oc-label" data-i18n="outcome_registered">Registered!</span>
+    </div>
+    <div class="outcome-opt" data-val="follow_up" onclick="selectOutcome(this)" style="--oc:#be185d">
+      <span class="oc-icon">📅</span>
+      <span class="oc-label" data-i18n="outcome_follow_up">Follow Up</span>
+    </div>
+  </div>
+  <input type="hidden" name="outcome" id="outcomeInput">
+
+  <!-- FOLLOW-UP DATE -->
+  <div id="followupRow" style="display:none;margin-top:10px;background:#fce7f3;
+       border-radius:14px;padding:14px 16px;border-left:4px solid #be185d">
+    <div style="font-size:13px;font-weight:800;color:#be185d;margin-bottom:8px"
+         data-i18n="checkin_followup_q">📅 When to follow up?</div>
+    <input type="date" name="follow_up_date" class="m-form-control" id="followupDate"
+           style="font-size:15px;padding:12px 14px;background:white">
   </div>
 
   <!-- STEP 4: PHOTOS -->
@@ -484,7 +586,10 @@ window.addEventListener('DOMContentLoaded', () => {
   if (navigator.geolocation && !document.getElementById('gps_lat').value) {
     setTimeout(getLocation, 600);
   }
+  updateVoiceOfflineState();
 });
+window.addEventListener('online',  updateVoiceOfflineState);
+window.addEventListener('offline', updateVoiceOfflineState);
 
 function getLocation() {
   const btn = document.getElementById('gpsBtn');
@@ -542,8 +647,11 @@ function selectOutcome(el) {
 }
 
 function validateForm() {
-  const ok = document.getElementById('outcomeInput').value &&
-             document.getElementById('leadSelect').value;
+  const hasLead    = !!document.getElementById('leadSelect').value;
+  const hasOutcome = !!document.getElementById('outcomeInput').value;
+  // Allow submit if voice was applied (outcome filled by Maria) even without manual tap
+  const voiceApplied = document.getElementById('voiceAppliedBanner').style.display !== 'none';
+  const ok = hasLead && (hasOutcome || voiceApplied);
   const btn = document.getElementById('submitBtn');
   const hint = document.getElementById('hintText');
   btn.disabled = !ok;
@@ -685,7 +793,27 @@ const OUTCOME_LABELS = {
   rejected:     { label: 'Rejected',    color: '#991b1b', bg: '#fee2e2' },
 };
 
+function updateVoiceOfflineState() {
+  if (!navigator.onLine) {
+    document.getElementById('voiceMicBtn').disabled = true;
+    document.getElementById('voiceMicBtn').style.opacity = '0.4';
+    document.getElementById('voiceStatus').textContent = 'Needs internet connection';
+    document.getElementById('voiceHint').textContent = 'Voice check-in is unavailable offline — fill the form manually';
+  } else {
+    document.getElementById('voiceMicBtn').disabled = false;
+    document.getElementById('voiceMicBtn').style.opacity = '1';
+    if (!isRecording) {
+      document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
+      document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
+    }
+  }
+}
+
 async function toggleRecording() {
+  if (!navigator.onLine) {
+    updateVoiceOfflineState();
+    return;
+  }
   if (isRecording) {
     stopRecording();
   } else {
@@ -693,26 +821,60 @@ async function toggleRecording() {
   }
 }
 
+let recSeconds = 0;
+let recTimer = null;
+let pendingMime = null;
+let pendingStream = null;
+
 async function startRecording() {
   try {
     const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
     audioChunks = [];
+    pendingStream = stream;
 
     const mimeType = MediaRecorder.isTypeSupported('audio/webm') ? 'audio/webm'
                    : MediaRecorder.isTypeSupported('audio/mp4')  ? 'audio/mp4'
                    : 'audio/ogg';
+    pendingMime = mimeType;
 
     mediaRecorder = new MediaRecorder(stream, { mimeType });
     mediaRecorder.addEventListener('dataavailable', e => { if (e.data.size > 0) audioChunks.push(e.data); });
-    mediaRecorder.addEventListener('stop', () => sendAudio(mimeType, stream));
+    mediaRecorder.addEventListener('stop', () => showPlayback(mimeType, stream));
     mediaRecorder.start();
     isRecording = true;
 
+    // Duration counter
+    recSeconds = 0;
+    recTimer = setInterval(() => {
+      recSeconds++;
+      document.getElementById('voiceStatus').textContent = `🔴 Recording… ${recSeconds}s — tap to stop`;
+    }, 1000);
+
+    // Live pulse from mic level
+    try {
+      const ctx = new AudioContext();
+      const src = ctx.createMediaStreamSource(stream);
+      const analyser = ctx.createAnalyser();
+      analyser.fftSize = 32;
+      src.connect(analyser);
+      const buf = new Uint8Array(analyser.frequencyBinCount);
+      const btn = document.getElementById('voiceMicBtn');
+      function pulse() {
+        if (!isRecording) { btn.style.transform = 'scale(1)'; return; }
+        analyser.getByteFrequencyData(buf);
+        const avg = buf.reduce((a, b) => a + b, 0) / buf.length;
+        btn.style.transform = `scale(${1 + (avg / 255) * 0.35})`;
+        requestAnimationFrame(pulse);
+      }
+      pulse();
+    } catch (e) { /* AudioContext not available — skip pulse */ }
+
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn recording';
     document.getElementById('voiceMicBtn').textContent = '⏹';
-    document.getElementById('voiceStatus').textContent = 'Recording… tap to stop';
+    document.getElementById('voiceStatus').textContent = '🔴 Recording… 0s — tap to stop';
     document.getElementById('voiceHint').textContent = 'Speak clearly — say the outcome and any notes';
     document.getElementById('voiceResultBox').style.display = 'none';
+    document.getElementById('voicePlaybackBox').style.display = 'none';
   } catch (err) {
     document.getElementById('voiceStatus').textContent = 'Microphone access denied';
     document.getElementById('voiceHint').textContent = 'Please allow microphone in browser settings';
@@ -721,13 +883,123 @@ async function startRecording() {
 
 function stopRecording() {
   if (mediaRecorder && isRecording) {
+    clearInterval(recTimer);
     mediaRecorder.stop();
     isRecording = false;
+    document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
     document.getElementById('voiceMicBtn').textContent = '⏳';
-    document.getElementById('voiceStatus').textContent = 'Transcribing…';
-    document.getElementById('voiceHint').textContent = 'This takes a few seconds';
+    document.getElementById('voiceMicBtn').disabled = true;
+    document.getElementById('voiceStatus').textContent = 'Processing recording…';
+    document.getElementById('voiceHint').textContent = '';
   }
+}
+
+function showPlayback(mimeType, stream) {
+  const blob = new Blob(audioChunks, { type: mimeType });
+  const url = URL.createObjectURL(blob);
+  const player = document.getElementById('voiceAudioPlayer');
+  player.src = url;
+  document.getElementById('voiceDuration').textContent = recSeconds + 's recorded';
+  const pbBox = document.getElementById('voicePlaybackBox');
+  pbBox.style.display = 'block';
+  document.getElementById('voiceMicBtn').disabled = false;
+  document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+  document.getElementById('voiceMicBtn').textContent = '🎙';
+  document.getElementById('voiceStatus').textContent = '✅ Recording ready!';
+  document.getElementById('voiceHint').textContent = 'Tap "Send to Maria → See Transcript" to read what you said';
+  setTimeout(() => pbBox.scrollIntoView({ behavior: 'smooth', block: 'center' }), 100);
+}
+
+function sendAudioFromPreview() {
+  document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  document.getElementById('voiceResultBox').style.display = 'none';
+  document.getElementById('voiceAppliedBanner').style.display = 'none';
+  document.getElementById('voiceMicBtn').className = 'voice-mic-btn loading';
+  document.getElementById('voiceMicBtn').textContent = '⏳';
+  document.getElementById('voiceMicBtn').disabled = true;
+  document.getElementById('voiceStatus').textContent = 'Transcribing… written text coming soon';
+  document.getElementById('voiceHint').textContent = 'Maria is converting your voice to text…';
+  sendAudio(pendingMime, pendingStream).catch(err => {
+    document.getElementById('voiceStatus').textContent = '❌ ' + (err.message || 'Failed to send — please try again');
+    document.getElementById('voiceHint').textContent = 'Tap mic to record again';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+  });
+}
+
+// Typewriter effect — types text character by character
+let _twTimer = null;
+let _twFullText = '';
+let _twOnDone = null;
+
+function typewriterEffect(elementId, text, onDone) {
+  const el = document.getElementById(elementId);
+  el.textContent = '';
+  _twFullText = text || '';
+  _twOnDone = onDone;
+  if (_twTimer) clearTimeout(_twTimer);
+  if (!text) { enableConfirmBtn(); if (onDone) onDone(); return; }
+  // Cap total animation to 2.5s max so long texts don't frustrate
+  const speed = Math.max(12, Math.min(40, 2500 / text.length));
+  let i = 0;
+  function next() {
+    if (i < text.length) {
+      el.textContent = text.substring(0, ++i) + '▌';
+      _twTimer = setTimeout(next, speed);
+    } else {
+      el.textContent = text; // remove cursor
+      enableConfirmBtn();
+      if (onDone) setTimeout(onDone, 200);
+    }
+  }
+  next();
+}
+
+function skipTypewriter() {
+  // User tapped the text — jump to end immediately
+  if (_twTimer) { clearTimeout(_twTimer); _twTimer = null; }
+  const el = document.getElementById('voiceTypewriterText');
+  if (_twFullText) el.textContent = _twFullText;
+  enableConfirmBtn();
+}
+
+function enableConfirmBtn() {
+  const btn = document.getElementById('voiceConfirmBtn');
+  const indicator = document.getElementById('voiceTypingIndicator');
+  btn.disabled = false;
+  btn.textContent = '✅ Yes, that\'s correct';
+  btn.style.background = '#4338ca';
+  btn.style.opacity = '1';
+  btn.style.cursor = 'pointer';
+  if (indicator) indicator.textContent = '';
+}
+
+function redoFromTypewriter() {
+  if (_twTimer) { clearTimeout(_twTimer); _twTimer = null; }
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  redoRecording();
+}
+
+function confirmTranscript() {
+  if (!pendingVoiceData) return;
+  if (_twTimer) { clearTimeout(_twTimer); _twTimer = null; }
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  showVoiceResult(pendingVoiceData);
+}
+
+function redoRecording() {
+  if (pendingStream) pendingStream.getTracks().forEach(t => t.stop());
+  audioChunks = [];
+  pendingStream = null;
+  pendingMime = null;
+  const player = document.getElementById('voiceAudioPlayer');
+  if (player.src) { URL.revokeObjectURL(player.src); player.src = ''; }
+  document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
+  document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
 }
 
 const STATUS_LABELS = {
@@ -740,13 +1012,23 @@ const STATUS_LABELS = {
 };
 
 async function sendAudio(mimeType, stream) {
-  stream.getTracks().forEach(t => t.stop());
-  const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
-  const blob = new Blob(audioChunks, { type: mimeType });
-  const fd = new FormData();
-  fd.append('audio', blob, `voice.${ext}`);
-
   try {
+    if (stream) stream.getTracks().forEach(t => t.stop());
+
+    if (!mimeType || audioChunks.length === 0) {
+      document.getElementById('voiceStatus').textContent = '❌ Recording was empty — tap mic to try again';
+      document.getElementById('voiceHint').textContent = '';
+      document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+      document.getElementById('voiceMicBtn').textContent = '🎙';
+      document.getElementById('voiceMicBtn').disabled = false;
+      return;
+    }
+
+    const ext = mimeType.includes('mp4') ? 'mp4' : mimeType.includes('ogg') ? 'ogg' : 'webm';
+    const blob = new Blob(audioChunks, { type: mimeType });
+    const fd = new FormData();
+    fd.append('audio', blob, `voice.${ext}`);
+
     const res = await fetch('/gabay/app/voice-transcribe', { method: 'POST', body: fd });
     const data = await res.json();
 
@@ -755,12 +1037,47 @@ async function sendAudio(mimeType, stream) {
       document.getElementById('voiceHint').textContent = 'Try again or fill the form manually';
       document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
       document.getElementById('voiceMicBtn').textContent = '🎙';
+      document.getElementById('voiceMicBtn').disabled = false;
       return;
     }
 
     pendingVoiceData = data;
 
-    // Transcript
+    // ── Step A: show typewriter transcript, wait for user to confirm ──────
+    document.getElementById('voiceStatus').textContent = '🧠 Written transcript ready — read below!';
+    document.getElementById('voiceHint').textContent = 'Check if this is correct, then tap Yes';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+
+    // Reset confirm button to waiting state before starting typewriter
+    const cb = document.getElementById('voiceConfirmBtn');
+    cb.disabled = true;
+    cb.textContent = '⏳ Reading…';
+    cb.style.background = '#9ca3af';
+    cb.style.opacity = '0.6';
+    cb.style.cursor = 'not-allowed';
+    document.getElementById('voiceTypingIndicator').textContent = 'tap text to skip →';
+    const twBox = document.getElementById('voiceTypewriterBox');
+    twBox.style.display = 'block';
+    setTimeout(() => twBox.scrollIntoView({ behavior: 'smooth', block: 'center' }), 80);
+    typewriterEffect('voiceTypewriterText', data.text, null);
+    return; // wait for confirmTranscript() to call showVoiceResult()
+  } catch (err) {
+    const offlineMsg = !navigator.onLine ? 'No internet — voice unavailable offline' : 'Could not reach server — try again';
+    document.getElementById('voiceStatus').textContent = offlineMsg;
+    document.getElementById('voiceHint').textContent = !navigator.onLine
+      ? 'Fill the form manually — it saves offline automatically'
+      : 'Check connection and tap mic to retry';
+    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
+    document.getElementById('voiceMicBtn').textContent = '🎙';
+    document.getElementById('voiceMicBtn').disabled = false;
+    updateVoiceOfflineState();
+  }
+}
+
+function showVoiceResult(data) {
+    // Transcript (compact confirmed version)
     document.getElementById('voiceTranscript').textContent = '"' + data.text + '"';
 
     // Seller section
@@ -846,17 +1163,11 @@ async function sendAudio(mimeType, stream) {
     document.getElementById('voiceUnclearWarn').style.display = data.unclear ? 'block' : 'none';
 
     document.getElementById('voiceResultBox').style.display = 'block';
-    document.getElementById('voiceStatus').textContent = '🧠 AI understood — review below';
-    document.getElementById('voiceHint').textContent = 'Confirm seller, then tap Apply to Form';
+    document.getElementById('voiceStatus').textContent = '✅ Confirmed — review fields below';
+    document.getElementById('voiceHint').textContent = 'Tap Apply to Form to fill everything in';
     document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
     document.getElementById('voiceMicBtn').textContent = '✅';
-
-  } catch (err) {
-    document.getElementById('voiceStatus').textContent = 'Could not reach server';
-    document.getElementById('voiceHint').textContent = 'Check your connection and try again';
-    document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
-    document.getElementById('voiceMicBtn').textContent = '🎙';
-  }
+    document.getElementById('voiceMicBtn').disabled = false;
 }
 
 function selectVoiceSeller(id, name, el) {
@@ -920,11 +1231,21 @@ function applyVoice() {
   const notesEl = document.querySelector('textarea[name="notes"]');
   if (notesEl && d.notes) notesEl.value = d.notes;
 
-  // Visual confirmation
+  // Hide action buttons, show completion banner
+  document.getElementById('voiceActionBtns').style.display = 'none';
+  const banner = document.getElementById('voiceAppliedBanner');
+  banner.style.display = 'block';
+  if (navigator.onLine) {
+    document.getElementById('voiceAppliedOnlineNote').style.display = 'block';
+    document.getElementById('voiceAppliedOfflineNote').style.display = 'none';
+  } else {
+    document.getElementById('voiceAppliedOfflineNote').style.display = 'block';
+    document.getElementById('voiceAppliedOnlineNote').style.display = 'none';
+  }
+  banner.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
   document.getElementById('voiceStatus').textContent = '✅ Applied to form!';
   document.getElementById('voiceHint').textContent = 'All fields filled — review and submit';
-  document.getElementById('voiceApplyBtn').textContent = '✅ Applied!';
-  document.getElementById('voiceApplyBtn').style.background = '#15803d';
   document.getElementById('step5num') && (document.getElementById('step5num').className = 'step-num done');
   validateForm();
 }
@@ -932,9 +1253,16 @@ function applyVoice() {
 function clearVoice() {
   pendingVoiceData = null;
   audioChunks = [];
+  if (pendingStream) { pendingStream.getTracks().forEach(t => t.stop()); pendingStream = null; }
   document.getElementById('voiceResultBox').style.display = 'none';
+  document.getElementById('voicePlaybackBox').style.display = 'none';
+  document.getElementById('voiceTypewriterBox').style.display = 'none';
+  document.getElementById('voiceAppliedBanner').style.display = 'none';
+  document.getElementById('voiceActionBtns').style.display = 'flex';
   document.getElementById('voiceMicBtn').className = 'voice-mic-btn';
   document.getElementById('voiceMicBtn').textContent = '🎙';
+  document.getElementById('voiceMicBtn').disabled = false;
+  document.getElementById('voiceMicBtn').style.transform = 'scale(1)';
   document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
   document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
   document.getElementById('voiceApplyBtn').textContent = '✅ Apply to Form';
