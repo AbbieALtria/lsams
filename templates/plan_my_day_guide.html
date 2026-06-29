@@ -1,0 +1,483 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>LSAMS — Plan My Day · Field Agent Guide</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: 'Segoe UI', Arial, sans-serif; background: #fff; color: #1a1a2e; font-size: 13px; }
+
+.doc-header {
+  background: linear-gradient(135deg,#7c3aed,#F5225B);
+  color: white; padding: 28px 36px;
+  display: flex; align-items: center; justify-content: space-between;
+}
+.doc-logo { font-size: 22px; font-weight: 900; letter-spacing: 1px; }
+.doc-logo span { color: #f59e0b; }
+.doc-title { font-size: 17px; font-weight: 800; margin-top: 4px; }
+.doc-sub { font-size: 11px; opacity: .7; margin-top: 3px; }
+.doc-meta { text-align: right; font-size: 11px; opacity: .65; }
+
+.print-bar {
+  background: #F8FAFD; border-bottom: 1px solid #E2E8F0;
+  padding: 12px 36px; display: flex; align-items: center; gap: 12px;
+}
+.print-btn {
+  background: linear-gradient(135deg,#7c3aed,#F5225B); color: white;
+  border: none; border-radius: 8px; padding: 9px 22px;
+  font-size: 13px; font-weight: 700; cursor: pointer;
+  display: flex; align-items: center; gap: 8px;
+}
+.print-hint { font-size: 12px; color: #9aabc5; }
+
+/* INTRO BANNER */
+.intro-banner {
+  margin: 24px 36px 0; background: linear-gradient(135deg,#F5F0FF,#FFF0F6);
+  border: 1.5px solid #c4b5fd; border-radius: 14px; padding: 18px 22px;
+  display: flex; align-items: flex-start; gap: 16px;
+}
+.intro-icon { font-size: 42px; line-height: 1; flex-shrink: 0; }
+.intro-text h2 { font-size: 16px; font-weight: 800; color: #7c3aed; margin-bottom: 6px; }
+.intro-text p { font-size: 12px; color: #4a5568; line-height: 1.7; }
+
+/* STEPS SECTION */
+.scenes { padding: 20px 36px 24px; }
+.section-title {
+  font-size: 11px; font-weight: 800; color: #7c3aed;
+  text-transform: uppercase; letter-spacing: 1px;
+  border-bottom: 2px solid #EDE8F5; padding-bottom: 8px;
+  margin-bottom: 16px; margin-top: 20px;
+}
+
+.scene-card {
+  border: 1px solid #E2E8F0; border-radius: 12px;
+  margin-bottom: 14px; overflow: hidden; page-break-inside: avoid;
+}
+.scene-header {
+  background: linear-gradient(90deg,#7c3aed,#F5225B);
+  color: white; padding: 10px 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.scene-num {
+  background: #f59e0b; color: #1F3864;
+  font-size: 11px; font-weight: 900;
+  padding: 2px 10px; border-radius: 10px; white-space: nowrap;
+  min-width: 28px; text-align: center;
+}
+.scene-module { font-size: 10px; font-weight: 700; color: rgba(255,255,255,.55); text-transform: uppercase; letter-spacing: .8px; }
+.scene-title-text { font-size: 14px; font-weight: 800; color: white; }
+.scene-body { padding: 14px 16px; background: white; }
+.narration { font-size: 13px; color: #374151; line-height: 1.75; }
+.key-points { margin-top: 10px; display: flex; flex-wrap: wrap; gap: 6px; }
+.kp { background: #EEF2FF; color: #4338ca; font-size: 10px; font-weight: 700; padding: 3px 10px; border-radius: 10px; }
+.kp.green  { background: #F0FDF4; color: #15803d; }
+.kp.orange { background: #FFF7ED; color: #d97706; }
+.kp.purple { background: #F5F3FF; color: #7c3aed; }
+.kp.teal   { background: #F0FDFA; color: #0f766e; }
+.kp.red    { background: #FEF2F2; color: #b91c1c; }
+.kp.pink   { background: #FDF2F8; color: #be185d; }
+
+.steps { margin-top: 10px; counter-reset: step; }
+.step {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 7px 0; border-bottom: 1px dashed #E2E8F0;
+  font-size: 12px; color: #374151;
+}
+.step:last-child { border-bottom: none; }
+.step-num {
+  background: linear-gradient(135deg,#7c3aed,#F5225B);
+  color: white; font-size: 10px; font-weight: 900;
+  width: 22px; height: 22px; border-radius: 50%;
+  display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+}
+
+.tip-box {
+  background: #FFFBEB; border-left: 3px solid #f59e0b;
+  border-radius: 0 8px 8px 0; padding: 10px 14px;
+  margin-top: 10px; font-size: 12px; color: #92400e;
+}
+.tip-box strong { color: #d97706; }
+.warn-box {
+  background: #FEF2F2; border-left: 3px solid #b91c1c;
+  border-radius: 0 8px 8px 0; padding: 10px 14px;
+  margin-top: 10px; font-size: 12px; color: #7f1d1d;
+}
+
+/* QUICK REFERENCE TABLE */
+.ref-table { width: 100%; border-collapse: collapse; margin-top: 8px; font-size: 12px; }
+.ref-table th { background: linear-gradient(90deg,#7c3aed,#F5225B); color: white; padding: 8px 12px; text-align: left; font-size: 11px; }
+.ref-table td { padding: 8px 12px; border-bottom: 1px solid #F0F4FA; vertical-align: top; }
+.ref-table tr:last-child td { border-bottom: none; }
+.ref-table tr:nth-child(even) td { background: #FAFBFF; }
+
+/* FOOTER */
+.doc-footer {
+  background: #F8FAFD; border-top: 1px solid #E2E8F0;
+  padding: 14px 36px; display: flex; justify-content: space-between;
+  font-size: 11px; color: #9aabc5;
+}
+
+@media print {
+  .print-bar { display: none !important; }
+  body { font-size: 12px; }
+  .scenes { padding: 16px 20px; }
+  .scene-card { margin-bottom: 10px; }
+  .doc-header { padding: 20px 24px; }
+  .intro-banner { margin: 16px 20px 0; }
+}
+</style>
+</head>
+<body>
+
+<!-- HEADER -->
+<div class="doc-header">
+  <div>
+    <div class="doc-logo">LSAMS <span>●</span></div>
+    <div class="doc-title">🗺️ Plan My Day — Field Agent Guide</div>
+    <div class="doc-sub">How to plan and build your daily route in the Gabay App</div>
+  </div>
+  <div class="doc-meta">
+    Altria Call Center<br>
+    LSAMS v2026<br>
+    Confidential
+  </div>
+</div>
+
+<!-- PRINT BAR -->
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+  <span class="print-hint">In the print dialog, choose "Save as PDF" · Set Paper to A4 · Enable Background Graphics</span>
+</div>
+
+<!-- INTRO -->
+<div class="intro-banner">
+  <div class="intro-icon">🗺️</div>
+  <div class="intro-text">
+    <h2>What is Plan My Day?</h2>
+    <p>
+      <strong>Plan My Day</strong> lets you build your own field route for the day — you pick the sellers,
+      LSAMS builds the most efficient travel order. No more AI-suggested routes mixing sellers from
+      different cities. You are in control of where you go.
+    </p>
+  </div>
+</div>
+
+<div class="scenes">
+
+  <div class="section-title">Step-by-Step Guide</div>
+
+  <!-- STEP 1 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 1</span>
+      <div>
+        <div class="scene-module">Open the Feature</div>
+        <div class="scene-title-text">Go to Plan My Day</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        From the Gabay home screen, tap the <strong>🗺️ Plan My Day</strong> button.
+        You will see a selection screen showing all your active leads — these are the sellers currently
+        assigned to you with status <em>Assigned</em>, <em>Attempting</em>, <em>Negotiation</em>,
+        or <em>Registration</em>.
+      </div>
+      <div class="key-points">
+        <span class="kp purple">🗺️ Tap Plan My Day on Home</span>
+        <span class="kp">Shows all your active leads</span>
+        <span class="kp green">Works offline for viewing</span>
+      </div>
+      <div class="tip-box">
+        <strong>Tip:</strong> Plan My Day only includes leads assigned to <em>you</em>.
+        If you don't see a seller you visited, ask your supervisor to assign them to your account.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 2 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 2</span>
+      <div>
+        <div class="scene-module">Filter by City</div>
+        <div class="scene-title-text">Use City Chips to Narrow Down Stops</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        At the top of the selection screen you will see colored chips for each city where your leads are located.
+        Tap a city chip to show only leads from that city. Tap <strong>All Cities</strong> to see everything.
+        This helps you quickly focus on one area for the day.
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Look at the city chip row at the top of the screen</div>
+        <div class="step"><span class="step-num">2</span>Tap the city you plan to work in today</div>
+        <div class="step"><span class="step-num">3</span>The list filters — only that city's sellers appear</div>
+        <div class="step"><span class="step-num">4</span>Tap <strong>All Cities</strong> to go back to the full list</div>
+      </div>
+      <div class="key-points">
+        <span class="kp orange">Tap city chip → filters instantly</span>
+        <span class="kp teal">All Cities → shows everything</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 3 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 3</span>
+      <div>
+        <div class="scene-module">Choose Stops</div>
+        <div class="scene-title-text">Select the Sellers You Will Visit Today</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        Tap the checkbox on the left of each seller card to add them to your route.
+        The button at the bottom shows how many stops you have selected so far.
+        You can select up to <strong>10 stops</strong> per route.
+        Use <strong>Select All</strong> to pick all visible leads in the current city,
+        or <strong>Clear</strong> to uncheck all.
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Tap a seller's checkbox to select them</div>
+        <div class="step"><span class="step-num">2</span>Selected card turns purple — you'll see the stop count update at the bottom</div>
+        <div class="step"><span class="step-num">3</span>Use <strong>Select All</strong> to pick all leads in the filtered city at once</div>
+        <div class="step"><span class="step-num">4</span>Use <strong>Clear</strong> to start over</div>
+        <div class="step"><span class="step-num">5</span>Max 10 stops — if you need more, plan a second route after the first</div>
+      </div>
+      <div class="warn-box">
+        ⚠️ <strong>No address = skipped.</strong> Sellers without a complete address cannot be added to a map route.
+        If you see a red "No address" warning on a card, ask your supervisor to update that seller's address in the system.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 4 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 4</span>
+      <div>
+        <div class="scene-module">Build Route</div>
+        <div class="scene-title-text">Tap "Build My Route" to Calculate the Best Order</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        Once you have selected your stops, tap the <strong>Build My Route (X stops)</strong> button
+        at the bottom of the screen. LSAMS will automatically arrange your selected stops in the
+        shortest travel-time order using Google Maps. The result is your optimized route for the day.
+      </div>
+      <div class="key-points">
+        <span class="kp purple">Purple gradient button at bottom</span>
+        <span class="kp green">Shortest path calculated automatically</span>
+        <span class="kp orange">Must select at least 1 stop</span>
+      </div>
+      <div class="tip-box">
+        <strong>Best Practice:</strong> Select sellers from the <em>same city</em> for the most practical route.
+        Mixing cities creates long travel times between stops.
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 5 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 5</span>
+      <div>
+        <div class="scene-module">Navigate</div>
+        <div class="scene-title-text">Open in Waze or Google Maps</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        The route view shows your stops in optimized order with numbered circles (1, 2, 3…).
+        At the top you will see two launch buttons — tap <strong>Open in Maps</strong> to open
+        the full route in Google Maps, or <strong>Start in Waze</strong> to begin navigation
+        from Stop 1 immediately. Each stop card also has individual <strong>Waze</strong>
+        and <strong>Maps</strong> buttons if you want to navigate to a specific stop directly.
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Tap <strong>Open in Maps</strong> (blue) to open the full multi-stop route in Google Maps</div>
+        <div class="step"><span class="step-num">2</span>OR tap <strong>Start in Waze</strong> (light blue) to navigate from Stop 1 in Waze</div>
+        <div class="step"><span class="step-num">3</span>On each stop card, tap the individual <strong>Waze</strong> or <strong>Maps</strong> button to go to that specific seller</div>
+        <div class="step"><span class="step-num">4</span>After arriving, tap <strong>Check In</strong> on that stop card</div>
+      </div>
+      <div class="key-points">
+        <span class="kp teal">🔵 Open in Maps → full route</span>
+        <span class="kp" style="background:#e0f7ff;color:#0369a1">🔵 Start in Waze → turn-by-turn</span>
+        <span class="kp green">Per-stop nav buttons too</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- STEP 6 -->
+  <div class="scene-card">
+    <div class="scene-header">
+      <span class="scene-num">Step 6</span>
+      <div>
+        <div class="scene-module">Check In</div>
+        <div class="scene-title-text">Log Your Visit at Each Stop</div>
+      </div>
+    </div>
+    <div class="scene-body">
+      <div class="narration">
+        When you arrive at a seller's location, tap <strong>Check In</strong> on that stop card.
+        This opens the full check-in form where you record the outcome, notes, and photos.
+        After submitting, come back to the route view and continue to the next stop.
+        Tap <strong>Plan a Different Route</strong> at the bottom when you are ready to build a new route.
+      </div>
+      <div class="steps">
+        <div class="step"><span class="step-num">1</span>Arrive at the seller's location</div>
+        <div class="step"><span class="step-num">2</span>Tap <strong>Check In</strong> (green button) on the stop card</div>
+        <div class="step"><span class="step-num">3</span>Choose the outcome — Interested, Callback, Not Home, Rejected, Registered, or Follow Up</div>
+        <div class="step"><span class="step-num">4</span>Add your notes and upload photos if required</div>
+        <div class="step"><span class="step-num">5</span>Tap <strong>Submit</strong> — the visit is logged</div>
+        <div class="step"><span class="step-num">6</span>Return to the route view and proceed to the next stop</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- QUICK REFERENCE -->
+  <div class="section-title" style="margin-top:24px">Quick Reference — Buttons &amp; What They Do</div>
+
+  <div class="scene-card">
+    <div class="scene-body">
+      <table class="ref-table">
+        <tr>
+          <th>Button</th>
+          <th>Where</th>
+          <th>What it does</th>
+        </tr>
+        <tr>
+          <td><strong>🗺️ Plan My Day</strong></td>
+          <td>Home screen</td>
+          <td>Opens the selection screen where you pick today's stops</td>
+        </tr>
+        <tr>
+          <td><strong>City chips</strong> (e.g. Makati, QC)</td>
+          <td>Selection screen — top</td>
+          <td>Filter the lead list to show only that city</td>
+        </tr>
+        <tr>
+          <td><strong>Select All</strong></td>
+          <td>Selection screen</td>
+          <td>Checks all visible leads (after applying city filter)</td>
+        </tr>
+        <tr>
+          <td><strong>Clear</strong></td>
+          <td>Selection screen</td>
+          <td>Unchecks all visible leads</td>
+        </tr>
+        <tr>
+          <td><strong>Build My Route (X stops)</strong></td>
+          <td>Selection screen — bottom</td>
+          <td>Calculates and displays the optimized route</td>
+        </tr>
+        <tr>
+          <td><strong>Open in Maps</strong></td>
+          <td>Route view — top</td>
+          <td>Opens the full multi-stop route in Google Maps</td>
+        </tr>
+        <tr>
+          <td><strong>Start in Waze</strong></td>
+          <td>Route view — top</td>
+          <td>Starts turn-by-turn navigation to Stop 1 in Waze</td>
+        </tr>
+        <tr>
+          <td><strong>Waze</strong> / <strong>Maps</strong></td>
+          <td>Each stop card</td>
+          <td>Navigate directly to that specific seller</td>
+        </tr>
+        <tr>
+          <td><strong>View Lead</strong></td>
+          <td>Each stop card</td>
+          <td>See full seller details, history, and contact info</td>
+        </tr>
+        <tr>
+          <td><strong>Check In</strong></td>
+          <td>Each stop card</td>
+          <td>Log a visit outcome for that seller</td>
+        </tr>
+        <tr>
+          <td><strong>← Change</strong></td>
+          <td>Route view — top right</td>
+          <td>Go back to the selection screen and pick different stops</td>
+        </tr>
+        <tr>
+          <td><strong>Plan a Different Route</strong></td>
+          <td>Route view — bottom</td>
+          <td>Start over with a fresh selection</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+  <!-- TIPS -->
+  <div class="section-title">Tips &amp; Best Practices</div>
+
+  <div class="scene-card">
+    <div class="scene-body">
+      <div class="tip-box" style="margin-top:0">
+        <strong>✅ Stick to one city per route.</strong> Selecting sellers from a single city gives you the shortest travel times and the most efficient day. Use the city filter chips to focus your selection.
+      </div>
+      <div class="tip-box" style="margin-top:8px">
+        <strong>✅ Max 10 stops.</strong> The route optimizer works best with 10 or fewer stops. If you have more leads to visit, complete your first route and build a second one.
+      </div>
+      <div class="tip-box" style="margin-top:8px">
+        <strong>✅ Missing address = skipped.</strong> Sellers shown with a red "No address" warning cannot be included in a map route. Tap "View Lead" on their card to see their details, then contact your supervisor to update the address.
+      </div>
+      <div class="tip-box" style="margin-top:8px">
+        <strong>✅ Check In from the route view.</strong> After navigating to each stop, come back to LSAMS and tap "Check In" on that stop's card — this ensures the system records the correct seller for your visit.
+      </div>
+      <div class="tip-box" style="margin-top:8px">
+        <strong>✅ Radar section.</strong> Scroll down past your stop list to see the Seller Radar — unassigned sellers in your city that no one is visiting yet. These are bonus leads you can check in on if you have time.
+      </div>
+    </div>
+  </div>
+
+  <!-- TROUBLESHOOTING -->
+  <div class="section-title">Troubleshooting</div>
+
+  <div class="scene-card">
+    <div class="scene-body">
+      <table class="ref-table">
+        <tr>
+          <th>Problem</th>
+          <th>Solution</th>
+        </tr>
+        <tr>
+          <td>I see "No active leads"</td>
+          <td>Your supervisor hasn't assigned any leads to you yet, or all your leads are in a closed/pool status. Contact your supervisor.</td>
+        </tr>
+        <tr>
+          <td>Seller shows "No address" warning</td>
+          <td>The address field is empty for that lead. Ask your supervisor to add the complete address. You can still View Lead and Check In manually from the list.</td>
+        </tr>
+        <tr>
+          <td>"Build My Route" button not working</td>
+          <td>Make sure you have selected at least one stop. The button is disabled when 0 stops are selected.</td>
+        </tr>
+        <tr>
+          <td>Route says "Your selected order" instead of "AI-optimized"</td>
+          <td>The Google Maps API key may not be configured. The system still shows your selected stops — navigate to each one manually using the Waze/Maps buttons.</td>
+        </tr>
+        <tr>
+          <td>I selected 12 sellers but only see 10 stops</td>
+          <td>The route optimizer supports a maximum of 10 stops. The extra 2 are shown in a banner — plan a second route after completing the first 10.</td>
+        </tr>
+      </table>
+    </div>
+  </div>
+
+</div><!-- /scenes -->
+
+<!-- FOOTER -->
+<div class="doc-footer">
+  <div>LSAMS — Lazada Seller Activation Management System · Altria Call Center</div>
+  <div>Plan My Day Guide · Confidential · June 2026</div>
+</div>
+
+</body>
+</html>

@@ -7248,6 +7248,12 @@ def whats_new():
     return render_template('whats_new_print.html')
 
 
+@app.route('/guide/plan-my-day')
+@login_required
+def plan_my_day_guide():
+    return render_template('plan_my_day_guide.html')
+
+
 @app.route('/gabay/telegram-guide')
 @login_required
 def gabay_telegram_guide():

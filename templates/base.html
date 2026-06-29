@@ -866,5 +866,78 @@ setTimeout(refreshNotifCount, 5000);
 setInterval(refreshNotifCount, 90000);
 </script>
 {% block scripts %}{% endblock %}
+
+<!-- ── PLAN MY DAY ANNOUNCEMENT (once per day, all roles) ── -->
+<div id="pmdModal" style="display:none;position:fixed;inset:0;background:rgba(15,15,30,0.6);
+     z-index:9999;align-items:center;justify-content:center;padding:20px">
+  <div style="background:white;border-radius:20px;max-width:480px;width:100%;
+              box-shadow:0 24px 60px rgba(124,58,237,.25);
+              animation:pmdIn .3s cubic-bezier(.22,.68,0,1.2)">
+    <!-- Gradient header -->
+    <div style="background:linear-gradient(135deg,#7c3aed,#F5225B);
+                border-radius:20px 20px 0 0;padding:24px 28px 20px;color:white;
+                text-align:center">
+      <div style="font-size:40px;margin-bottom:8px">🗺️</div>
+      <div style="font-size:19px;font-weight:900;line-height:1.2">Plan My Day — Redesigned!</div>
+      <div style="font-size:12px;opacity:.8;margin-top:4px">Gabay agents now build their own route</div>
+    </div>
+    <!-- Steps -->
+    <div style="padding:20px 24px 0">
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-bottom:18px">
+        {% for icon, label in [
+          ('2️⃣','Filter by City'),
+          ('3️⃣','Select Stops'),
+          ('4️⃣','Build Route'),
+          ('5️⃣','Navigate & Check In'),
+        ] %}
+        <div style="background:#F8F7FF;border-radius:10px;padding:10px 12px;
+                    display:flex;align-items:center;gap:8px">
+          <span style="font-size:18px">{{ icon }}</span>
+          <span style="font-size:12px;font-weight:700;color:#1F3864">{{ label }}</span>
+        </div>
+        {% endfor %}
+      </div>
+      <div style="background:#F5F0FF;border-radius:10px;padding:11px 14px;
+                  font-size:12px;color:#4a5568;margin-bottom:18px;
+                  border-left:3px solid #7c3aed">
+        <strong style="color:#7c3aed">What changed:</strong> Gabay agents can now pick exactly which sellers they plan to visit — no more AI-generated routes mixing different cities.
+      </div>
+    </div>
+    <!-- Footer buttons -->
+    <div style="padding:0 24px 22px;display:flex;gap:10px">
+      <a href="{{ url_for('plan_my_day_guide') }}" target="_blank"
+         style="flex:1;text-align:center;background:#F5F0FF;color:#7c3aed;
+                border:1.5px solid #c4b5fd;border-radius:12px;padding:11px;
+                font-size:12px;font-weight:800;text-decoration:none">
+        <i class="bi bi-file-pdf me-1"></i>PDF Guide
+      </a>
+      <button onclick="document.getElementById('pmdModal').style.display='none'"
+              style="flex:2;background:linear-gradient(135deg,#7c3aed,#F5225B);
+                     color:white;border:none;border-radius:12px;padding:11px;
+                     font-size:13px;font-weight:800;cursor:pointer">
+        Got It!
+      </button>
+    </div>
+  </div>
+</div>
+<style>
+@keyframes pmdIn {
+  from { transform: scale(.92) translateY(16px); opacity: 0; }
+  to   { transform: scale(1)   translateY(0);    opacity: 1; }
+}
+</style>
+<script>
+(function() {
+  const today = new Date().toISOString().slice(0, 10);
+  const key = 'pmd_announced_' + today;
+  if (!localStorage.getItem(key)) {
+    localStorage.setItem(key, '1');
+    setTimeout(function() {
+      const el = document.getElementById('pmdModal');
+      if (el) el.style.display = 'flex';
+    }, 1200);
+  }
+})();
+</script>
 </body>
 </html>
