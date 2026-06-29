@@ -603,6 +603,7 @@ class LeadIntelligence(db.Model):
 class Brand(db.Model):
     """Brand library for Prospect Scout — managed by superadmin / lazada team."""
     __tablename__ = 'brands'
+    __table_args__ = (db.UniqueConstraint('name', 'category', name='uq_brand_name_category'),)
     id          = db.Column(db.Integer, primary_key=True)
     name        = db.Column(db.String(120), nullable=False)
     category    = db.Column(db.String(80), nullable=False, default='FMCG')

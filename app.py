@@ -166,6 +166,17 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
+    # Add unique constraint on brands(name, category) to prevent duplicates
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("""
+                CREATE UNIQUE INDEX IF NOT EXISTS uq_brand_name_category
+                ON brands (lower(name), category)
+            """))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Create scout_logs table for Prospect Scout audit trail
     with db.engine.connect() as _conn:
         try:
@@ -1382,12 +1393,27 @@ def api_brands_load_defaults():
     return jsonify({'ok': True, 'added': added, 'skipped': skipped})
 
 
+# Deduplicate brands table — keep lowest id per (lower(name), category)
+with app.app_context():
+    try:
+        with db.engine.connect() as _conn:
+            _conn.execute(text("""
+                DELETE FROM brands
+                WHERE id NOT IN (
+                    SELECT MIN(id) FROM brands GROUP BY lower(name), category
+                )
+            """))
+            _conn.commit()
+    except Exception:
+        pass
+
 # Auto-seed FMCG defaults on first deploy if brands table is empty
 with app.app_context():
     try:
         if Brand.query.filter_by(is_active=True).count() == 0:
             for _name in _FMCG_DEFAULTS:
-                db.session.add(Brand(name=_name, category='FMCG', is_priority=True))
+                if not Brand.query.filter(Brand.name.ilike(_name)).first():
+                    db.session.add(Brand(name=_name, category='FMCG', is_priority=True))
             db.session.commit()
     except Exception:
         db.session.rollback()
