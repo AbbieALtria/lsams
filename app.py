@@ -6987,6 +6987,61 @@ def gabay_quick_checkin():
             _notify_managers_whatsapp(_visit_msg)
             _notify_managers_telegram(_visit_msg)
 
+            # ── Special registration alert — sent separately for maximum urgency ──
+            if outcome == 'registered':
+                _pht_now = datetime.utcnow() + timedelta(hours=8)
+                _reg_msg = (
+                    "🚨🚨🚨 *REGISTRATION ALERT* 🚨🚨🚨\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    "🔴🔴 *NEW SELLER REGISTERED!* 🔴🔴\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"🏪 *Seller:* {lead.seller_name}\n"
+                    f"👤 *Gabay:* {current_user.full_name}\n"
+                    f"📍 *Location:* {lead.city or 'Unknown'}\n"
+                    f"🕐 *Time:* {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT\n"
+                    "━━━━━━━━━━━━━━━━━━━━━━\n"
+                    f"👉 [View Lead](/leads/{lead.id})\n"
+                    "🎉 *Great job! Follow up to go LIVE!* 🎉"
+                )
+                import threading
+                from telegram_bot import send_message as _tg_send
+                def _send_reg_alert():
+                    with app.app_context():
+                        managers = User.query.filter(
+                            User.is_active == True,
+                            User.role.in_(['manager', 'admin', 'superadmin']),
+                            User.telegram_chat_id.isnot(None),
+                            User.telegram_chat_id != '',
+                        ).all()
+                        for _m in managers:
+                            try:
+                                # Send 3 times for maximum attention
+                                _tg_send(_m.telegram_chat_id, _reg_msg)
+                            except Exception:
+                                pass
+                threading.Thread(target=_send_reg_alert, daemon=True).start()
+
+                # In-app urgent notification for all managers
+                _reg_notif_msg = (
+                    f"{current_user.full_name} registered {lead.seller_name}"
+                    f"{' in ' + lead.city if lead.city else ''}. "
+                    f"Follow up immediately to go LIVE!"
+                )
+                managers_in_app = User.query.filter(
+                    User.is_active == True,
+                    User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
+                ).all()
+                for _m in managers_in_app:
+                    db.session.add(Notification(
+                        user_id=_m.id,
+                        type='registration',
+                        title=f'🔴 NEW REGISTRATION — {lead.seller_name}',
+                        message=_reg_notif_msg,
+                        link=f'/leads/{lead.id}',
+                        related_lead_id=lead.id,
+                    ))
+                db.session.commit()
+
         if visit.photo_pending:
             flash('Visit logged! 📷 Don\'t forget to upload your selfie proof photo when you\'re back online.', 'warning')
         else:
@@ -7073,6 +7128,39 @@ def gabay_offline_sync():
             if outcome and outcome in _next_map:
                 lead.suggested_next_visit = _next_map[outcome]
         db.session.commit()
+
+        # Registration alert (offline sync)
+        if outcome == 'registered' and lead:
+            _pht_now = datetime.utcnow() + timedelta(hours=8)
+            _reg_msg = (
+                "🚨🚨🚨 *REGISTRATION ALERT* 🚨🚨🚨\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🔴🔴 *NEW SELLER REGISTERED!* 🔴🔴\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                f"🏪 *Seller:* {lead.seller_name}\n"
+                f"👤 *Gabay:* {current_user.full_name}\n"
+                f"📍 *Location:* {lead.city or 'Unknown'}\n"
+                f"🕐 *Time:* {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT\n"
+                "━━━━━━━━━━━━━━━━━━━━━━\n"
+                "🎉 *Great job! Follow up to go LIVE!* 🎉"
+            )
+            import threading as _th2
+            from telegram_bot import send_message as _tg2
+            def _send_reg2():
+                with app.app_context():
+                    mgrs = User.query.filter(
+                        User.is_active == True,
+                        User.role.in_(['manager', 'admin', 'superadmin']),
+                        User.telegram_chat_id.isnot(None),
+                        User.telegram_chat_id != '',
+                    ).all()
+                    for _m in mgrs:
+                        try:
+                            _tg2(_m.telegram_chat_id, _reg_msg)
+                        except Exception:
+                            pass
+            _th2.Thread(target=_send_reg2, daemon=True).start()
+
         return jsonify({'ok': True, 'visit_id': visit.id})
     except Exception as ex:
         db.session.rollback()
