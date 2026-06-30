@@ -90,6 +90,18 @@ with app.app_context():
             except Exception:
                 _conn.rollback()
 
+    # Backfill: enable Telegram reports for users already linked to Telegram
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text(
+                "UPDATE users SET telegram_reports_enabled = TRUE "
+                "WHERE telegram_chat_id IS NOT NULL AND telegram_chat_id != '' "
+                "AND telegram_reports_enabled = FALSE"
+            ))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Add photo_pending column to visits
     with db.engine.connect() as _conn:
         try:
