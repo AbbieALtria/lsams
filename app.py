@@ -6906,6 +6906,10 @@ def gabay_quick_checkin():
         gps_address = request.form.get('gps_address', '')
         follow_up_str = request.form.get('follow_up_date', '')
         new_status = request.form.get('new_status', '')
+        lazada_shortcode = request.form.get('lazada_shortcode', '').strip().upper()
+        if outcome == 'registered' and not lazada_shortcode:
+            flash('Lazada Seller ID / ShortCode is required to complete registration.', 'danger')
+            return redirect(url_for('gabay_quick_checkin', lead_id=lead_id))
         follow_up_date = None
         if follow_up_str:
             try:
@@ -6939,6 +6943,8 @@ def gabay_quick_checkin():
         if lead:
             if new_status:
                 lead.status = new_status
+            if outcome == 'registered' and lazada_shortcode:
+                lead.lazada_id = lazada_shortcode
             # ── Compute suggested next visit from outcome ─────────────────
             _today = (datetime.utcnow() + timedelta(hours=8)).date()
             _fup = follow_up_date
@@ -6998,6 +7004,15 @@ def gabay_quick_checkin():
             # ── Special registration alert — sent separately for maximum urgency ──
             if outcome == 'registered':
                 _pht_now = datetime.utcnow() + timedelta(hours=8)
+                _camp_name = lead.campaign.name if lead.campaign else ''
+                if _camp_name.startswith('TCS'):
+                    _lead_source = 'TCS - Shopee'
+                elif _camp_name.startswith('TTS'):
+                    _lead_source = 'TTS - TikTok'
+                elif _camp_name.startswith('RRLD'):
+                    _lead_source = 'RRLD - Reseller'
+                else:
+                    _lead_source = 'VW - New Lead'
                 _reg_msg = (
                     "🚨🚨🚨 *REGISTRATION ALERT* 🚨🚨🚨\n"
                     "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -7007,6 +7022,8 @@ def gabay_quick_checkin():
                     f"👤 *Gabay:* {current_user.full_name}\n"
                     f"📍 *Location:* {lead.city or 'Unknown'}\n"
                     f"🕐 *Time:* {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT\n"
+                    f"🆔 *Lazada ID:* {lazada_shortcode}\n"
+                    f"📦 *Lead Source:* {_lead_source}\n"
                     "━━━━━━━━━━━━━━━━━━━━━━\n"
                     f"👉 [View Lead](/leads/{lead.id})\n"
                     "🎉 *Great job! Follow up to go LIVE!* 🎉"
@@ -7074,7 +7091,10 @@ def gabay_offline_sync():
     gps_address  = request.form.get('gps_address', '')
     follow_up_str= request.form.get('follow_up_date', '')
     new_status   = request.form.get('new_status', '')
+    lazada_shortcode = request.form.get('lazada_shortcode', '').strip().upper()
     offline_ts   = request.form.get('offline_visited_at', '')
+    if outcome == 'registered' and not lazada_shortcode:
+        return jsonify({'ok': False, 'error': 'Lazada Seller ID / ShortCode is required for registration'}), 400
 
     # Parse the timestamp the Gabay agent recorded offline (ISO 8601)
     visited_at = datetime.utcnow()
@@ -7122,6 +7142,8 @@ def gabay_offline_sync():
         if lead:
             if new_status:
                 lead.status = new_status
+            if outcome == 'registered' and lazada_shortcode:
+                lead.lazada_id = lazada_shortcode
             _today = (datetime.utcnow() + timedelta(hours=8)).date()
             _fup = follow_up_date
             _next_map = {
@@ -7140,6 +7162,15 @@ def gabay_offline_sync():
         # Registration alert (offline sync)
         if outcome == 'registered' and lead:
             _pht_now = datetime.utcnow() + timedelta(hours=8)
+            _camp_name2 = lead.campaign.name if lead.campaign else ''
+            if _camp_name2.startswith('TCS'):
+                _lead_source2 = 'TCS - Shopee'
+            elif _camp_name2.startswith('TTS'):
+                _lead_source2 = 'TTS - TikTok'
+            elif _camp_name2.startswith('RRLD'):
+                _lead_source2 = 'RRLD - Reseller'
+            else:
+                _lead_source2 = 'VW - New Lead'
             _reg_msg = (
                 "🚨🚨🚨 *REGISTRATION ALERT* 🚨🚨🚨\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
@@ -7149,6 +7180,8 @@ def gabay_offline_sync():
                 f"👤 *Gabay:* {current_user.full_name}\n"
                 f"📍 *Location:* {lead.city or 'Unknown'}\n"
                 f"🕐 *Time:* {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT\n"
+                f"🆔 *Lazada ID:* {lazada_shortcode}\n"
+                f"📦 *Lead Source:* {_lead_source2}\n"
                 "━━━━━━━━━━━━━━━━━━━━━━\n"
                 "🎉 *Great job! Follow up to go LIVE!* 🎉"
             )
