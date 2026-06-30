@@ -172,6 +172,14 @@ with app.app_context():
         except Exception:
             _conn.rollback()
 
+    # Add related_lead_id to notifications table (missing column causing 500 on registration outcome)
+    with db.engine.connect() as _conn:
+        try:
+            _conn.execute(text("ALTER TABLE notifications ADD COLUMN related_lead_id INTEGER REFERENCES leads(id)"))
+            _conn.commit()
+        except Exception:
+            _conn.rollback()
+
     # Deduplicate brands first, then add unique index to prevent future duplicates
     with db.engine.connect() as _conn:
         try:
