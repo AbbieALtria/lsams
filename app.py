@@ -7295,6 +7295,12 @@ def plan_my_day_guide():
     return render_template('plan_my_day_guide.html')
 
 
+@app.route('/guide/scout')
+@login_required
+def scout_guide():
+    return render_template('scout_guide.html')
+
+
 @app.route('/gabay/telegram-guide')
 @login_required
 def gabay_telegram_guide():

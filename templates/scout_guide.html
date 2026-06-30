@@ -1,0 +1,655 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Prospect Scout — How to Use It | Paano Gamitin</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+    background: linear-gradient(145deg, #0f0728 0%, #1e0b4a 40%, #2d1264 100%);
+    min-height: 100vh;
+    color: #1a1a2e;
+    padding: 0;
+  }
+
+  /* ── HERO ── */
+  .hero {
+    background: linear-gradient(135deg, #7c3aed 0%, #a855f7 50%, #F5225B 100%);
+    padding: 36px 24px 28px;
+    text-align: center;
+    position: relative;
+    overflow: hidden;
+  }
+  .hero::before {
+    content: '';
+    position: absolute;
+    top: -40px; left: -40px; right: -40px;
+    height: 200px;
+    background: radial-gradient(ellipse, rgba(255,255,255,.07) 0%, transparent 70%);
+  }
+  .hero-icon { font-size: 52px; display: block; margin-bottom: 10px; filter: drop-shadow(0 4px 12px rgba(0,0,0,.3)); }
+  .hero-title { font-size: 26px; font-weight: 900; color: white; letter-spacing: -0.5px; line-height: 1.15; }
+  .hero-tagline-en { font-size: 13px; color: rgba(255,255,255,.85); margin-top: 4px; font-weight: 500; }
+  .hero-tagline-tl { font-size: 13px; color: rgba(255,255,255,.65); margin-top: 2px; font-style: italic; }
+  .hero-bar {
+    display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; margin-top: 16px;
+  }
+  .hero-pill {
+    background: rgba(255,255,255,.18); color: white; border-radius: 20px;
+    padding: 4px 12px; font-size: 11px; font-weight: 700; letter-spacing: .03em;
+  }
+
+  /* ── CONTAINER ── */
+  .container { max-width: 680px; margin: 0 auto; padding: 20px 16px 40px; }
+
+  /* ── STEP CARD ── */
+  .step-card {
+    background: white; border-radius: 20px; margin-bottom: 16px;
+    overflow: hidden; box-shadow: 0 4px 24px rgba(0,0,0,.18);
+  }
+  .step-header {
+    display: flex; align-items: center; gap: 14px; padding: 16px 18px 14px;
+    border-bottom: 1.5px solid #f1f5f9;
+  }
+  .step-num {
+    width: 38px; height: 38px; border-radius: 50%; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 16px; font-weight: 900; color: white;
+    background: linear-gradient(135deg, #7c3aed, #a855f7);
+    box-shadow: 0 3px 10px rgba(124,58,237,.4);
+  }
+  .step-titles { flex: 1; min-width: 0; }
+  .step-en { font-size: 15px; font-weight: 800; color: #1a1a2e; line-height: 1.2; }
+  .step-tl { font-size: 12px; font-weight: 500; color: #7c3aed; margin-top: 1px; font-style: italic; }
+  .step-icon { font-size: 26px; }
+  .step-body { padding: 14px 18px 16px; }
+
+  /* ── ROW items ── */
+  .item-row {
+    display: flex; align-items: flex-start; gap: 10px; padding: 9px 0;
+    border-bottom: 1px solid #f8fafc;
+  }
+  .item-row:last-child { border-bottom: none; padding-bottom: 0; }
+  .item-icon { font-size: 18px; flex-shrink: 0; line-height: 1.3; }
+  .item-text { flex: 1; min-width: 0; }
+  .item-en { font-size: 13px; font-weight: 700; color: #1a1a2e; line-height: 1.4; }
+  .item-tl { font-size: 11.5px; color: #6b7280; margin-top: 1px; font-style: italic; }
+  .item-note { font-size: 11px; color: #9aabc5; margin-top: 2px; }
+
+  /* ── BADGE PILLS ── */
+  .badge { display: inline-flex; align-items: center; gap: 4px; border-radius: 20px;
+           padding: 2px 10px; font-size: 11px; font-weight: 700; }
+  .b-shopee   { background: #EE4D2D22; color: #EE4D2D; }
+  .b-tiktok   { background: #00000015; color: #333; }
+  .b-facebook { background: #1877F222; color: #1877F2; }
+  .b-rrld     { background: #7c3aed22; color: #7c3aed; }
+  .b-green    { background: #dcfce7;   color: #15803d; }
+  .b-yellow   { background: #fef3c7;   color: #92400e; }
+  .b-teal     { background: #ccfbf1;   color: #0d9488; }
+  .b-pink     { background: #fce7f3;   color: #be185d; }
+  .b-blue     { background: #dbeafe;   color: #1d4ed8; }
+
+  /* ── FILTER CHIPS ── */
+  .filter-chip {
+    display: inline-flex; align-items: center; gap: 5px;
+    border-radius: 10px; padding: 5px 12px; font-size: 12px; font-weight: 700;
+    border: 1.5px solid; margin-bottom: 6px;
+  }
+  .fc-purple { background: #ede9fe; color: #7c3aed; border-color: #c4b5fd; }
+  .fc-gray   { background: #f1f5f9; color: #475569; border-color: #cbd5e1; }
+  .fc-orange { background: #fff7ed; color: #ea580c; border-color: #fed7aa; }
+
+  /* ── PLATFORMS SECTION ── */
+  .platform-grid {
+    display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 4px;
+  }
+  .plat-box {
+    background: #f8f7ff; border: 1.5px solid #e9e5f5; border-radius: 12px;
+    padding: 10px 12px; display: flex; align-items: center; gap: 10px;
+  }
+  .plat-emoji { font-size: 22px; flex-shrink: 0; }
+  .plat-label { font-size: 12px; font-weight: 800; color: #1a1a2e; }
+  .plat-sub   { font-size: 10.5px; color: #9aabc5; font-style: italic; }
+
+  /* ── LEGEND TABLE ── */
+  .legend-row {
+    display: flex; align-items: center; gap: 10px; padding: 8px 0;
+    border-bottom: 1px solid #f1f5f9;
+  }
+  .legend-row:last-child { border-bottom: none; }
+  .legend-badge { flex-shrink: 0; min-width: 120px; }
+  .legend-text  { flex: 1; }
+  .legend-en    { font-size: 12px; font-weight: 700; color: #1a1a2e; }
+  .legend-tl    { font-size: 11px; color: #6b7280; font-style: italic; }
+
+  /* ── TIPS ── */
+  .tip-box {
+    background: linear-gradient(135deg, #ede9fe 0%, #fce7f3 100%);
+    border: 1.5px solid #c4b5fd; border-radius: 16px; padding: 14px 16px;
+    margin-bottom: 16px;
+  }
+  .tip-title { font-size: 13px; font-weight: 800; color: #7c3aed; margin-bottom: 8px; }
+  .tip-item { font-size: 12px; color: #1a1a2e; padding: 3px 0; }
+
+  /* ── SCORE BAR ── */
+  .score-demo {
+    display: flex; align-items: center; gap: 8px; margin-top: 4px;
+  }
+  .score-bar  { height: 6px; border-radius: 3px; background: #e8e4ee; flex: 1; overflow: hidden; }
+  .score-fill { height: 100%; border-radius: 3px; background: linear-gradient(90deg,#8B2BE2,#F5225B); }
+
+  /* ── FOOTER ── */
+  .footer {
+    text-align: center; padding: 24px 16px;
+    color: rgba(255,255,255,.5); font-size: 11px;
+  }
+
+  /* ── PRINT ── */
+  .print-bar {
+    background: rgba(255,255,255,.1); text-align: center; padding: 10px;
+    position: sticky; top: 0; z-index: 99;
+  }
+  .print-btn {
+    background: rgba(255,255,255,.2); border: 1.5px solid rgba(255,255,255,.35);
+    color: white; border-radius: 20px; padding: 6px 20px; font-size: 12px;
+    font-weight: 700; cursor: pointer; letter-spacing: .03em;
+  }
+  .print-btn:hover { background: rgba(255,255,255,.32); }
+
+  @media print {
+    body { background: white !important; }
+    .print-bar { display: none !important; }
+    .hero { background: #7c3aed !important; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+    .step-card { box-shadow: 0 1px 4px rgba(0,0,0,.1); page-break-inside: avoid; }
+  }
+  @media (max-width: 420px) {
+    .platform-grid { grid-template-columns: 1fr; }
+    .hero-title { font-size: 21px; }
+  }
+</style>
+</head>
+<body>
+
+<!-- Print bar -->
+<div class="print-bar">
+  <button class="print-btn" onclick="window.print()">🖨️ Print / Save as PDF</button>
+</div>
+
+<!-- Hero -->
+<div class="hero">
+  <span class="hero-icon">🔭</span>
+  <div class="hero-title">Prospect Scout</div>
+  <div class="hero-tagline-en">How to Find & Add New Sellers</div>
+  <div class="hero-tagline-tl">Paano Makahanap at Magdagdag ng mga Bagong Seller</div>
+  <div class="hero-bar">
+    <span class="hero-pill">☕ Coffee</span>
+    <span class="hero-pill">🎵 TikTok</span>
+    <span class="hero-pill">👥 Facebook</span>
+    <span class="hero-pill">🏪 RRLD</span>
+  </div>
+</div>
+
+<div class="container">
+
+  <!-- ── STEP 1: Open Scout ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">1</div>
+      <div class="step-titles">
+        <div class="step-en">Open Prospect Scout</div>
+        <div class="step-tl">Buksan ang Prospect Scout</div>
+      </div>
+      <div class="step-icon">📱</div>
+    </div>
+    <div class="step-body">
+      <div class="item-row">
+        <div class="item-icon">🏠</div>
+        <div class="item-text">
+          <div class="item-en">From your Home screen, tap <strong>"Scout"</strong> — the radar button in the menu</div>
+          <div class="item-tl">Mula sa iyong Home screen, i-tap ang <strong>"Scout"</strong> — ang radar button sa menu</div>
+        </div>
+      </div>
+      <div class="item-row">
+        <div class="item-icon">📍</div>
+        <div class="item-text">
+          <div class="item-en">Your assigned city/territory is <strong>automatically locked in</strong> — no need to type it</div>
+          <div class="item-tl">Ang iyong assigned na lungsod ay <strong>awtomatikong nakatali</strong> — hindi na kailangang i-type</div>
+        </div>
+      </div>
+      <div class="item-row">
+        <div class="item-icon">🔒</div>
+        <div class="item-text">
+          <div class="item-en">Scout is a <strong>special permission</strong> — your supervisor must enable it for you first</div>
+          <div class="item-tl">Ang Scout ay isang <strong>espesyal na pahintulot</strong> — kailangan munang i-enable ng iyong supervisor</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 2: Brand Library ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">2</div>
+      <div class="step-titles">
+        <div class="step-en">Brand Library</div>
+        <div class="step-tl">Koleksyon ng mga Brand</div>
+      </div>
+      <div class="step-icon">🏷️</div>
+    </div>
+    <div class="step-body">
+      <div class="item-row">
+        <div class="item-icon">📂</div>
+        <div class="item-text">
+          <div class="item-en">Tap the <strong>Brand Library</strong> bar to expand it — shows all saved brands</div>
+          <div class="item-tl">I-tap ang <strong>Brand Library</strong> bar para palawakin — ipapakita ang lahat ng naka-save na brand</div>
+        </div>
+      </div>
+      <div class="item-row">
+        <div class="item-icon">⚡</div>
+        <div class="item-text">
+          <div class="item-en">Tap any <strong>brand chip</strong> to instantly fill the search box — no typing needed!</div>
+          <div class="item-tl">I-tap ang kahit anong <strong>brand chip</strong> para agad mapuno ang search box — walang pag-type!</div>
+        </div>
+      </div>
+      <div class="item-row">
+        <div class="item-icon">🗂️</div>
+        <div class="item-text">
+          <div class="item-en">Filter brands by category tabs: <strong>FMCG · Electronics · Fashion · General</strong></div>
+          <div class="item-tl">I-filter ang mga brand ayon sa kategorya: <strong>FMCG · Electronics · Fashion · General</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── STEP 3: Set Your Search ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">3</div>
+      <div class="step-titles">
+        <div class="step-en">Set Your Search</div>
+        <div class="step-tl">I-set ang Iyong Paghahanap</div>
+      </div>
+      <div class="step-icon">🔍</div>
+    </div>
+    <div class="step-body">
+
+      <div class="item-row">
+        <div class="item-icon">📋</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Category</strong> — Filter by product type first (optional)</div>
+          <div class="item-tl"><strong>Kategorya</strong> — I-filter muna ayon sa uri ng produkto (opsyonal)</div>
+          <div class="item-note">FMCG · Electronics · Fashions &amp; Accessories · General Merchandise</div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">🔖</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Brand / Keyword</strong> — Pick from the dropdown or type your own</div>
+          <div class="item-tl"><strong>Brand / Keyword</strong> — Pumili mula sa listahan o mag-type ng sarili mong keyword</div>
+          <div class="item-note">Popular PH brands auto-load per category · Choose "Type your own" for custom searches</div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">📍</div>
+        <div class="item-text">
+          <div class="item-en"><strong>City / Territory</strong> — Auto-set to your assigned area</div>
+          <div class="item-tl"><strong>Lungsod / Teritoryo</strong> — Awtomatiko para sa iyong assigned na lugar</div>
+          <div class="item-note">🔒 Your territory is locked — Scout only finds sellers in your area</div>
+        </div>
+      </div>
+
+      <!-- Platforms box -->
+      <div style="margin: 10px 0 4px; font-size: 12px; font-weight: 800; color: #7c3aed; text-transform: uppercase; letter-spacing: .04em;">
+        Platform — Saan Maghahanap
+      </div>
+      <div class="platform-grid">
+        <div class="plat-box">
+          <div class="plat-emoji">☕</div>
+          <div>
+            <div class="plat-label">Coffee</div>
+            <div class="plat-sub">Shopee sellers</div>
+          </div>
+        </div>
+        <div class="plat-box">
+          <div class="plat-emoji">🎵</div>
+          <div>
+            <div class="plat-label">TikTok Shop</div>
+            <div class="plat-sub">TikTok sellers</div>
+          </div>
+        </div>
+        <div class="plat-box">
+          <div class="plat-emoji">👥</div>
+          <div>
+            <div class="plat-label">Facebook</div>
+            <div class="plat-sub">FB Pages &amp; Shops</div>
+          </div>
+        </div>
+        <div class="plat-box">
+          <div class="plat-emoji">🏪</div>
+          <div>
+            <div class="plat-label">RRLD</div>
+            <div class="plat-sub">Physical stores, distributors, resellers</div>
+          </div>
+        </div>
+      </div>
+
+      <div style="margin-top: 14px; text-align: center;">
+        <div style="display: inline-block; background: linear-gradient(135deg,#7c3aed,#F5225B); color: white;
+             border-radius: 12px; padding: 10px 28px; font-size: 14px; font-weight: 800; letter-spacing: .02em;">
+          🔭 Scout Now / Mag-Scout Na
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── STEP 4: Smart Filters ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">4</div>
+      <div class="step-titles">
+        <div class="step-en">Smart Filters — Narrow Your Results</div>
+        <div class="step-tl">Smart Filters — Linisin ang iyong mga Resulta</div>
+      </div>
+      <div class="step-icon">⚙️</div>
+    </div>
+    <div class="step-body">
+
+      <div class="item-row">
+        <div class="item-icon">💎</div>
+        <div class="item-text">
+          <div class="item-en"><strong>RRLD Only</strong> — Show only big/priority sellers</div>
+          <div class="item-tl"><strong>RRLD Only</strong> — Ipakita lamang ang malalaki o priority na seller</div>
+          <div class="item-note">Brand stores · 10,000+ followers · Multi-branch sellers</div>
+          <div style="margin-top: 5px;"><span class="filter-chip fc-purple">💎 RRLD Only</span></div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">🟢</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Hide sellers already in LSAMS</strong> — Avoid duplicates in your pipeline</div>
+          <div class="item-tl"><strong>Itago ang mga seller na nasa LSAMS na</strong> — Iwasan ang mga duplicate</div>
+          <div style="margin-top: 5px;"><span class="filter-chip fc-gray">Hide sellers in LSAMS ✓</span></div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">🚫</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Hide sellers already on Lazada</strong> — Focus on fresh prospects only</div>
+          <div class="item-tl"><strong>Itago ang mga seller na nasa Lazada na</strong> — Mag-focus sa mga bagong prospect</div>
+          <div style="margin-top: 5px;"><span class="filter-chip fc-orange">Hide sellers on Lazada ✓</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── STEP 5: Read Results ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">5</div>
+      <div class="step-titles">
+        <div class="step-en">Read Your Results</div>
+        <div class="step-tl">Basahin ang iyong mga Resulta</div>
+      </div>
+      <div class="step-icon">📊</div>
+    </div>
+    <div class="step-body">
+
+      <!-- Legend rows -->
+      <div class="legend-row">
+        <div class="legend-badge">
+          <span class="badge b-green">✅ Not on Lazada</span>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">Prime prospect — not yet selling on Lazada!</div>
+          <div class="legend-tl">Pinakamahusay na target — hindi pa nagbe-benta sa Lazada!</div>
+        </div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-badge">
+          <span class="badge b-yellow">⚠️ On Lazada</span>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">Already selling on Lazada — usually skip this one</div>
+          <div class="legend-tl">Nagbe-benta na sa Lazada — karaniwang laktawan</div>
+        </div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-badge">
+          <span class="badge b-rrld">💎 RRLD</span>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">High-priority seller — brand, 10K+ followers, or multi-branch</div>
+          <div class="legend-tl">High-priority na seller — brand, 10K+ followers, o multi-branch</div>
+        </div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-badge">
+          <span class="badge" style="background:#dcfce7;color:#15803d;">● In LSAMS</span>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">Already in your pipeline — click the link to view</div>
+          <div class="legend-tl">Nasa pipeline mo na — i-click ang link para tingnan</div>
+        </div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-badge">
+          <span class="badge b-blue">🏢 Official</span>
+          <br><span class="badge b-pink" style="margin-top:3px;">🛍️ Reseller</span>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">Seller tier — Official brand store vs. reseller shop</div>
+          <div class="legend-tl">Uri ng seller — Opisyal na brand store o reseller shop</div>
+        </div>
+      </div>
+
+      <div class="legend-row">
+        <div class="legend-badge" style="min-width:120px;">
+          <div style="font-size:10px;font-weight:700;color:#9aabc5;margin-bottom:3px">RRLD Score: 75</div>
+          <div class="score-demo">
+            <div class="score-bar"><div class="score-fill" style="width:75%"></div></div>
+          </div>
+        </div>
+        <div class="legend-text">
+          <div class="legend-en">RRLD Score — higher = bigger, more valuable seller</div>
+          <div class="legend-tl">RRLD Score — mas mataas = mas malaki at mas mahalaga ang seller</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; background: #f8f7ff; border-radius: 10px; padding: 10px 12px;">
+        <div style="font-size: 11px; font-weight: 800; color: #7c3aed; margin-bottom: 6px;">📌 Reading a Result Card / Paano Basahin ang Result Card</div>
+        <div style="font-size: 11.5px; color: #374151; line-height: 1.7;">
+          <strong>Seller Name</strong>
+          <span class="badge b-shopee">☕ Coffee</span>
+          <span class="badge b-rrld">💎 RRLD</span>
+          <span class="badge b-green">✅ Not on Lazada</span>
+          <br>
+          <span style="color: #6b7280; font-style: italic;">Short description / snippet from the platform</span>
+          <br>
+          <span class="badge b-rrld" style="font-size:9px;">10K followers</span>
+          <span class="badge b-rrld" style="font-size:9px;margin-left:4px;">Multi-branch</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── STEP 6: Add to Leads ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num">6</div>
+      <div class="step-titles">
+        <div class="step-en">Add to Leads</div>
+        <div class="step-tl">Idagdag sa Leads</div>
+      </div>
+      <div class="step-icon">➕</div>
+    </div>
+    <div class="step-body">
+
+      <div class="item-row">
+        <div class="item-icon">🏪</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Store Classification</strong> — Scout auto-detects the store type; confirm or change it</div>
+          <div class="item-tl"><strong>Klasipikasyon ng Tindahan</strong> — Awtomatikong napagkilala ng Scout; kumpirmahin o baguhin</div>
+          <div class="item-note">🛒 Sari-Sari · 🏪 Physical Store · 🏬 Retailer · 📦 Distributor · 💻 Online Seller · 🏭 Manufacturer · 🛍️ Reseller</div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">🏢</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Mall / LazMall</strong> — Check the box if the seller is inside a mall; type the mall name</div>
+          <div class="item-tl"><strong>Mall / LazMall</strong> — Lagyan ng tsek kung nasa loob ng mall ang seller; i-type ang pangalan ng mall</div>
+          <div class="item-note">🏪 Auto-detected if the listing mentions a mall name</div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">📂</div>
+        <div class="item-text">
+          <div class="item-en"><strong>Campaign</strong> — (Optional) Select a campaign to add the lead directly into it</div>
+          <div class="item-tl"><strong>Campaign</strong> — (Opsyonal) Pumili ng campaign para direktang mailagay ang lead</div>
+          <div class="item-note">Select at the top of the results: "Add to campaign: [dropdown]"</div>
+        </div>
+      </div>
+
+      <div class="item-row">
+        <div class="item-icon">✅</div>
+        <div class="item-text">
+          <div class="item-en">Tap <strong>"Add to Leads"</strong> — the seller is now in your LSAMS pipeline!</div>
+          <div class="item-tl">I-tap ang <strong>"Add to Leads"</strong> — nasa pipeline mo na ngayon ang seller!</div>
+          <div class="item-note">The card turns green and shows "Added ✅" — you can click to view the new lead</div>
+        </div>
+      </div>
+
+      <div style="margin-top: 12px; background: #f0fdf4; border: 1.5px solid #86efac; border-radius: 10px; padding: 10px 12px;">
+        <div style="font-size: 12px; font-weight: 700; color: #15803d;">
+          ✅ After adding, go to your lead list and start visiting that seller!
+          <br><span style="font-weight: 500; font-style: italic;">Pagkatapos mag-add, pumunta sa lead list at simulan nang bisitahin ang seller!</span>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- ── QUICK REFERENCE ── -->
+  <div class="step-card">
+    <div class="step-header">
+      <div class="step-num" style="background:linear-gradient(135deg,#0d9488,#0891b2)">⚡</div>
+      <div class="step-titles">
+        <div class="step-en">Quick Reference — All Buttons</div>
+        <div class="step-tl">Mabilis na Sanggunian — Lahat ng Buttons</div>
+      </div>
+    </div>
+    <div class="step-body">
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px;">
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#7c3aed">🔭 Scout Now</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Run the search / Mag-search</div>
+        </div>
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#7c3aed">🏷️ Brand Library</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Browse saved brands / Tingnan ang brands</div>
+        </div>
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#15803d">➕ Add to Leads</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Save prospect / I-save ang prospect</div>
+        </div>
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#1d4ed8">↗ View</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Open seller page / Buksan ang page ng seller</div>
+        </div>
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#7c3aed">💎 RRLD Only</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Toggle big sellers / I-toggle ang malalaking seller</div>
+        </div>
+
+        <div style="background:#f8f7ff;border:1.5px solid #e9e5f5;border-radius:10px;padding:9px 11px;">
+          <div style="font-size:12px;font-weight:800;color:#ea580c">🚫 Hide on Lazada</div>
+          <div style="font-size:11px;color:#6b7280;margin-top:2px;">Show fresh prospects only / Fresh prospects lang</div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ── TIPS ── -->
+  <div class="tip-box">
+    <div class="tip-title">💡 Pro Tips for Gabay / Mga Tip para sa Gabay</div>
+    <div class="tip-item">✅ <strong>Always keep "Hide on Lazada" ON</strong> — focus on sellers who haven't joined yet<br>
+      <span style="color:#7c3aed;font-style:italic;font-size:11px;">Palaging bukas ang "Hide on Lazada" — mag-focus sa mga hindi pa nakakasali</span>
+    </div>
+    <div class="tip-item" style="margin-top:7px;">💎 <strong>RRLD sellers are the top priority</strong> — they have big followings and register faster<br>
+      <span style="color:#7c3aed;font-style:italic;font-size:11px;">Ang RRLD sellers ay pinaka-priority — malaki ang followers at mas mabilis mag-register</span>
+    </div>
+    <div class="tip-item" style="margin-top:7px;">🗂️ <strong>Pick a campaign before adding leads</strong> — it saves you time sorting later<br>
+      <span style="color:#7c3aed;font-style:italic;font-size:11px;">Pumili ng campaign bago mag-add ng leads — makatipid ito ng oras sa pagbubukod-bukod</span>
+    </div>
+    <div class="tip-item" style="margin-top:7px;">☕ <strong>TikTok + Coffee are the best platforms</strong> to find active online sellers<br>
+      <span style="color:#7c3aed;font-style:italic;font-size:11px;">TikTok at Coffee ang pinakamahusay na platform para mahanap ang mga aktibong online seller</span>
+    </div>
+    <div class="tip-item" style="margin-top:7px;">🏪 <strong>Always confirm the store type</strong> — it helps managers track the right sellers<br>
+      <span style="color:#7c3aed;font-style:italic;font-size:11px;">Palaging kumpirmahin ang uri ng tindahan — nakakatulong ito sa mga manager na subaybayan ang tamang sellers</span>
+    </div>
+  </div>
+
+  <!-- ── FULL WORKFLOW SUMMARY ── -->
+  <div class="step-card" style="background:linear-gradient(135deg,#0f0728,#1e0b4a);color:white;border:none;">
+    <div style="padding:18px 18px 20px;">
+      <div style="font-size:13px;font-weight:800;color:#a78bfa;text-transform:uppercase;letter-spacing:.08em;margin-bottom:14px;">
+        🗺️ Full Workflow / Buong Proseso
+      </div>
+      <div style="display:flex;flex-direction:column;gap:8px;">
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">1</div>
+          <div style="font-size:12px;">Open Scout <span style="color:#a78bfa">→</span> <em style="color:#c4b5fd">Buksan ang Scout</em></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">2</div>
+          <div style="font-size:12px;">Pick category + brand/keyword <span style="color:#a78bfa">→</span> <em style="color:#c4b5fd">Pumili ng kategorya at brand</em></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">3</div>
+          <div style="font-size:12px;">Select platform → Tap <strong style="color:white">Scout Now</strong> <span style="color:#a78bfa">→</span> <em style="color:#c4b5fd">Piliin ang platform → I-tap ang Scout Now</em></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">4</div>
+          <div style="font-size:12px;">Check filters — hide already-on-Lazada <span style="color:#a78bfa">→</span> <em style="color:#c4b5fd">I-check ang filters</em></div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#7c3aed;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">5</div>
+          <div style="font-size:12px;">Read results — look for <span style="background:#dcfce7;color:#15803d;padding:1px 6px;border-radius:4px;font-size:11px;font-weight:700">✅ Not on Lazada</span> cards</div>
+        </div>
+        <div style="display:flex;align-items:center;gap:10px;">
+          <div style="width:26px;height:26px;border-radius:50%;background:#F5225B;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:900;color:white;flex-shrink:0">6</div>
+          <div style="font-size:12px;">Confirm store type → Tap <strong style="color:white">Add to Leads</strong> → <strong style="color:#86efac">Go visit them! 🚀</strong></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+</div>
+
+<div class="footer">
+  LSAMS — Lazada Seller Acquisition Management System<br>
+  Prospect Scout Guide · For Gabay Use Only
+</div>
+
+</body>
+</html>
