@@ -7377,6 +7377,29 @@ def gabay_app_profile():
         stats=stats, conversion_rate=stats['conversion_rate'])
 
 
+@app.route('/gabay/app/change-password', methods=['GET', 'POST'])
+@login_required
+def gabay_change_password():
+    if request.method == 'POST':
+        current_password = request.form.get('current_password', '')
+        new_password     = request.form.get('new_password', '')
+        confirm_password = request.form.get('confirm_password', '')
+        if not current_user.check_password(current_password):
+            flash('Current password is incorrect.', 'danger')
+            return redirect(url_for('gabay_change_password'))
+        if len(new_password) < 6:
+            flash('New password must be at least 6 characters.', 'danger')
+            return redirect(url_for('gabay_change_password'))
+        if new_password != confirm_password:
+            flash('New passwords do not match.', 'danger')
+            return redirect(url_for('gabay_change_password'))
+        current_user.set_password(new_password)
+        db.session.commit()
+        flash('Password updated successfully! Please use your new password next time you log in.', 'success')
+        return redirect(url_for('gabay_app_profile'))
+    return render_template('gabay_app/change_password.html')
+
+
 @app.route('/gabay/app/leads-json')
 @login_required
 def gabay_leads_json_offline():
