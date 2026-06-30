@@ -760,18 +760,21 @@ def login():
             user.last_login = datetime.utcnow()
             db.session.commit()
             # Notify managers on every user login
-            _pht_now = datetime.utcnow() + timedelta(hours=8)
-            _role_emoji = {
-                'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
-                'admin': '🛡️', 'superadmin': '👑', 'lazada': '🟠',
-            }.get(user.role, '👤')
-            _login_msg = (
-                f"{_role_emoji} *Login Alert*\n"
-                f"👤 {user.full_name} ({user.role.title()}) logged in\n"
-                f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
-            )
-            _notify_managers_whatsapp(_login_msg)
-            _notify_managers_telegram(_login_msg)
+            try:
+                _pht_now = datetime.utcnow() + timedelta(hours=8)
+                _role_emoji = {
+                    'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
+                    'admin': '🛡', 'superadmin': '👑', 'lazada': '🟠',
+                }.get(user.role or '', '👤')
+                _login_msg = (
+                    f"{_role_emoji} *Login Alert*\n"
+                    f"👤 {user.full_name or user.username} ({(user.role or 'user').title()}) logged in\n"
+                    f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
+                )
+                _notify_managers_whatsapp(_login_msg)
+                _notify_managers_telegram(_login_msg)
+            except Exception as _e:
+                app.logger.error(f'[Login Alert] Failed: {_e}')
             dest = request.args.get('next')
             if not dest:
                 if user.role == 'gabay':
@@ -788,17 +791,21 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
-    _pht_now = datetime.utcnow() + timedelta(hours=8)
-    _role_emoji = {
-        'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
-        'admin': '🛡️', 'superadmin': '👑', 'lazada': '🟠',
-    }.get(current_user.role, '👤')
-    _logout_msg = (
-        f"{_role_emoji} *Logout Alert*\n"
-        f"👤 {current_user.full_name} ({current_user.role.title()}) logged out\n"
-        f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
-    )
-    _notify_managers_telegram(_logout_msg)
+    try:
+        _pht_now = datetime.utcnow() + timedelta(hours=8)
+        _role_emoji = {
+            'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
+            'admin': '🛡', 'superadmin': '👑', 'lazada': '🟠',
+        }.get(current_user.role or '', '👤')
+        _logout_msg = (
+            f"{_role_emoji} *Logout Alert*\n"
+            f"👤 {current_user.full_name or current_user.username} "
+            f"({(current_user.role or 'user').title()}) logged out\n"
+            f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
+        )
+        _notify_managers_telegram(_logout_msg)
+    except Exception as _e:
+        app.logger.error(f'[Logout Alert] Failed: {_e}')
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
