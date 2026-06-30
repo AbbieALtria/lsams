@@ -759,16 +759,19 @@ def login():
             login_user(user, remember=request.form.get('remember'))
             user.last_login = datetime.utcnow()
             db.session.commit()
-            # Notify managers when a Gabay agent logs in
-            if user.role == 'gabay':
-                _pht_now = datetime.utcnow() + timedelta(hours=8)
-                _login_msg = (
-                    f"📱 *Gabay Login*\n"
-                    f"👤 {user.full_name} just logged in to LSAMS\n"
-                    f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')}"
-                )
-                _notify_managers_whatsapp(_login_msg)
-                _notify_managers_telegram(_login_msg)
+            # Notify managers on every user login
+            _pht_now = datetime.utcnow() + timedelta(hours=8)
+            _role_emoji = {
+                'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
+                'admin': '🛡️', 'superadmin': '👑', 'lazada': '🟠',
+            }.get(user.role, '👤')
+            _login_msg = (
+                f"{_role_emoji} *Login Alert*\n"
+                f"👤 {user.full_name} ({user.role.title()}) logged in\n"
+                f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
+            )
+            _notify_managers_whatsapp(_login_msg)
+            _notify_managers_telegram(_login_msg)
             dest = request.args.get('next')
             if not dest:
                 if user.role == 'gabay':
@@ -785,6 +788,17 @@ def login():
 @app.route('/logout')
 @login_required
 def logout():
+    _pht_now = datetime.utcnow() + timedelta(hours=8)
+    _role_emoji = {
+        'gabay': '📱', 'supervisor': '🧑‍💼', 'manager': '👔',
+        'admin': '🛡️', 'superadmin': '👑', 'lazada': '🟠',
+    }.get(current_user.role, '👤')
+    _logout_msg = (
+        f"{_role_emoji} *Logout Alert*\n"
+        f"👤 {current_user.full_name} ({current_user.role.title()}) logged out\n"
+        f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
+    )
+    _notify_managers_telegram(_logout_msg)
     logout_user()
     flash('You have been logged out.', 'info')
     return redirect(url_for('login'))
