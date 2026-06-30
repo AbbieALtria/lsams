@@ -7534,7 +7534,7 @@ def activity_log():
 
 
 # ── Cloudinary helper ────────────────────────────────────────────────────────
-def _cloudinary_upload(file_obj, folder='lsams/presentations', resource_type='raw'):
+def _cloudinary_upload(file_obj, folder='lsams/presentations', resource_type='auto'):
     import cloudinary
     import cloudinary.uploader
     cloudinary.config(
@@ -7659,6 +7659,8 @@ def presentations_download(pid):
     filename = f'{safe_title}.{pres.file_type}'
     content_type = 'application/pdf' if pres.file_type == 'pdf' else \
                    'application/vnd.openxmlformats-officedocument.presentationml.presentation'
+    inline = request.args.get('inline')
+    disposition = f'inline; filename="{filename}"' if inline else f'attachment; filename="{filename}"'
     try:
         with urllib.request.urlopen(pres.cloudinary_url) as resp:
             data = resp.read()
@@ -7668,8 +7670,9 @@ def presentations_download(pid):
             status=200,
             headers={
                 'Content-Type': content_type,
-                'Content-Disposition': f'attachment; filename="{filename}"',
+                'Content-Disposition': disposition,
                 'Content-Length': str(len(data)),
+                'Cache-Control': 'private, max-age=3600',
             }
         )
     except Exception as ex:

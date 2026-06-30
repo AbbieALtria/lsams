@@ -9,7 +9,7 @@
   <div class="page-title" style="flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
     {{ pres.title }}
   </div>
-  <a href="{{ pres.cloudinary_url }}" target="_blank" download
+  <a href="{{ url_for('presentations_download', pid=pres.id) }}"
      style="background:linear-gradient(135deg,#F57224,#F5225B);color:white;border-radius:10px;
             padding:8px 18px;font-size:13px;font-weight:700;text-decoration:none;white-space:nowrap">
     <i class="bi bi-download me-1"></i>Download {{ pres.file_type|upper }}
@@ -38,13 +38,29 @@
 
 <!-- VIEWER -->
 {% if pres.file_type == 'pdf' %}
-<!-- PDF — inline browser viewer -->
-<div class="card" style="overflow:hidden;border-radius:16px">
-  <iframe src="{{ pres.cloudinary_url }}"
+
+<!-- Mobile: big tap-to-open button (iframe is unreliable on iOS) -->
+<div class="d-block d-md-none mb-3">
+  <a href="{{ url_for('presentations_download', pid=pres.id, inline=1) }}"
+     target="_blank"
+     style="display:flex;align-items:center;justify-content:center;gap:12px;
+            background:linear-gradient(135deg,#1F3864,#2563eb);color:white;
+            border-radius:16px;padding:22px;text-decoration:none;font-size:15px;font-weight:800">
+    <i class="bi bi-file-earmark-pdf-fill" style="font-size:32px;color:#fca5a5"></i>
+    <div>
+      <div>Tap to Open PDF</div>
+      <div style="font-size:12px;font-weight:500;opacity:.75;margin-top:2px">Opens in your PDF viewer</div>
+    </div>
+  </a>
+</div>
+
+<!-- Desktop: inline PDF iframe -->
+<div class="card d-none d-md-block" style="overflow:hidden;border-radius:16px">
+  <iframe src="{{ url_for('presentations_download', pid=pres.id, inline=1) }}"
           style="width:100%;height:80vh;border:none;display:block"
           title="{{ pres.title }}">
     <p>Your browser cannot display PDFs inline.
-       <a href="{{ pres.cloudinary_url }}" target="_blank">Download the PDF</a>
+       <a href="{{ url_for('presentations_download', pid=pres.id) }}">Download the PDF</a>
     </p>
   </iframe>
 </div>
@@ -55,9 +71,9 @@
   <div style="background:#1F3864;padding:10px 16px;color:white;font-size:12px;font-weight:700;
               display:flex;align-items:center;justify-content:space-between">
     <span><i class="bi bi-microsoft me-2"></i>Viewing via Microsoft Office Online</span>
-    <a href="{{ pres.cloudinary_url }}" target="_blank"
+    <a href="{{ url_for('presentations_download', pid=pres.id) }}"
        style="color:rgba(255,255,255,0.75);font-size:11px;text-decoration:none">
-      Open in PowerPoint →
+      Download PPTX →
     </a>
   </div>
   <iframe
@@ -71,7 +87,7 @@
             font-size:13px;color:#92400e;display:flex;align-items:center;gap:10px">
   <i class="bi bi-info-circle-fill"></i>
   If the slides don't appear, tap
-  <a href="{{ pres.cloudinary_url }}" target="_blank"
+  <a href="{{ url_for('presentations_download', pid=pres.id) }}"
      style="color:#92400e;font-weight:700">Download PPTX</a>
   to open in PowerPoint or Google Slides.
 </div>
