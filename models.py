@@ -29,6 +29,10 @@ class User(UserMixin, db.Model):
     telegram_chat_id = db.Column(db.String(30))
     # Superadmin controls who receives the scheduled daily Telegram reports
     telegram_reports_enabled = db.Column(db.Boolean, default=False)
+    # Per-user alert type preferences (default ON so existing behaviour is preserved)
+    tg_alert_login  = db.Column(db.Boolean, default=True)
+    tg_alert_logout = db.Column(db.Boolean, default=True)
+    tg_alert_visit  = db.Column(db.Boolean, default=True)
 
     # Contact info
     mobile = db.Column(db.String(20))

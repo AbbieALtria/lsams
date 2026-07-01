@@ -68,6 +68,55 @@
             </div>
           </div>
 
+          <!-- Telegram Alert Preferences — shown for manager-tier roles -->
+          <div class="mb-3" id="tgAlertsField" style="display:{{ 'none' if (not user or user.role in ('gabay','lazada')) else 'block' }}">
+            <label class="form-label fw-bold" style="font-size:12px">
+              <i class="bi bi-telegram me-1" style="color:#229ED9"></i>
+              Telegram Alert Preferences
+            </label>
+            {% if user and not user.telegram_chat_id %}
+            <div style="font-size:11px;color:#E07B00;background:#FEF3C7;border:1px solid #FCD34D;
+                        border-radius:8px;padding:8px 10px;margin-bottom:8px">
+              <i class="bi bi-exclamation-triangle me-1"></i>
+              No Telegram linked yet — alerts won't arrive until this user sends
+              <code>/start {{ user.username }}</code> to the LSAMS bot.
+            </div>
+            {% endif %}
+            <div style="background:#F0F8FF;border:1.5px solid #BAE6FD;border-radius:12px;padding:12px 14px">
+              <div style="font-size:11px;color:#1d4ed8;font-weight:700;margin-bottom:10px">
+                Which alert types should this user receive?
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="tg_alert_login" id="tgLogin"
+                  {% if not user or user.tg_alert_login is none or user.tg_alert_login %}checked{% endif %}>
+                <label class="form-check-label" for="tgLogin" style="font-size:13px">
+                  📱 <strong>Login alerts</strong>
+                  <span style="font-size:11px;color:#6b7280"> — agent/user logs in</span>
+                </label>
+              </div>
+              <div class="form-check mb-2">
+                <input class="form-check-input" type="checkbox" name="tg_alert_logout" id="tgLogout"
+                  {% if not user or user.tg_alert_logout is none or user.tg_alert_logout %}checked{% endif %}>
+                <label class="form-check-label" for="tgLogout" style="font-size:13px">
+                  🚪 <strong>Logout alerts</strong>
+                  <span style="font-size:11px;color:#6b7280"> — agent/user logs out</span>
+                </label>
+              </div>
+              <div class="form-check">
+                <input class="form-check-input" type="checkbox" name="tg_alert_visit" id="tgVisit"
+                  {% if not user or user.tg_alert_visit is none or user.tg_alert_visit %}checked{% endif %}>
+                <label class="form-check-label" for="tgVisit" style="font-size:13px">
+                  📍 <strong>Visit/transaction alerts</strong>
+                  <span style="font-size:11px;color:#6b7280"> — when a Gabay logs a visit</span>
+                </label>
+              </div>
+            </div>
+            <div style="font-size:11px;color:#9aabc5;margin-top:6px">
+              <i class="bi bi-info-circle me-1"></i>
+              Uncheck alerts this user finds noisy. All types are on by default.
+            </div>
+          </div>
+
           <!-- Scout Access — shown for Gabay and Lazada roles -->
           <div class="mb-3" id="scoutField" style="display:{{ 'block' if (not user or user.role in ('gabay','lazada')) else 'none' }}">
             <label class="form-label fw-bold" style="font-size:12px">
@@ -195,8 +244,10 @@ function toggleScoutView(checked) {
 }
 function toggleCityField(role) {
   const isGabay = role === 'gabay';
+  const isManager = ['manager', 'admin', 'superadmin', 'supervisor'].includes(role);
   document.getElementById('cityField').style.display = isGabay ? 'block' : 'none';
   document.getElementById('scoutField').style.display = (isGabay || role === 'lazada') ? 'block' : 'none';
+  document.getElementById('tgAlertsField').style.display = isManager ? 'block' : 'none';
   // Hide scoutView if scout section is hidden
   if (!isGabay && role !== 'lazada') {
     document.getElementById('scoutViewField').style.display = 'none';
