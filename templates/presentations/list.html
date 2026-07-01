@@ -32,6 +32,77 @@
   </div>
 </div>
 
+<!-- ── BUILT-IN TUTORIALS ── -->
+<div style="margin-bottom:24px">
+  <div style="font-size:11px;font-weight:800;color:#7c3aed;text-transform:uppercase;
+              letter-spacing:1px;border-bottom:2px solid #EDE8F5;padding-bottom:8px;margin-bottom:12px">
+    📖 Tutorials — Field Agent Guides
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px">
+
+    <!-- Plan My Day -->
+    <div style="background:white;border-radius:16px;overflow:hidden;
+                box-shadow:0 2px 12px rgba(31,56,100,0.08);border-top:4px solid #1F3864;
+                display:flex;flex-direction:column">
+      <div style="background:#1F386412;padding:20px;text-align:center">
+        <i class="bi bi-map-fill" style="font-size:48px;color:#1F3864"></i>
+        <div style="font-size:11px;font-weight:800;color:#1F3864;margin-top:6px;text-transform:uppercase">
+          📖 Tutorial
+        </div>
+      </div>
+      <div style="padding:14px 16px;flex:1;display:flex;flex-direction:column">
+        <div style="font-size:14px;font-weight:800;color:#1F3864;margin-bottom:4px;line-height:1.3">
+          How to Use Plan My Day
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;line-height:1.4;flex:1">
+          Step-by-step guide to building your daily field route, navigating to sellers, and checking in.
+        </div>
+        <div style="font-size:11px;color:#9aabc5;margin-bottom:12px">
+          <i class="bi bi-file-earmark-text me-1"></i>Built-in · Interactive Guide
+          <span style="background:#1F386418;color:#1F3864;font-weight:700;
+                       padding:1px 6px;border-radius:6px;margin-left:6px">HTML</span>
+        </div>
+        <a href="{{ url_for('plan_my_day_guide') }}" target="_blank"
+           style="background:#1F3864;color:white;border-radius:10px;padding:9px;
+                  text-align:center;font-size:13px;font-weight:700;text-decoration:none;display:block">
+          <i class="bi bi-book me-1"></i>Open Guide
+        </a>
+      </div>
+    </div>
+
+    <!-- Scout Guide -->
+    <div style="background:white;border-radius:16px;overflow:hidden;
+                box-shadow:0 2px 12px rgba(31,56,100,0.08);border-top:4px solid #7c3aed;
+                display:flex;flex-direction:column">
+      <div style="background:#7c3aed12;padding:20px;text-align:center">
+        <i class="bi bi-binoculars-fill" style="font-size:48px;color:#7c3aed"></i>
+        <div style="font-size:11px;font-weight:800;color:#7c3aed;margin-top:6px;text-transform:uppercase">
+          📖 Tutorial
+        </div>
+      </div>
+      <div style="padding:14px 16px;flex:1;display:flex;flex-direction:column">
+        <div style="font-size:14px;font-weight:800;color:#1F3864;margin-bottom:4px;line-height:1.3">
+          How to Use Prospect Scout
+        </div>
+        <div style="font-size:12px;color:#6b7280;margin-bottom:8px;line-height:1.4;flex:1">
+          Find and add new sellers using Scout — brand library, filters, platforms, and scoring explained.
+        </div>
+        <div style="font-size:11px;color:#9aabc5;margin-bottom:12px">
+          <i class="bi bi-file-earmark-text me-1"></i>Built-in · Interactive Guide
+          <span style="background:#7c3aed18;color:#7c3aed;font-weight:700;
+                       padding:1px 6px;border-radius:6px;margin-left:6px">HTML</span>
+        </div>
+        <a href="{{ url_for('scout_guide') }}" target="_blank"
+           style="background:#7c3aed;color:white;border-radius:10px;padding:9px;
+                  text-align:center;font-size:13px;font-weight:700;text-decoration:none;display:block">
+          <i class="bi bi-book me-1"></i>Open Guide
+        </a>
+      </div>
+    </div>
+
+  </div>
+</div>
+
 {% if items %}
 <div style="display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:16px">
   {% for p in items %}
