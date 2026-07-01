@@ -209,6 +209,38 @@
   </div>
 </div>
 
+<!-- QUICK LINKS — Presentations & Guide -->
+<div style="display:flex;gap:10px;margin-bottom:16px">
+  <a href="{{ url_for('presentations_list') }}"
+     style="flex:1;background:white;border-radius:16px;padding:14px 12px;
+            display:flex;align-items:center;gap:10px;text-decoration:none;
+            box-shadow:0 2px 8px rgba(31,56,100,0.07);border:1.5px solid #E0E6EF">
+    <div style="width:40px;height:40px;border-radius:12px;flex-shrink:0;
+                background:linear-gradient(135deg,#1F3864,#2E75B6);
+                display:flex;align-items:center;justify-content:center">
+      <i class="bi bi-collection-play-fill" style="color:white;font-size:18px"></i>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:800;color:#1F3864">Presentations</div>
+      <div style="font-size:11px;color:#9aabc5">Training slides &amp; materials</div>
+    </div>
+  </a>
+  <a href="{{ url_for('scout_guide') }}"
+     style="flex:1;background:white;border-radius:16px;padding:14px 12px;
+            display:flex;align-items:center;gap:10px;text-decoration:none;
+            box-shadow:0 2px 8px rgba(31,56,100,0.07);border:1.5px solid #E0E6EF">
+    <div style="width:40px;height:40px;border-radius:12px;flex-shrink:0;
+                background:linear-gradient(135deg,#7c3aed,#a855f7);
+                display:flex;align-items:center;justify-content:center">
+      <i class="bi bi-binoculars-fill" style="color:white;font-size:18px"></i>
+    </div>
+    <div>
+      <div style="font-size:13px;font-weight:800;color:#1F3864">Scout Guide</div>
+      <div style="font-size:11px;color:#9aabc5">How to use Scout</div>
+    </div>
+  </a>
+</div>
+
 <!-- FOLLOW-UPS DUE TODAY -->
 {% if followups %}
 <div class="section-hdr">
