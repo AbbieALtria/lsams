@@ -117,11 +117,14 @@ def _handle_start(chat_id, text: str):
         )
         return
 
-    user = User.query.filter_by(username=username, is_active=True).first()
+    user = User.query.filter(
+        User.username.ilike(username), User.is_active == True
+    ).first()
     if not user:
         send_message(chat_id,
             f"❌ Username *{username}* not found in LSAMS.\n\n"
-            "Check the spelling and try again, or ask your supervisor."
+            "Make sure you use your *LSAMS username* (not your full name).\n"
+            "Ask your supervisor for your exact username if you're unsure."
         )
         return
 
