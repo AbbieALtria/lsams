@@ -608,19 +608,23 @@ def _notify_managers_telegram(message: str):
     """Send a Telegram message to all managers/admins who have linked their Telegram."""
     import threading
     from telegram_bot import send_message as tg_send
-    managers = User.query.filter(
+    # Extract chat_ids as plain strings NOW (in the current request context)
+    # so the background thread never touches detached SQLAlchemy objects.
+    rows = User.query.filter(
         User.is_active == True,
         User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
         User.telegram_chat_id.isnot(None),
         User.telegram_chat_id != '',
-    ).all()
+    ).with_entities(User.telegram_chat_id, User.username).all()
+    recipients = [(str(r.telegram_chat_id), r.username) for r in rows]
+    if not recipients:
+        return
     def _send():
-        with app.app_context():
-            for m in managers:
-                try:
-                    tg_send(m.telegram_chat_id, message)
-                except Exception as e:
-                    app.logger.error(f'[TG Notify] Failed to notify {m.username}: {e}')
+        for chat_id, username in recipients:
+            try:
+                tg_send(chat_id, message)
+            except Exception as e:
+                app.logger.error(f'[TG Notify] Failed to notify {username}: {e}')
     threading.Thread(target=_send, daemon=True).start()
 
 
