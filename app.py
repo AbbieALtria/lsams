@@ -67,6 +67,9 @@ with app.app_context():
         ("whatsapp_alerts_enabled", "BOOLEAN DEFAULT TRUE"),
         ("telegram_chat_id",        "VARCHAR(30)"),
         ("telegram_reports_enabled", "BOOLEAN DEFAULT FALSE"),
+        ("tg_alert_login",  "BOOLEAN DEFAULT TRUE"),
+        ("tg_alert_logout", "BOOLEAN DEFAULT TRUE"),
+        ("tg_alert_visit",  "BOOLEAN DEFAULT TRUE"),
         ("mobile",         "VARCHAR(20)"),
         ("mobile2",        "VARCHAR(20)"),
         ("viber",          "VARCHAR(20)"),
@@ -604,18 +607,25 @@ def _notify_managers_whatsapp(message: str):
     threading.Thread(target=_send, daemon=True).start()
 
 
-def _notify_managers_telegram(message: str):
-    """Send a Telegram message to all managers/admins who have linked their Telegram."""
+def _notify_managers_telegram(message: str, alert_type: str = 'visit'):
+    """Send a Telegram message to managers/admins based on their alert type preferences."""
     import threading
     from telegram_bot import send_message as tg_send
-    # Extract chat_ids as plain strings NOW (in the current request context)
-    # so the background thread never touches detached SQLAlchemy objects.
-    rows = User.query.filter(
+    _col_map = {
+        'login':  User.tg_alert_login,
+        'logout': User.tg_alert_logout,
+        'visit':  User.tg_alert_visit,
+    }
+    _pref_col = _col_map.get(alert_type)
+    q = User.query.filter(
         User.is_active == True,
         User.role.in_(['manager', 'admin', 'superadmin', 'supervisor']),
         User.telegram_chat_id.isnot(None),
         User.telegram_chat_id != '',
-    ).with_entities(User.telegram_chat_id, User.username).all()
+    )
+    if _pref_col is not None:
+        q = q.filter(_pref_col == True)
+    rows = q.with_entities(User.telegram_chat_id, User.username).all()
     recipients = [(str(r.telegram_chat_id), r.username) for r in rows]
     if not recipients:
         return
@@ -776,7 +786,7 @@ def login():
                     f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
                 )
                 _notify_managers_whatsapp(_login_msg)
-                _notify_managers_telegram(_login_msg)
+                _notify_managers_telegram(_login_msg, alert_type='login')
             except Exception as _e:
                 app.logger.error(f'[Login Alert] Failed: {_e}')
             dest = request.args.get('next')
@@ -807,7 +817,7 @@ def logout():
             f"({(current_user.role or 'user').title()}) logged out\n"
             f"🕐 {_pht_now.strftime('%b %d, %Y at %I:%M %p')} PHT"
         )
-        _notify_managers_telegram(_logout_msg)
+        _notify_managers_telegram(_logout_msg, alert_type='logout')
     except Exception as _e:
         app.logger.error(f'[Logout Alert] Failed: {_e}')
     logout_user()
@@ -5890,6 +5900,11 @@ def admin_edit_user(user_id):
         new_pw = request.form.get('password', '').strip()
         if new_pw:
             u.set_password(new_pw)
+        # Telegram alert preferences (only meaningful for roles that receive alerts)
+        if u.role in ('manager', 'admin', 'superadmin', 'supervisor'):
+            u.tg_alert_login  = 'tg_alert_login'  in request.form
+            u.tg_alert_logout = 'tg_alert_logout' in request.form
+            u.tg_alert_visit  = 'tg_alert_visit'  in request.form
         db.session.commit()
         flash(f'User {u.full_name} updated.', 'success')
         return redirect(url_for('admin_users'))
@@ -7053,7 +7068,7 @@ def gabay_quick_checkin():
                     f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
                 )
                 _notify_managers_whatsapp(_visit_msg)
-                _notify_managers_telegram(_visit_msg)
+                _notify_managers_telegram(_visit_msg, alert_type='visit')
         except Exception as _me:
             app.logger.error(f'[Checkin] Manager notify failed: {_me}')
 
