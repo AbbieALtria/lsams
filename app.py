@@ -5067,7 +5067,7 @@ def telegram_setup():
     if not current_user.is_supervisor:
         return 'Access denied', 403
     import requests as _req
-    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
     if not token:
         return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
     base_url = f'https://{request.host}'
@@ -5099,7 +5099,7 @@ def telegram_test():
     if not current_user.is_supervisor:
         return 'Access denied', 403
     from telegram_bot import send_message as tg_send
-    token = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+    token = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
     if not token:
         return '<pre>❌ TELEGRAM_BOT_TOKEN not set in Railway environment variables.</pre>'
     chat_id = current_user.telegram_chat_id
