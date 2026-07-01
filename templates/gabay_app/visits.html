@@ -41,8 +41,17 @@
             {% if v.gps_address %}· {{ v.gps_address[:40] }}…{% endif %}
           </div>
           {% if v.notes %}
-          <div style="font-size:12px;color:#4a5568;margin-top:6px;padding:8px;background:#F8FAFD;border-radius:8px">
+          {% set is_voice = v.notes.startswith('[🎙 Voice]') %}
+          <div style="font-size:12px;color:#4a5568;margin-top:6px;padding:8px 10px;background:#F8FAFD;border-radius:8px">
+            {% if is_voice %}
+            <span style="font-size:10px;font-weight:800;color:#4338ca;background:#EEF2FF;
+                         border:1px solid #c7d2fe;border-radius:10px;padding:1px 7px;
+                         margin-right:5px;white-space:nowrap">🎙 Voice Note</span>
+            {% set clean = v.notes[9:] | trim %}
+            {{ clean[:120] }}{% if clean|length > 120 %}…{% endif %}
+            {% else %}
             {{ v.notes[:100] }}{% if v.notes|length > 100 %}…{% endif %}
+            {% endif %}
           </div>
           {% endif %}
           {% if v.follow_up_date %}

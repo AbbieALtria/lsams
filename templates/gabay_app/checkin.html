@@ -159,181 +159,24 @@
     <div class="step-num" id="step3num">3</div>
     <div>
       <div data-i18n="checkin_step3">What happened?</div>
-      <div style="font-size:12px;font-weight:400;color:#9aabc5">🎙 Use Voice below — or tap an outcome</div>
+      <div style="font-size:12px;font-weight:400;color:#9aabc5" id="step3SubLabel">Tap an outcome — or use Voice AI below</div>
     </div>
   </div>
 
-  <!-- VOICE CHECK-IN (moved before outcome grid) -->
-  <div class="voice-bar" id="voiceBar">
-    <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:4px;letter-spacing:.03em">
-      🎙 VOICE CHECK-IN <span style="font-size:10px;font-weight:700;color:#15803d;background:#f0fdf4;
-        border:1px solid #86efac;border-radius:20px;padding:1px 7px;margin-left:4px">Recommended</span>
-    </div>
-    <div style="font-size:10px;color:#a5b4fc;margin-bottom:10px;line-height:1.5">
-      Tap mic → speak → see written transcript → apply<br>
-      Speak in <strong style="color:#6366f1">Tagalog · English · Bisaya · Chinese</strong> or mixed
-    </div>
-    <button type="button" class="voice-mic-btn" id="voiceMicBtn" onclick="toggleRecording()">
-      🎙
-    </button>
-    <div style="font-size:12px;color:#6366f1;font-weight:700" id="voiceStatus">Tap mic to speak</div>
-    <div style="font-size:10px;color:#a5b4fc;margin-top:3px" id="voiceHint">
-      Say seller name, what happened, and any follow-up
-    </div>
-
-    <!-- PLAYBACK PREVIEW — shown after recording stops, before sending to AI -->
-    <div id="voicePlaybackBox" style="display:none;margin-top:12px;background:#f0f4ff;
-         border:1.5px solid #c7d2fe;border-radius:12px;padding:12px">
-      <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:6px">
-        ✅ Recording captured — <span id="voiceDuration"></span>
-      </div>
-      <audio id="voiceAudioPlayer" controls style="width:100%;height:36px;border-radius:8px;outline:none"></audio>
-      <div style="display:flex;gap:8px;margin-top:10px">
-        <button type="button" onclick="sendAudioFromPreview()"
-                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
-                       padding:10px;font-size:13px;font-weight:800;cursor:pointer;
-                       box-shadow:0 4px 14px rgba(67,56,202,0.35)">
-          🤖 Send to Maria → See Transcript
-        </button>
-        <button type="button" onclick="redoRecording()"
-                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
-                       border-radius:10px;padding:10px;font-size:13px;font-weight:700;cursor:pointer">
-          🔄 Re-record
-        </button>
-      </div>
-    </div>
-
-    <!-- TYPEWRITER PANEL — shown right after transcription, before user confirms -->
-    <div id="voiceTypewriterBox" style="display:none;margin-top:12px;background:#f5f3ff;
-         border:2.5px solid #4338ca;border-radius:14px;padding:14px;text-align:left;
-         animation:pop-in 0.3s ease">
-      <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:8px;
-                  display:flex;align-items:center;gap:6px">
-        <span style="font-size:16px">🧠</span> Maria heard this:
-        <span id="voiceTypingIndicator" style="font-size:10px;color:#a5b4fc;font-weight:400;margin-left:4px">
-          tap text to skip →
-        </span>
-      </div>
-      <div id="voiceTypewriterText"
-           onclick="skipTypewriter()"
-           style="font-size:15px;color:#1e1b4b;font-style:italic;line-height:1.6;
-                  background:white;border-radius:10px;padding:10px 12px;
-                  min-height:60px;border:1px solid #c7d2fe;word-break:break-word;
-                  cursor:pointer;-webkit-tap-highlight-color:rgba(99,102,241,0.1)">
-      </div>
-      <div style="font-size:11px;color:#6366f1;margin:10px 0 8px;font-weight:700"
-           id="voiceConfirmQuestion">Is this correct?</div>
-      <div style="display:flex;gap:8px">
-        <button type="button" onclick="confirmTranscript()" id="voiceConfirmBtn"
-                style="flex:2;background:#9ca3af;color:white;border:none;border-radius:10px;
-                       padding:11px;font-size:13px;font-weight:800;cursor:not-allowed;
-                       opacity:0.6;transition:all 0.3s"
-                disabled>
-          ⏳ Reading…
-        </button>
-        <button type="button" onclick="redoFromTypewriter()"
-                style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
-                       border-radius:10px;padding:11px;font-size:12px;font-weight:700;cursor:pointer">
-          🔄 Re-record
-        </button>
-      </div>
-    </div>
-
-    <!-- AI RESULT CARD -->
-    <div class="voice-result-box" id="voiceResultBox" style="display:none">
-      <!-- Transcript (compact, already confirmed) -->
-      <div style="background:#f5f3ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;
-                  display:flex;gap:8px;align-items:flex-start">
-        <span style="font-size:13px;flex-shrink:0">🧠</span>
-        <div id="voiceTranscript" style="font-size:11px;color:#4338ca;font-style:italic;
-             line-height:1.5;flex:1"></div>
-      </div>
-
-      <!-- Seller match -->
-      <div id="voiceSellerSection" style="display:none;margin-bottom:10px">
-        <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:6px;
-                    text-transform:uppercase;letter-spacing:.05em">🏪 Seller:</div>
-        <div id="voiceSellerContent"></div>
-      </div>
-
-      <!-- Extracted fields grid -->
-      <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px"
-           id="voiceFieldsGrid">
-        <div id="voiceOutcomeField" style="display:none;background:#f0fdf4;border-radius:8px;
-             padding:8px 10px;border-left:3px solid #15803d">
-          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Outcome</div>
-          <div id="voiceOutcomeVal" style="font-size:12px;font-weight:800;color:#15803d;margin-top:2px"></div>
-        </div>
-        <div id="voiceStatusField" style="display:none;background:#ede9fe;border-radius:8px;
-             padding:8px 10px;border-left:3px solid #7c3aed">
-          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">New Status</div>
-          <div id="voiceStatusVal" style="font-size:12px;font-weight:800;color:#7c3aed;margin-top:2px"></div>
-        </div>
-        <div id="voiceFollowupField" style="display:none;background:#fce7f3;border-radius:8px;
-             padding:8px 10px;border-left:3px solid #be185d">
-          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Follow-up</div>
-          <div id="voiceFollowupVal" style="font-size:12px;font-weight:800;color:#be185d;margin-top:2px"></div>
-        </div>
-        <div id="voiceNotesField" style="display:none;background:#f0f9ff;border-radius:8px;
-             padding:8px 10px;border-left:3px solid #0284c7;grid-column:1/-1">
-          <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Notes</div>
-          <div id="voiceNotesVal" style="font-size:11px;color:#0c4a6e;margin-top:2px;line-height:1.4"></div>
-        </div>
-      </div>
-
-      <!-- Unclear warning -->
-      <div id="voiceUnclearWarn" style="display:none;background:#fef3c7;border-radius:8px;
-           padding:8px 10px;margin-bottom:10px;font-size:11px;color:#92400e">
-        ⚠️ Some fields were unclear — please review and adjust before submitting.
-      </div>
-
-      <!-- Action buttons -->
-      <div style="display:flex;gap:8px" id="voiceActionBtns">
-        <button type="button" onclick="applyVoice()" id="voiceApplyBtn"
-                style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
-                       padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer">
-          ✅ Apply to Form
-        </button>
-        <button type="button" onclick="clearVoice()"
-                style="flex:1;background:#F0F4FA;color:#6b7280;border:none;border-radius:10px;
-                       padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer">
-          🔄 Redo
-        </button>
-      </div>
-
-      <!-- COMPLETION BANNER — shown after Apply is tapped -->
-      <div id="voiceAppliedBanner" style="display:none;margin-top:12px;
-           background:linear-gradient(135deg,#f0fdf4,#dcfce7);
-           border:2px solid #15803d;border-radius:12px;padding:14px;text-align:center">
-        <div style="font-size:26px;margin-bottom:6px">✅</div>
-        <div style="font-size:14px;font-weight:800;color:#14532d;margin-bottom:4px">
-          Form Updated!
-        </div>
-        <div style="font-size:12px;color:#166534;line-height:1.5;margin-bottom:10px">
-          Seller information has been filled in below.<br>
-          Review and tap <strong>Submit Check-In</strong> when ready.
-        </div>
-        <div id="voiceAppliedOfflineNote" style="display:none;background:#fef3c7;
-             border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;
-             border-left:3px solid #d97706;text-align:left">
-          📵 <strong>You're offline</strong> — no problem. Your check-in will be saved on your phone
-          and seller info will sync to LSAMS automatically when you have internet.
-        </div>
-        <div id="voiceAppliedOnlineNote" style="display:none;background:#e0f2fe;
-             border-radius:8px;padding:8px 10px;font-size:11px;color:#0369a1;
-             border-left:3px solid #0284c7;text-align:left;margin-top:6px">
-          🌐 <strong>Connected</strong> — seller info will update immediately when you submit.
-        </div>
-      </div>
+  <!-- CONNECTIVITY BANNER -->
+  <div id="step3ConnBanner" style="border-radius:12px;padding:10px 14px;margin-bottom:12px;
+       display:flex;align-items:center;gap:10px;
+       background:#f0fdf4;border:1.5px solid #86efac">
+    <span id="step3ConnIcon" style="font-size:20px;flex-shrink:0">🌐</span>
+    <div id="step3ConnText" style="font-size:12px;line-height:1.4;color:#14532d">
+      <strong>Online</strong> — Tap an outcome below for a quick check-in, or use Voice AI to speak your visit
     </div>
   </div>
 
-  <!-- OR TAP AN OUTCOME divider -->
-  <div style="display:flex;align-items:center;gap:10px;margin:14px 0 10px">
-    <div style="flex:1;height:1px;background:#e0e7ff"></div>
-    <div style="font-size:10px;font-weight:800;color:#9aabc5;letter-spacing:.07em;
-                white-space:nowrap">OR TAP AN OUTCOME</div>
-    <div style="flex:1;height:1px;background:#e0e7ff"></div>
+  <!-- OUTCOME GRID — always first, works online & offline -->
+  <div style="font-size:10px;font-weight:800;color:#9aabc5;letter-spacing:.07em;
+              margin-bottom:8px;text-transform:uppercase">
+    Tap your outcome
   </div>
 
   <div class="outcome-grid">
@@ -388,6 +231,172 @@
       Enter the ShortCode generated by Lazada upon seller registration
     </div>
   </div>
+
+  <!-- VOICE AI SECTION — online only, appears below outcome grid -->
+  <div id="voiceSection" style="margin-top:16px">
+    <div style="display:flex;align-items:center;gap:10px;margin-bottom:12px">
+      <div style="flex:1;height:1px;background:#e0e7ff"></div>
+      <div style="font-size:10px;font-weight:800;color:#6366f1;letter-spacing:.07em;
+                  white-space:nowrap">🎙 OR USE VOICE AI (ONLINE ONLY)</div>
+      <div style="flex:1;height:1px;background:#e0e7ff"></div>
+    </div>
+
+    <div class="voice-bar" id="voiceBar">
+      <div style="font-size:12px;font-weight:800;color:#4338ca;margin-bottom:4px;letter-spacing:.03em">
+        🎙 VOICE AI CHECK-IN
+        <span style="font-size:10px;font-weight:700;color:#0369a1;background:#e0f2fe;
+          border:1px solid #7dd3fc;border-radius:20px;padding:1px 7px;margin-left:4px">🌐 Needs internet</span>
+      </div>
+      <div style="font-size:10px;color:#a5b4fc;margin-bottom:10px;line-height:1.5">
+        Tap mic → speak → see written transcript → apply<br>
+        Speak in <strong style="color:#6366f1">Tagalog · English · Bisaya · Chinese</strong> or mixed
+      </div>
+      <button type="button" class="voice-mic-btn" id="voiceMicBtn" onclick="toggleRecording()">
+        🎙
+      </button>
+      <div style="font-size:12px;color:#6366f1;font-weight:700" id="voiceStatus">Tap mic to speak</div>
+      <div style="font-size:10px;color:#a5b4fc;margin-top:3px" id="voiceHint">
+        Say seller name, what happened, and any follow-up
+      </div>
+
+      <!-- PLAYBACK PREVIEW — shown after recording stops -->
+      <div id="voicePlaybackBox" style="display:none;margin-top:12px;border-radius:14px;padding:14px;
+           background:linear-gradient(135deg,#f0fdf4,#dcfce7);border:2.5px solid #15803d;
+           animation:pop-in 0.35s ease">
+        <div style="font-size:16px;font-weight:800;color:#14532d;margin-bottom:4px;text-align:center">
+          ✅ Recording Saved!
+        </div>
+        <div style="font-size:12px;color:#166534;text-align:center;margin-bottom:10px">
+          <span id="voiceDuration"></span> · Listen to confirm it's clear, then tap Send
+        </div>
+        <audio id="voiceAudioPlayer" controls style="width:100%;height:36px;border-radius:8px;outline:none"></audio>
+        <div style="display:flex;gap:8px;margin-top:10px">
+          <button type="button" onclick="sendAudioFromPreview()"
+                  style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                         padding:11px;font-size:13px;font-weight:800;cursor:pointer;
+                         box-shadow:0 4px 14px rgba(67,56,202,0.35)">
+            🤖 Send to Maria → Get Transcript
+          </button>
+          <button type="button" onclick="redoRecording()"
+                  style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                         border-radius:10px;padding:11px;font-size:13px;font-weight:700;cursor:pointer">
+            🔄 Redo
+          </button>
+        </div>
+      </div>
+
+      <!-- TYPEWRITER PANEL — shown after transcription, before user confirms -->
+      <div id="voiceTypewriterBox" style="display:none;margin-top:12px;background:#f5f3ff;
+           border:2.5px solid #4338ca;border-radius:14px;padding:14px;text-align:left;
+           animation:pop-in 0.3s ease">
+        <div style="font-size:11px;font-weight:800;color:#4338ca;margin-bottom:8px;
+                    display:flex;align-items:center;gap:6px">
+          <span style="font-size:16px">🧠</span> Maria heard this:
+          <span id="voiceTypingIndicator" style="font-size:10px;color:#a5b4fc;font-weight:400;margin-left:4px">
+            tap text to skip →
+          </span>
+        </div>
+        <div id="voiceTypewriterText"
+             onclick="skipTypewriter()"
+             style="font-size:15px;color:#1e1b4b;font-style:italic;line-height:1.6;
+                    background:white;border-radius:10px;padding:10px 12px;
+                    min-height:60px;border:1px solid #c7d2fe;word-break:break-word;
+                    cursor:pointer;-webkit-tap-highlight-color:rgba(99,102,241,0.1)">
+        </div>
+        <div style="font-size:11px;color:#6366f1;margin:10px 0 8px;font-weight:700"
+             id="voiceConfirmQuestion">Is this correct?</div>
+        <div style="display:flex;gap:8px">
+          <button type="button" onclick="confirmTranscript()" id="voiceConfirmBtn"
+                  style="flex:2;background:#9ca3af;color:white;border:none;border-radius:10px;
+                         padding:11px;font-size:13px;font-weight:800;cursor:not-allowed;
+                         opacity:0.6;transition:all 0.3s"
+                  disabled>
+            ⏳ Reading…
+          </button>
+          <button type="button" onclick="redoFromTypewriter()"
+                  style="flex:1;background:#f0f4ff;color:#6366f1;border:1.5px solid #c7d2fe;
+                         border-radius:10px;padding:11px;font-size:12px;font-weight:700;cursor:pointer">
+            🔄 Re-record
+          </button>
+        </div>
+      </div>
+
+      <!-- AI RESULT CARD -->
+      <div class="voice-result-box" id="voiceResultBox" style="display:none">
+        <div style="background:#f5f3ff;border-radius:8px;padding:8px 10px;margin-bottom:10px;
+                    display:flex;gap:8px;align-items:flex-start">
+          <span style="font-size:13px;flex-shrink:0">🧠</span>
+          <div id="voiceTranscript" style="font-size:11px;color:#4338ca;font-style:italic;
+               line-height:1.5;flex:1"></div>
+        </div>
+        <div id="voiceSellerSection" style="display:none;margin-bottom:10px">
+          <div style="font-size:10px;font-weight:800;color:#6366f1;margin-bottom:6px;
+                      text-transform:uppercase;letter-spacing:.05em">🏪 Seller:</div>
+          <div id="voiceSellerContent"></div>
+        </div>
+        <div style="display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px"
+             id="voiceFieldsGrid">
+          <div id="voiceOutcomeField" style="display:none;background:#f0fdf4;border-radius:8px;
+               padding:8px 10px;border-left:3px solid #15803d">
+            <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Outcome</div>
+            <div id="voiceOutcomeVal" style="font-size:12px;font-weight:800;color:#15803d;margin-top:2px"></div>
+          </div>
+          <div id="voiceStatusField" style="display:none;background:#ede9fe;border-radius:8px;
+               padding:8px 10px;border-left:3px solid #7c3aed">
+            <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">New Status</div>
+            <div id="voiceStatusVal" style="font-size:12px;font-weight:800;color:#7c3aed;margin-top:2px"></div>
+          </div>
+          <div id="voiceFollowupField" style="display:none;background:#fce7f3;border-radius:8px;
+               padding:8px 10px;border-left:3px solid #be185d">
+            <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Follow-up</div>
+            <div id="voiceFollowupVal" style="font-size:12px;font-weight:800;color:#be185d;margin-top:2px"></div>
+          </div>
+          <div id="voiceNotesField" style="display:none;background:#f0f9ff;border-radius:8px;
+               padding:8px 10px;border-left:3px solid #0284c7;grid-column:1/-1">
+            <div style="font-size:9px;font-weight:800;color:#9aabc5;text-transform:uppercase">Notes</div>
+            <div id="voiceNotesVal" style="font-size:11px;color:#0c4a6e;margin-top:2px;line-height:1.4"></div>
+          </div>
+        </div>
+        <div id="voiceUnclearWarn" style="display:none;background:#fef3c7;border-radius:8px;
+             padding:8px 10px;margin-bottom:10px;font-size:11px;color:#92400e">
+          ⚠️ Some fields were unclear — please review and adjust before submitting.
+        </div>
+        <div style="display:flex;gap:8px" id="voiceActionBtns">
+          <button type="button" onclick="applyVoice()" id="voiceApplyBtn"
+                  style="flex:2;background:#4338ca;color:white;border:none;border-radius:10px;
+                         padding:11px 14px;font-size:13px;font-weight:800;cursor:pointer">
+            ✅ Apply to Form
+          </button>
+          <button type="button" onclick="clearVoice()"
+                  style="flex:1;background:#F0F4FA;color:#6b7280;border:none;border-radius:10px;
+                         padding:11px 14px;font-size:13px;font-weight:700;cursor:pointer">
+            🔄 Redo
+          </button>
+        </div>
+        <div id="voiceAppliedBanner" style="display:none;margin-top:12px;
+             background:linear-gradient(135deg,#f0fdf4,#dcfce7);
+             border:2px solid #15803d;border-radius:12px;padding:14px;text-align:center">
+          <div style="font-size:26px;margin-bottom:6px">✅</div>
+          <div style="font-size:14px;font-weight:800;color:#14532d;margin-bottom:4px">Voice Applied!</div>
+          <div style="font-size:12px;color:#166534;line-height:1.5;margin-bottom:10px">
+            Outcome and notes filled in from your voice.<br>
+            Scroll up to review, then tap <strong>Submit Check-In</strong>.
+          </div>
+          <div id="voiceAppliedOfflineNote" style="display:none;background:#fef3c7;
+               border-radius:8px;padding:8px 10px;font-size:11px;color:#92400e;
+               border-left:3px solid #d97706;text-align:left">
+            📵 <strong>You're offline</strong> — no problem. Your check-in will be saved on your phone
+            and seller info will sync to LSAMS automatically when you have internet.
+          </div>
+          <div id="voiceAppliedOnlineNote" style="display:none;background:#e0f2fe;
+               border-radius:8px;padding:8px 10px;font-size:11px;color:#0369a1;
+               border-left:3px solid #0284c7;text-align:left;margin-top:6px">
+            🌐 <strong>Connected</strong> — seller info will update immediately when you submit.
+          </div>
+        </div>
+      </div>
+    </div><!-- /voice-bar -->
+  </div><!-- /voiceSection -->
 
   <!-- STEP 4: PHOTOS -->
   <div class="step-label" style="margin-top:20px">
@@ -823,18 +832,34 @@ const OUTCOME_LABELS = {
 };
 
 function updateVoiceOfflineState() {
-  if (!navigator.onLine) {
-    document.getElementById('voiceMicBtn').disabled = true;
-    document.getElementById('voiceMicBtn').style.opacity = '0.4';
-    document.getElementById('voiceStatus').textContent = 'Needs internet connection';
-    document.getElementById('voiceHint').textContent = 'Voice check-in is unavailable offline — fill the form manually';
-  } else {
-    document.getElementById('voiceMicBtn').disabled = false;
-    document.getElementById('voiceMicBtn').style.opacity = '1';
-    if (!isRecording) {
+  const online = navigator.onLine;
+  const banner = document.getElementById('step3ConnBanner');
+  const icon   = document.getElementById('step3ConnIcon');
+  const text   = document.getElementById('step3ConnText');
+  const voiceSec = document.getElementById('voiceSection');
+  const subLabel = document.getElementById('step3SubLabel');
+
+  if (online) {
+    banner.style.background = '#f0fdf4';
+    banner.style.border     = '1.5px solid #86efac';
+    icon.textContent = '🌐';
+    text.innerHTML = '<strong style="color:#14532d">Online</strong> <span style="color:#166534"> — Tap an outcome above for a quick check-in, or use Voice AI below to speak your visit</span>';
+    if (subLabel) subLabel.textContent = 'Tap an outcome — or use Voice AI below';
+    if (voiceSec) voiceSec.style.display = 'block';
+    const micBtn = document.getElementById('voiceMicBtn');
+    if (micBtn && !isRecording) {
+      micBtn.disabled = false;
+      micBtn.style.opacity = '1';
       document.getElementById('voiceStatus').textContent = 'Tap mic to speak';
       document.getElementById('voiceHint').textContent = 'Say seller name, what happened, and any follow-up';
     }
+  } else {
+    banner.style.background = '#fef3c7';
+    banner.style.border     = '1.5px solid #fbbf24';
+    icon.textContent = '📵';
+    text.innerHTML = '<strong style="color:#92400e">Offline</strong> <span style="color:#78350f"> — Voice AI needs internet. Tap an outcome button above — your check-in saves automatically.</span>';
+    if (subLabel) subLabel.textContent = '📵 Offline — tap an outcome button below';
+    if (voiceSec) voiceSec.style.display = 'none';
   }
 }
 
@@ -1258,9 +1283,12 @@ function applyVoice() {
     }
   }
 
-  // 5. Notes (use AI summary, not raw transcript)
+  // 5. Notes — prefix with transcript so history shows voice badge
   const notesEl = document.querySelector('textarea[name="notes"]');
-  if (notesEl && d.notes) notesEl.value = d.notes;
+  if (notesEl) {
+    const transcript = d.text ? `[🎙 Voice] "${d.text}"\n` : '[🎙 Voice]\n';
+    notesEl.value = transcript + (d.notes || '');
+  }
 
   // Hide action buttons, show completion banner
   document.getElementById('voiceActionBtns').style.display = 'none';
