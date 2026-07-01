@@ -6949,18 +6949,21 @@ def gabay_quick_checkin():
                 follow_up_date = datetime.strptime(follow_up_str, '%Y-%m-%d').date()
             except ValueError:
                 pass
-        # Handle photo uploads
+        # Handle photo uploads — fail gracefully so check-in always saves
         import uuid
         photo_filenames = []
-        visit_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'visits')
-        os.makedirs(visit_upload_dir, exist_ok=True)
-        for field_name in ('photo_selfie', 'photo_proof'):
-            f = request.files.get(field_name)
-            if f and f.filename:
-                ext = os.path.splitext(secure_filename(f.filename))[1].lower() or '.jpg'
-                fname = f'{gid}_{lead_id}_{field_name}_{uuid.uuid4().hex[:8]}{ext}'
-                f.save(os.path.join(visit_upload_dir, fname))
-                photo_filenames.append(fname)
+        try:
+            visit_upload_dir = os.path.join(app.config['UPLOAD_FOLDER'], 'visits')
+            os.makedirs(visit_upload_dir, exist_ok=True)
+            for field_name in ('photo_selfie', 'photo_proof'):
+                f = request.files.get(field_name)
+                if f and f.filename:
+                    ext = os.path.splitext(secure_filename(f.filename))[1].lower() or '.jpg'
+                    fname = f'{gid}_{lead_id}_{field_name}_{uuid.uuid4().hex[:8]}{ext}'
+                    f.save(os.path.join(visit_upload_dir, fname))
+                    photo_filenames.append(fname)
+        except Exception as _pe:
+            app.logger.error(f'[Checkin] Photo save failed: {_pe}')
 
         visit = Visit(
             lead_id=lead_id, gabay_id=gid, visited_at=datetime.utcnow(),
@@ -6979,60 +6982,76 @@ def gabay_quick_checkin():
             if outcome == 'registered' and lazada_shortcode:
                 lead.lazada_id = lazada_shortcode
             # ── Compute suggested next visit from outcome ─────────────────
-            _today = (datetime.utcnow() + timedelta(hours=8)).date()
-            _fup = follow_up_date
-            _next_map = {
-                'interested':    _fup or (_today + timedelta(days=3)),
-                'callback':      _fup or (_today + timedelta(days=2)),
-                'follow_up':     _fup or (_today + timedelta(days=5)),
-                'not_interested': _today + timedelta(days=14),
-                'not_home':      _today + timedelta(days=2),
-                'rejected':      _today + timedelta(days=30),
-                'registered':    _today + timedelta(days=7),
-            }
-            if outcome and outcome in _next_map:
-                lead.suggested_next_visit = _next_map[outcome]
+            try:
+                _today = (datetime.utcnow() + timedelta(hours=8)).date()
+                _fup = follow_up_date
+                _next_map = {
+                    'interested':    _fup or (_today + timedelta(days=3)),
+                    'callback':      _fup or (_today + timedelta(days=2)),
+                    'follow_up':     _fup or (_today + timedelta(days=5)),
+                    'not_interested': _today + timedelta(days=14),
+                    'not_home':      _today + timedelta(days=2),
+                    'rejected':      _today + timedelta(days=30),
+                    'registered':    _today + timedelta(days=7),
+                }
+                if outcome and outcome in _next_map:
+                    lead.suggested_next_visit = _next_map[outcome]
+            except Exception as _ne:
+                app.logger.error(f'[Checkin] Next-visit compute failed: {_ne}')
             # ── Competitor visit alert ────────────────────────────────────
-            if lead.project:
-                supervisors = User.query.filter(
-                    User.role.in_(['supervisor', 'admin', 'manager', 'superadmin']),
-                    User.is_active == True
-                ).all()
-                gabay_name = current_user.display_name
-                for sup in supervisors:
-                    notif = Notification(
-                        user_id=sup.id,
-                        type='competitor_visit',
-                        title=f'🏴 Competitor Lead Visited — {lead.project}',
-                        message=(
-                            f'{gabay_name} visited {lead.seller_name} '
-                            f'(currently on {lead.project}). '
-                            f'Outcome: {outcome or "—"}. '
-                            f'These sellers know the process — fast-track if interested!'
-                        ),
-                        link=f'/leads/{lead.id}',
-                        related_lead_id=lead.id,
-                    )
-                    db.session.add(notif)
-        db.session.commit()
+            try:
+                if lead.project:
+                    supervisors = User.query.filter(
+                        User.role.in_(['supervisor', 'admin', 'manager', 'superadmin']),
+                        User.is_active == True
+                    ).all()
+                    gabay_name = current_user.display_name
+                    for sup in supervisors:
+                        notif = Notification(
+                            user_id=sup.id,
+                            type='competitor_visit',
+                            title=f'Competitor Lead Visited — {lead.project}',
+                            message=(
+                                f'{gabay_name} visited {lead.seller_name} '
+                                f'(currently on {lead.project}). '
+                                f'Outcome: {outcome or "-"}. '
+                                f'These sellers know the process — fast-track if interested!'
+                            ),
+                            link=f'/leads/{lead.id}',
+                            related_lead_id=lead.id,
+                        )
+                        db.session.add(notif)
+            except Exception as _ce:
+                app.logger.error(f'[Checkin] Competitor notif failed: {_ce}')
+        try:
+            db.session.commit()
+        except Exception as _dbe:
+            app.logger.error(f'[Checkin] DB commit failed: {_dbe}')
+            db.session.rollback()
+            flash('Something went wrong saving your check-in. Please try again.', 'danger')
+            return redirect(url_for('gabay_quick_checkin', lead_id=lead_id))
 
-        # Notify managers via WhatsApp on every Gabay visit
-        if lead:
-            outcome_emoji = {
-                'interested':'🟢','not_interested':'🔴','callback':'🔵',
-                'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅',
-            }.get(outcome,'📋')
-            status_line = f"\n📊 Lead status → *{lead.status_label}*" if new_status else ''
-            _visit_msg = (
-                f"{outcome_emoji} *Visit Logged*\n"
-                f"👤 Agent: {current_user.full_name}\n"
-                f"🏪 Seller: {lead.seller_name}\n"
-                f"📋 Outcome: {(outcome or '').replace('_',' ').title()}"
-                f"{status_line}\n"
-                f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
-            )
-            _notify_managers_whatsapp(_visit_msg)
-            _notify_managers_telegram(_visit_msg)
+        # Notify managers via WhatsApp/Telegram on every Gabay visit
+        try:
+            if lead:
+                outcome_emoji = {
+                    'interested':'🟢','not_interested':'🔴','callback':'🔵',
+                    'follow_up':'🟡','not_home':'⚪','rejected':'🔴','registered':'✅',
+                }.get(outcome,'📋')
+                _lead_status = lead.status_label if new_status else ''
+                status_line = f"\n📊 Lead status → *{_lead_status}*" if _lead_status else ''
+                _visit_msg = (
+                    f"{outcome_emoji} *Visit Logged*\n"
+                    f"👤 Agent: {current_user.full_name or current_user.username}\n"
+                    f"🏪 Seller: {lead.seller_name}\n"
+                    f"📋 Outcome: {(outcome or '').replace('_',' ').title()}"
+                    f"{status_line}\n"
+                    f"📍 {gps_address[:60] if gps_address else 'No GPS'}"
+                )
+                _notify_managers_whatsapp(_visit_msg)
+                _notify_managers_telegram(_visit_msg)
+        except Exception as _me:
+            app.logger.error(f'[Checkin] Manager notify failed: {_me}')
 
             # ── Special registration alert — sent separately for maximum urgency ──
             if outcome == 'registered':
