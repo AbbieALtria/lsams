@@ -14,7 +14,7 @@ from datetime import datetime, timedelta
 
 logger = logging.getLogger(__name__)
 
-TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '')
+TELEGRAM_TOKEN = os.environ.get('TELEGRAM_BOT_TOKEN', '').strip()
 TELEGRAM_API   = f'https://api.telegram.org/bot{TELEGRAM_TOKEN}'
 
 
